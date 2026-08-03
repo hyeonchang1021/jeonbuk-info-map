@@ -1,0 +1,6 @@
+# vendor/ 는 unpkg 원본 그대로 유지한다 — 줄바꿈을 변환하면 STATUS.md·README 에 기록한
+# SHA256 과 어긋나 무결성 확인이 불가능해진다. 근거: git 이 add 시 LF→CRLF 변환을 경고했다.
+vendor/** -text
+
+# 본체도 원본 바이트 유지 (2.6MB 인라인 데이터, 변환 이득 없음)
+index.html -text
