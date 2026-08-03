@@ -3,9 +3,11 @@
 전북특별자치도의 행정경계·인구·공공시설·용도지역·도로망을 한 화면에서 보는 정적 웹 지도.
 데이터가 HTML 안에 전부 들어 있어 **빌드 과정도, 서버도 필요 없다.**
 
+**라이브: <https://hyeonchang1021.github.io/jeonbuk-info-map/>**
+
 | | |
 |---|---|
-| 배포 형태 | 정적 사이트 (GitHub Pages) |
+| 배포 형태 | 정적 사이트 (GitHub Pages, branch `main` / root) |
 | 진입점 | `index.html` |
 | 외부 런타임 의존 | 배경 지도 타일뿐 (아래 §폴백) |
 | 페이지 용량 | `index.html` 약 2.6MB (데이터 인라인), `vendor/` 약 162KB |
