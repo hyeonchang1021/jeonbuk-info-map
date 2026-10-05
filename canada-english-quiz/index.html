@@ -1,0 +1,684 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>캐나다 현장 영어 퀴즈</title>
+<style>
+:root{
+  --bg:#f5f2ec; --card:#fffdf9; --ink:#1e1b17; --muted:#6e675d; --line:#e0d9cd;
+  --accent:#23406b; --accent-soft:#e6ecf5; --mark:#c8321f;
+  --ok:#1c7446; --ok-bg:#e4f2e9; --no:#b3261e; --no-bg:#fbe8e6;
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    --bg:#15161a; --card:#1e2025; --ink:#ebe7df; --muted:#a09a90; --line:#353840;
+    --accent:#9db9ea; --accent-soft:#252d3d; --mark:#e5604e;
+    --ok:#74d39c; --ok-bg:#1b3023; --no:#f2938a; --no-bg:#3a2321;
+  }
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html{-webkit-text-size-adjust:100%}
+body{
+  margin:0; background:var(--bg); color:var(--ink);
+  font-family:"Pretendard","Apple SD Gothic Neo","Malgun Gothic","Noto Sans KR",system-ui,sans-serif;
+  line-height:1.55; word-break:keep-all;
+}
+.wrap{max-width:680px; margin:0 auto; padding:28px 16px 64px}
+button{font:inherit; color:inherit}
+button:focus-visible{outline:2px solid var(--accent); outline-offset:2px}
+
+.eyebrow{font-size:.8rem; letter-spacing:.04em; color:var(--muted); display:flex; align-items:center; gap:9px}
+.eyebrow::before{content:""; width:8px; height:8px; background:var(--mark); transform:rotate(45deg); border-radius:1px}
+h1{font-size:clamp(1.6rem,5vw,2.1rem); line-height:1.25; margin:10px 0 8px; letter-spacing:-.02em}
+.lede{color:var(--muted); margin:0 0 24px}
+
+.panel{background:var(--card); border:1px solid var(--line); border-radius:16px; padding:20px}
+.field{margin-bottom:18px}
+.label{display:block; font-size:.85rem; color:var(--muted); margin-bottom:8px}
+.seg{display:flex; flex-wrap:wrap; gap:8px}
+.seg button{
+  padding:9px 14px; border:1px solid var(--line); border-radius:999px;
+  background:transparent; cursor:pointer; min-height:42px;
+}
+.seg button:hover{border-color:var(--ink)}
+.seg button[aria-pressed="true"]{background:var(--ink); color:var(--bg); border-color:var(--ink)}
+.info{font-size:.9rem; color:var(--muted); margin:4px 0 14px}
+.primary{
+  width:100%; padding:14px 18px; border:0; border-radius:12px;
+  background:var(--ink); color:var(--bg); font-weight:700; cursor:pointer; min-height:52px;
+}
+.primary:disabled{opacity:.35; cursor:default}
+.ghost{
+  padding:12px 16px; border:1px solid var(--line); border-radius:12px;
+  background:transparent; cursor:pointer; min-height:48px;
+}
+.ghost:hover{border-color:var(--ink)}
+.source{font-size:.8rem; color:var(--muted); margin-top:18px}
+
+.top{display:flex; align-items:center; justify-content:space-between; gap:12px; font-size:.9rem; color:var(--muted); margin-bottom:10px; font-variant-numeric:tabular-nums}
+.top .quit{border:0; background:none; color:var(--muted); cursor:pointer; padding:6px 0; text-decoration:underline; text-underline-offset:3px}
+.track{height:4px; background:var(--line); border-radius:4px; overflow:hidden; margin-bottom:22px}
+.track i{display:block; height:100%; width:0; background:var(--ink); transition:width .25s}
+.meta{font-size:.82rem; color:var(--muted)}
+.en{
+  font-family:Georgia,"Iowan Old Style","Times New Roman",serif;
+  font-size:clamp(1.45rem,5.2vw,2rem); line-height:1.3; letter-spacing:-.01em;
+  margin:8px 0 14px; word-break:normal; overflow-wrap:anywhere;
+}
+.say{
+  display:inline-flex; align-items:center; gap:6px; padding:7px 12px;
+  border:1px solid var(--line); border-radius:999px; background:transparent;
+  font-size:.85rem; color:var(--muted); cursor:pointer;
+}
+.say:hover{border-color:var(--ink); color:var(--ink)}
+.say svg{width:15px; height:15px}
+.ask{font-size:.9rem; color:var(--muted); margin:20px 0 10px}
+.opts{display:grid; gap:10px}
+.opt{
+  display:flex; align-items:center; gap:12px; width:100%; text-align:left;
+  padding:13px 14px; min-height:54px; border:1px solid var(--line); border-radius:12px;
+  background:var(--card); cursor:pointer;
+}
+.opt .num{
+  flex:none; width:26px; height:26px; border-radius:50%; border:1px solid var(--line);
+  display:grid; place-items:center; font-size:.8rem; color:var(--muted); font-variant-numeric:tabular-nums;
+}
+.opt:hover:not(:disabled){border-color:var(--ink)}
+.opt:disabled{cursor:default; color:inherit}
+.opt.sel{border-color:var(--accent); background:var(--accent-soft)}
+.opt.sel .num{background:var(--accent); border-color:var(--accent); color:var(--card)}
+.opt.correct{border-color:var(--ok); background:var(--ok-bg)}
+.opt.correct .num{background:var(--ok); border-color:var(--ok); color:var(--card)}
+.opt.wrong{border-color:var(--no); background:var(--no-bg)}
+.opt.wrong .num{background:var(--no); border-color:var(--no); color:var(--card)}
+.opt.dim{opacity:.55}
+
+.fb{margin-top:14px; padding:14px 16px; border:1px solid var(--line); border-radius:12px; background:var(--card)}
+.fb.ok{border-color:var(--ok)}
+.fb.no{border-color:var(--no)}
+.fb .verdict{font-weight:700; margin-bottom:4px}
+.fb.ok .verdict{color:var(--ok)}
+.fb.no .verdict{color:var(--no)}
+.fb .line{font-size:.92rem}
+.fb .sub{font-size:.85rem; color:var(--muted); margin-top:4px}
+.actions{margin-top:16px}
+.keys{font-size:.78rem; color:var(--muted); text-align:center; margin-top:10px}
+@media (hover:none){ .keys{display:none} }
+
+.score{font-size:clamp(2.6rem,10vw,3.6rem); font-weight:800; letter-spacing:-.03em; line-height:1.1; font-variant-numeric:tabular-nums}
+.pct{color:var(--muted); margin:6px 0 2px}
+.btns{display:grid; gap:10px; margin:22px 0 8px}
+h2{font-size:1.05rem; margin:28px 0 10px}
+.review{list-style:none; margin:0; padding:0; display:grid; gap:10px}
+.review li{background:var(--card); border:1px solid var(--line); border-radius:12px; padding:14px 16px}
+.r-en{font-family:Georgia,"Iowan Old Style","Times New Roman",serif; font-size:1.1rem; line-height:1.35; word-break:normal}
+.r-ok{color:var(--ok); font-size:.92rem; margin-top:6px}
+.r-no{color:var(--no); font-size:.92rem}
+.r-meta{font-size:.78rem; color:var(--muted); margin-top:6px}
+@media (prefers-reduced-motion: reduce){ .track i{transition:none} }
+</style>
+</head>
+<body>
+<main class="wrap">
+
+  <!-- 시작 화면 -->
+  <section id="start">
+    <div class="eyebrow">캐나다 현장 영어 회화 · 대화편</div>
+    <h1>영어 문장 뜻 맞히기</h1>
+    <p class="lede">영어 문장을 보고 알맞은 한글 뜻을 다섯 개 중에서 고르는 퀴즈입니다. 마트 캐셔, 웨이터(서버), 옷 가게 점원 대화에서 뽑은 <span id="total"></span>문장이 들어 있습니다.</p>
+
+    <div class="panel">
+      <div class="field">
+        <span class="label" id="l-cat">직종</span>
+        <div class="seg" role="group" aria-labelledby="l-cat" data-key="cat">
+          <button type="button" data-val="all" aria-pressed="true">전체</button>
+          <button type="button" data-val="m" aria-pressed="false">마트 캐셔</button>
+          <button type="button" data-val="s" aria-pressed="false">웨이터(서버)</button>
+          <button type="button" data-val="c" aria-pressed="false">옷 가게 점원</button>
+        </div>
+      </div>
+      <div class="field">
+        <span class="label" id="l-who">누가 하는 말</span>
+        <div class="seg" role="group" aria-labelledby="l-who" data-key="who">
+          <button type="button" data-val="all" aria-pressed="true">전체</button>
+          <button type="button" data-val="me" aria-pressed="false">내가 하는 말</button>
+          <button type="button" data-val="cu" aria-pressed="false">손님이 하는 말</button>
+        </div>
+      </div>
+      <div class="field">
+        <span class="label" id="l-count">문제 수</span>
+        <div class="seg" role="group" aria-labelledby="l-count" data-key="count">
+          <button type="button" data-val="10" aria-pressed="true">10</button>
+          <button type="button" data-val="20" aria-pressed="false">20</button>
+          <button type="button" data-val="30" aria-pressed="false">30</button>
+          <button type="button" data-val="all" aria-pressed="false">전체</button>
+        </div>
+      </div>
+      <div class="field">
+        <span class="label" id="l-instant">채점 방식</span>
+        <div class="seg" role="group" aria-labelledby="l-instant" data-key="instant">
+          <button type="button" data-val="no" aria-pressed="true">고른 뒤 정답 확인 버튼</button>
+          <button type="button" data-val="yes" aria-pressed="false">고르면 바로 채점</button>
+        </div>
+      </div>
+      <p class="info" id="poolInfo"></p>
+      <button type="button" class="primary" id="startBtn">시작하기</button>
+    </div>
+    <p class="source">문장 출처: 캐나다 현장 영어 회화 · 대화편 (대화 87개, 영어권 주 기준)</p>
+  </section>
+
+  <!-- 문제 화면 -->
+  <section id="quiz" hidden>
+    <div class="top">
+      <span id="qNum"></span>
+      <span id="qScore"></span>
+      <button type="button" class="quit" id="quitBtn">그만하기</button>
+    </div>
+    <div class="track" aria-hidden="true"><i id="bar"></i></div>
+
+    <div class="meta" id="qMeta"></div>
+    <p class="en" id="qEn" lang="en"></p>
+    <button type="button" class="say" id="sayBtn">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 5 6 9H3v6h3l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M18.5 5.5a9 9 0 0 1 0 13"/></svg>
+      발음 듣기
+    </button>
+
+    <p class="ask">알맞은 뜻을 고르세요.</p>
+    <div class="opts" id="opts"></div>
+
+    <div class="fb" id="fb" role="status" aria-live="polite" hidden>
+      <div class="verdict" id="fbVerdict"></div>
+      <div class="line" id="fbAnswer"></div>
+      <div class="sub" id="fbSit"></div>
+      <div class="sub" id="fbNote"></div>
+    </div>
+
+    <div class="actions">
+      <button type="button" class="primary" id="act" disabled>정답 확인</button>
+    </div>
+    <p class="keys">키보드: 1~5로 고르고 Enter로 확인 · 다음</p>
+  </section>
+
+  <!-- 결과 화면 -->
+  <section id="result" hidden>
+    <div class="eyebrow">결과</div>
+    <div class="score" id="rScore" style="margin-top:12px"></div>
+    <p class="pct" id="rPct"></p>
+    <p id="rMsg" style="margin:0"></p>
+
+    <div class="btns">
+      <button type="button" class="primary" id="retryWrong">틀린 문제만 다시 풀기</button>
+      <button type="button" class="ghost" id="retryNew">같은 설정으로 새로 풀기</button>
+      <button type="button" class="ghost" id="goHome">처음으로</button>
+    </div>
+
+    <div id="rWrongWrap">
+      <h2>틀린 문장</h2>
+      <ul class="review" id="rList"></ul>
+    </div>
+  </section>
+
+</main>
+
+<script>
+(function(){
+'use strict';
+
+/* [직종, 화자, 상황, 영어, 한글, 뜻이 비슷한 묶음(서로 보기로 안 나옴), 메모] */
+const RAW=[
+/* ── 마트 캐셔 ── */
+['m','me','다음 손님',"I can help whoever's next.",'다음 분 도와드릴게요.'],
+['m','me','인사',"Hi there, how's it going?",'안녕하세요.','hi','가볍게 건네는 인사.'],
+['m','cu','인사',"Not bad. How are you?",'괜찮아요. 잘 지내요?','hi'],
+['m','me','인사',"I'm good, thanks!",'저도 좋아요, 감사해요.'],
+['m','me','인사',"Did you find everything okay?",'찾으시는 건 다 찾으셨어요?'],
+['m','cu','인사',"Actually, I couldn't find the oat milk.",'사실 귀리 우유를 못 찾았어요.'],
+['m','me','인사',"Let me get someone to check for you.",'직원 불러서 확인해 드릴게요.','staff'],
+['m','me','대기',"Sorry about the wait.",'기다리게 해서 죄송해요.'],
+['m','cu','대기',"No worries.",'괜찮아요.'],
+['m','me','포인트',"Do you have a points card?",'포인트 카드 있으세요?'],
+['m','cu','포인트',"Can I use my phone number?",'전화번호로 해도 돼요?'],
+['m','me','포인트',"Sure, go ahead and type it in.",'네, 여기에 입력해 주세요.'],
+['m','me','봉투',"Do you need a bag today?",'봉투 필요하세요?'],
+['m','cu','봉투',"No, I brought my own.",'아니요, 가져왔어요.'],
+['m','cu','봉투',"Yes, two please.",'네, 두 장 주세요.'],
+['m','cu','봉투',"How much are they?",'얼마예요?'],
+['m','me','봉투',"They're 25 cents each.",'한 장에 25센트예요.'],
+['m','me','봉투',"Do you want this bagged separately?",'이건 따로 담아 드릴까요?'],
+['m','me','가격 확인',"Let me do a price check.",'가격 확인해 볼게요.','pricecheck'],
+['m','cu','가격 확인',"The sign said $3.99.",'가격표엔 3.99달러라고 돼 있었어요.'],
+['m','me','가격 확인',"You're right. Let me fix that.",'맞네요. 고쳐 드릴게요.'],
+['m','me','연령 확인',"Can I see your ID, please?",'신분증 보여주시겠어요?','id'],
+['m','cu','연령 확인',"I don't have it on me.",'지금 안 가지고 있어요.'],
+['m','me','연령 확인',"Sorry, I can't sell it without ID.",'죄송해요, 신분증 없이는 판매가 안 돼요.','noid'],
+['m','me','총액',"Your total is forty-two fifty.",'총 42달러 50센트예요.'],
+['m','cu','총액',"Can I pay part cash, part card?",'일부는 현금, 나머지는 카드로 돼요?'],
+['m','me','총액',"Sure. How much do you want on the card?",'네. 카드로는 얼마 결제할까요?'],
+['m','me','결제',"Debit or credit?",'직불이에요, 신용이에요?'],
+['m','cu','결제',"Do you take Amex?",'아멕스 돼요?'],
+['m','me','결제',"Sorry, just Visa and Mastercard.",'죄송해요, 비자랑 마스터카드만 돼요.'],
+['m','me','결제',"Go ahead and tap whenever you're ready.",'준비되면 카드 대세요.'],
+['m','cu','결제',"It's not working.",'안 되는데요.'],
+['m','me','결제',"Try inserting the chip instead.",'카드를 꽂아서 해보세요.'],
+['m','me','결제 실패',"It didn't go through. Do you want to try again?",'결제가 안 됐어요. 다시 해보실래요?'],
+['m','cu','결제 실패',"Let me try another card.",'다른 카드로 해볼게요.'],
+['m','cu','결제 실패',"That's weird. Can I pay cash instead?",'이상하네요. 현금으로 내도 돼요?','cash'],
+['m','me','결제 실패',"Sure, no problem.",'네, 그럼요.','sure'],
+['m','me','현금',"Out of twenty?",'20달러 받았습니다.',0,'손님이 낸 지폐 금액을 확인하는 말.'],
+['m','cu','현금',"Oh wait, I have a five.",'아, 잠깐만요. 5달러짜리 있어요.'],
+['m','me','영수증',"Would you like your receipt?",'영수증 드릴까요?'],
+['m','cu','영수증',"Just put it in the bag.",'봉투에 넣어 주세요.'],
+['m','me','마감',"Sorry, this lane is closed.",'죄송해요, 이 계산대는 마감했어요.'],
+['m','cu','마감',"Which one's open?",'어디가 열려 있어요?'],
+['m','me','마감',"Lane three is open.",'3번 계산대가 열려 있어요.'],
+['m','me','마무리',"Have a good one!",'좋은 하루 보내세요.','bye'],
+['m','cu','마무리',"Thanks, you too!",'고마워요, 좋은 하루 보내세요.','bye'],
+['m','cu','위치 질문',"Where's your washroom?",'화장실 어디예요?',0,'캐나다는 restroom 대신 washroom을 쓴다.'],
+['m','me','위치 질문',"It's at the back, past the bakery.",'뒤쪽, 베이커리 지나서 있어요.'],
+['m','cu','위치 질문',"Where can I find the eggs?",'계란 어디 있어요?'],
+['m','me','위치 질문',"They're in aisle five, next to the milk.",'5번 통로, 우유 옆에 있어요.'],
+['m','cu','재고 질문',"Do you have any more of these in the back?",'이거 창고에 더 있어요?'],
+['m','me','재고 질문',"I'm not sure, let me call someone over.",'잘 모르겠어요, 다른 직원 불러 드릴게요.','staff'],
+['m','cu','가격 문의',"That rang up wrong.",'가격이 잘못 찍혔어요.'],
+['m','me','가격 문의',"Sorry about that. Let me do a price check.",'죄송해요. 가격 확인해 볼게요.','pricecheck'],
+['m','cu','세일 문의',"I thought that was on sale.",'그거 세일인 줄 알았는데요.'],
+['m','me','세일 문의',"Let me check. The sale ended yesterday, sorry.",'확인해 볼게요. 세일이 어제 끝났네요, 죄송해요.'],
+['m','cu','품목 취소',"Actually, can you take this off?",'이건 빼 주세요.'],
+['m','cu','캐시백',"Can I get cash back?",'캐시백 돼요?',0,'직불 결제를 하면서 현금을 같이 인출하는 것.'],
+['m','me','캐시백',"Sure. How much would you like?",'네. 얼마 드릴까요?'],
+['m','cu','가격 맞춤',"Do you price match?",'다른 매장 가격에 맞춰 주나요?'],
+['m','me','가격 맞춤',"We do. Do you have the flyer?",'네, 해드려요. 전단지 있으세요?'],
+['m','cu','봉투',"Can you double-bag that?",'봉투 두 겹으로 해 주세요.'],
+['m','me','봉투',"Sure thing.",'네, 그럴게요.','sure'],
+['m','cu','거스름돈',"Why isn't my change exact?",'거스름돈이 왜 딱 안 맞아요?'],
+['m','me','거스름돈',"We round to the nearest five cents for cash.",'현금은 5센트 단위로 반올림해요.',0,'캐나다는 1센트 동전이 없어서 현금 결제만 5센트 단위로 반올림한다.'],
+
+/* ── 웨이터(서버) ── */
+['s','me','맞이',"Hi, how many?",'몇 분이세요?'],
+['s','cu','맞이',"Four. We have a reservation.",'네 명이요. 예약했어요.'],
+['s','me','맞이',"Great. What name is it under?",'네. 어느 분 성함으로 예약하셨어요?'],
+['s','me','대기',"It's about a fifteen-minute wait. Can I get a name?",'15분 정도 기다리셔야 해요. 성함이 어떻게 되세요?'],
+['s','cu','대기',"Can we sit at the bar instead?",'바 자리에 앉아도 돼요?'],
+['s','me','대기',"Of course, sit anywhere at the bar.",'그럼요, 바 아무 데나 앉으세요.'],
+['s','me','안내',"Right this way.",'이쪽으로 오세요.'],
+['s','cu','안내',"Could we get a booth?",'부스 자리로 될까요?'],
+['s','me','안내',"Sure, let me see what's open.",'네, 빈 자리 있는지 볼게요.'],
+['s','me','자기소개',"Hi, I'm (이름). I'll be taking care of you today.",'오늘 담당 서버 (이름)이에요.'],
+['s','cu','자기소개',"Hi, how are you?",'안녕하세요, 잘 지내요?'],
+['s','me','음료',"Can I get you started with something to drink?",'음료부터 주문하시겠어요?'],
+['s','cu','음료',"Just water, please.",'물만 주세요.'],
+['s','cu','음료',"I'll have a Coke.",'콜라 주세요.'],
+['s','cu','음료',"What do you have on tap?",'생맥주는 뭐 있어요?'],
+['s','me','음료',"We have a few local beers. Here's the list.",'지역 맥주가 몇 가지 있어요. 여기 목록이요.'],
+['s','me','주문',"Are you ready to order, or do you need a few more minutes?",'주문하시겠어요, 아니면 조금 더 보실래요?'],
+['s','cu','주문',"We're ready.",'주문할게요.'],
+['s','cu','주문',"Can we have a couple more minutes?",'조금만 더 볼게요.'],
+['s','me','주문',"Of course, take your time.",'그럼요, 천천히 보세요.','slow'],
+['s','me','주문',"What can I get for you?",'뭐 드릴까요?'],
+['s','cu','주문',"I'll have the burger.",'버거 주세요.'],
+['s','cu','주문',"What do you recommend?",'뭐가 맛있어요?'],
+['s','me','주문',"The burger's really popular.",'버거가 제일 잘 나가요.'],
+['s','me','굽기',"How would you like that cooked?",'굽기는 어떻게 해 드릴까요?'],
+['s','me','사이드',"That comes with fries or salad.",'감자튀김이나 샐러드 중에 고르실 수 있어요.'],
+['s','cu','사이드',"Can I get sweet potato fries instead?",'고구마튀김으로 바꿀 수 있어요?'],
+['s','me','사이드',"Sure, that's two dollars extra.",'네, 2달러 추가돼요.'],
+['s','me','알레르기',"Any allergies I should know about?",'알레르기 있으세요?'],
+['s','cu','알레르기',"I'm allergic to nuts.",'견과류 알레르기가 있어요.'],
+['s','me','알레르기',"Got it, I'll let the kitchen know.",'네, 주방에 전달할게요.'],
+['s','me','품절',"Sorry, we're out of that tonight.",'죄송해요, 그건 오늘 다 나갔어요.'],
+['s','cu','품절',"Then I'll have the pasta.",'그럼 파스타로 할게요.'],
+['s','cu','품절',"Oh, okay. What else is good?",'아, 그럼 다른 건 뭐가 괜찮아요?'],
+['s','me','품절',"The fish and chips is really good.",'피시 앤 칩스가 정말 맛있어요.'],
+['s','me','주문 확인',"Let me repeat that back to you.",'주문 확인해 드릴게요.'],
+['s','cu','주문 확인',"Yep, that's right.",'네, 맞아요.'],
+['s','cu','주문 확인',"Oh, can we add a side of fries?",'아, 감자튀김 하나 추가할 수 있어요?'],
+['s','me','주문 확인',"Sure, I'll add that.",'네, 추가해 드릴게요.'],
+['s','me','연령 확인',"Can I see some ID?",'신분증 보여주시겠어요?','id'],
+['s','cu','연령 확인',"I left it in the car.",'차에 두고 왔어요.'],
+['s','me','연령 확인',"Sorry, I can't serve you without it.",'죄송해요, 신분증 없이는 드릴 수 없어요.','noid'],
+['s','me','서빙',"Here you go. Careful, the plate's hot.",'나왔습니다. 접시 뜨거우니 조심하세요.'],
+['s','cu','서빙',"Sorry, I ordered the chicken.",'저는 치킨 시켰는데요.'],
+['s','me','서빙',"I'm so sorry about that. Let me fix it right away.",'정말 죄송해요. 바로 다시 해 드릴게요.','remake'],
+['s','me','서빙',"Can I get you anything else?",'더 필요한 거 있으세요?'],
+['s','cu','서빙',"Could we get some ketchup?",'케첩 좀 주실래요?'],
+['s','me','서빙',"Sure, I'll be right back.",'네, 금방 가져올게요.'],
+['s','me','중간 확인',"How's everything tasting?",'음식은 괜찮으세요?'],
+['s','cu','중간 확인',"Really good, thanks.",'정말 맛있어요.'],
+['s','cu','중간 확인',"It's a bit cold, actually.",'사실 좀 식었어요.'],
+['s','me','중간 확인',"I'm so sorry. Let me get you a fresh one.",'죄송해요. 새로 해서 가져올게요.','remake'],
+['s','me','리필',"Can I get you another one?",'한 잔 더 드릴까요?'],
+['s','me','치우기',"Are you still working on that?",'아직 드시는 중이세요?'],
+['s','cu','치우기',"I'm done, thanks.",'다 먹었어요.','ate'],
+['s','cu','치우기',"Still working on it.",'아직 먹고 있어요.'],
+['s','me','치우기',"No rush.",'천천히 드세요.','slow'],
+['s','me','디저트',"Did you save room for dessert?",'디저트 드실래요?'],
+['s','cu','디저트',"No, just the bill, please.",'아니요, 계산서만 주세요.','bill'],
+['s','cu','디저트',"What do you have?",'뭐 있어요?'],
+['s','me','디저트',"We have cheesecake and a brownie.",'치즈케이크랑 브라우니 있어요.'],
+['s','me','포장',"Would you like a box for that?",'남은 거 포장해 드릴까요?'],
+['s','me','계산',"Is this together or separate?",'같이 계산하세요, 따로 하세요?'],
+['s','cu','계산',"Can you split it three ways?",'셋으로 나눠 줄 수 있어요?','split'],
+['s','me','계산',"I'll grab the machine.",'결제기 가져올게요.',0,'캐나다는 결제기를 테이블로 들고 가고, 팁도 그 기계에서 손님이 직접 고른다.'],
+['s','cu','계산',"Can I pay cash?",'현금으로 내도 돼요?','cash'],
+['s','me','계산',"Of course. I'll bring your change.",'그럼요. 거스름돈 가져다 드릴게요.'],
+['s','me','마무리',"Thanks so much, have a great night!",'감사합니다, 좋은 밤 보내세요.','bye'],
+['s','cu','마무리',"You too! Everything was great.",'네, 잘 먹었어요.','ate'],
+['s','cu','계산',"Can we get the bill?",'계산서 주세요.','bill','캐나다는 check보다 bill을 더 많이 쓴다.'],
+['s','cu','계산',"Can we split it?",'나눠서 계산할 수 있어요?','split'],
+['s','me','계산',"Sure. Evenly, or by what you each ordered?",'네. 똑같이 나눌까요, 각자 드신 대로 할까요?'],
+['s','cu','메뉴 변경',"Can I sub the fries for a salad?",'감자튀김을 샐러드로 바꿀 수 있어요?'],
+['s','cu','성분 문의',"Is this gluten-free?",'이거 글루텐 없나요?'],
+['s','me','성분 문의',"Let me check with the kitchen.",'주방에 확인해 볼게요.'],
+['s','cu','음료',"What kind of pop do you have?",'탄산음료 뭐 있어요?',0,'캐나다는 soda 대신 pop을 쓴다.'],
+['s','me','음료',"We have Coke, Diet Coke, Sprite, and ginger ale.",'콜라, 다이어트 콜라, 스프라이트, 진저에일 있어요.'],
+['s','cu','음식 지연',"We're still waiting on our food.",'음식이 아직 안 나왔어요.'],
+['s','me','음식 지연',"I'm so sorry. Let me check on that for you.",'정말 죄송해요. 바로 확인해 볼게요.'],
+['s','cu','포장',"Can I get this to go?",'이거 포장해 주세요.'],
+['s','me','포장',"Sure, I'll box it up for you.",'네, 포장해 드릴게요.'],
+
+/* ── 옷 가게 점원 ── */
+['c','me','인사',"Hi, welcome in!",'어서 오세요.'],
+['c','me','다가가기',"Are you looking for anything in particular?",'찾으시는 거 있으세요?'],
+['c','cu','다가가기',"I'm just looking, thanks.",'그냥 구경하는 거예요.'],
+['c','cu','다가가기',"Yeah, I'm looking for a winter jacket.",'네, 겨울 재킷 찾고 있어요.'],
+['c','me','다가가기',"They're right over here.",'이쪽에 있어요.'],
+['c','me','다가가기',"Let me know if you need any help.",'필요하시면 말씀해 주세요.','letmeknow'],
+['c','cu','다가가기',"Actually, where are your jeans?",'저, 청바지는 어디 있어요?'],
+['c','me','다가가기',"They're along the back wall.",'뒤쪽 벽면에 있어요.'],
+['c','me','사이즈',"What size are you looking for?",'어떤 사이즈 찾으세요?'],
+['c','cu','사이즈',"I'm not sure. I'm usually a small.",'잘 모르겠어요. 보통 스몰 입어요.'],
+['c','me','사이즈',"Try the small first. I can grab a medium too.",'스몰 먼저 입어 보세요. 미디엄도 가져다 드릴게요.'],
+['c','me','재고',"Let me check in the back.",'창고에 있는지 확인해 볼게요.'],
+['c','cu','재고',"Any luck?",'찾았어요?'],
+['c','me','재고',"Yes, here you go. It was the last one.",'네, 여기요. 마지막 한 벌이었어요.'],
+['c','me','재고',"Sorry, we're sold out in that size.",'죄송해요, 그 사이즈는 품절이에요.'],
+['c','cu','재고',"Oh, that's too bad.",'아, 아쉽네요.'],
+['c','cu','재고',"Will you get more in?",'다시 들어와요?'],
+['c','me','재고',"We should get more next week.",'다음 주에 더 들어올 거예요.'],
+['c','me','대안',"We have it in black and navy.",'검정이랑 네이비는 있어요.'],
+['c','cu','대안',"I'll try the navy.",'네이비 입어 볼게요.'],
+['c','cu','대안',"Hmm, I really wanted the grey.",'음, 회색이 꼭 갖고 싶었는데요.'],
+['c','me','대안',"I can check if another location has it.",'다른 매장에 있는지 확인해 드릴게요.'],
+['c','cu','대안',"That'd be great.",'그래 주시면 좋죠.'],
+['c','cu','대안',"Can you ship it here?",'이 매장으로 보내줄 수 있어요?'],
+['c','me','대안',"Yes, it takes three to five business days.",'네, 영업일로 3~5일 걸려요.'],
+['c','me','피팅룸',"Want me to start a fitting room for you?",'피팅룸에 가져다 놓을까요?'],
+['c','cu','피팅룸',"Not yet, I'm still looking.",'아직요, 더 볼게요.'],
+['c','me','피팅룸',"No problem, just let me know.",'네, 필요하면 말씀하세요.','letmeknow'],
+['c','me','피팅룸',"How many items do you have?",'몇 벌 가지고 들어가세요?'],
+['c','cu','피팅룸',"Is there a limit?",'제한이 있어요?'],
+['c','me','피팅룸',"It's six at a time.",'한 번에 여섯 벌까지예요.'],
+['c','me','피팅룸',"How's everything fitting?",'사이즈는 잘 맞으세요?'],
+['c','cu','피팅룸',"This one's a bit tight. Can I get a large?",'이건 좀 끼네요. 라지로 줄 수 있어요?'],
+['c','me','피팅룸',"Do you need a different size?",'다른 사이즈 가져다 드릴까요?'],
+['c','cu','피팅룸',"No, this one's perfect.",'아니요, 딱 맞아요.'],
+['c','cu','피팅룸',"Yes, one size up, please.",'네, 한 치수 큰 걸로요.'],
+['c','me','피팅룸',"Sure, I'll grab it for you.",'네, 가져다 드릴게요.'],
+['c','me','추천',"It runs small, so I'd size up.",'작게 나온 옷이라 한 치수 크게 추천해요.'],
+['c','cu','추천',"Oh, good to know.",'아, 그렇군요.'],
+['c','cu','추천',"Does it shrink in the wash?",'빨면 줄어들어요?'],
+['c','me','추천',"A little. I'd wash it cold and hang it to dry.",'조금요. 찬물에 빨고 널어서 말리세요.'],
+['c','me','칭찬',"That looks great on you.",'잘 어울리세요.'],
+['c','cu','칭찬',"You think so? Is it too long?",'그래요? 너무 길지 않아요?'],
+['c','me','칭찬',"No, that's how it's supposed to fit.",'아니요, 원래 그렇게 입는 옷이에요.'],
+['c','me','세일',"Everything on this rack is 30% off.",'이 행거에 있는 건 전부 30% 할인이에요.'],
+['c','cu','세일',"Is that the price on the tag?",'가격표에 있는 게 할인가예요?'],
+['c','me','세일',"No, it's 30% off the tag price.",'아니요, 가격표에서 30% 더 빠져요.'],
+['c','me','계산',"Are you all set? I can ring you up over here.",'다 고르셨어요? 이쪽에서 계산해 드릴게요.'],
+['c','cu','계산',"Yep, all set.",'네, 다 골랐어요.'],
+['c','cu','계산',"Can you hold these while I keep looking?",'더 구경하는 동안 이거 맡아 줄 수 있어요?','hold'],
+['c','me','계산',"Sure, I'll keep them at the counter.",'네, 카운터에 보관해 둘게요.'],
+['c','me','영수증',"Would you like your receipt emailed or printed?",'영수증은 이메일로 드릴까요, 출력해 드릴까요?'],
+['c','cu','영수증',"Emailed is fine.",'이메일로 주세요.'],
+['c','cu','영수증',"Can I get a gift receipt?",'선물용 영수증 받을 수 있어요?'],
+['c','me','영수증',"Sure, I'll put it in the bag.",'네, 봉투에 넣어 드릴게요.'],
+['c','me','반품 안내',"You have 30 days to return it with the receipt.",'영수증 있으면 30일 안에 반품돼요.'],
+['c','cu','반품 안내',"What if I lose the receipt?",'영수증을 잃어버리면요?'],
+['c','me','반품 안내',"Then I can only do store credit.",'그러면 매장 크레딧으로만 돼요.'],
+['c','me','반품 안내',"Sale items are final sale.",'세일 상품은 교환·환불이 안 돼요.','finalsale'],
+['c','cu','반품 안내',"So I can't even exchange it?",'교환도 안 된다는 거예요?'],
+['c','me','반품 안내',"Sorry, no returns or exchanges on sale items.",'죄송해요, 세일 상품은 반품도 교환도 안 돼요.','finalsale'],
+['c','me','반품 처리',"Do you have your receipt?",'영수증 있으세요?'],
+['c','cu','반품 처리',"No, but I paid with this card.",'아니요, 근데 이 카드로 결제했어요.'],
+['c','me','반품 처리',"Okay, let me look it up.",'네, 조회해 볼게요.'],
+['c','me','반품 처리',"I can do an exchange or store credit.",'교환이나 매장 크레딧으로 해 드릴 수 있어요.'],
+['c','cu','반품 처리',"I'll take the store credit.",'매장 크레딧으로 할게요.'],
+['c','cu','반품 처리',"Can't I get a refund?",'환불은 안 돼요?'],
+['c','me','반품 처리',"Sorry, refunds are only within 30 days.",'죄송해요, 환불은 30일 이내만 돼요.'],
+['c','me','마무리',"Have a great day!",'좋은 하루 보내세요.','bye'],
+['c','me','구경하는 손님',"No problem, take your time.",'네, 천천히 보세요.'],
+['c','cu','재고 질문',"Do you have this in a medium?",'이거 미디엄 있어요?'],
+['c','cu','위치 질문',"Where are your change rooms?",'피팅룸 어디예요?',0,'캐나다는 fitting room을 change room이라고도 한다.'],
+['c','me','위치 질문',"They're at the back, on the right.",'뒤쪽 오른편에 있어요.'],
+['c','cu','가격 문의',"Is this the right price?",'이 가격 맞아요?'],
+['c','me','가격 문의',"Let me scan it for you.",'찍어서 확인해 드릴게요.'],
+['c','cu','보관 요청',"Can you put this on hold for me?",'이거 잠깐 맡아 주실 수 있어요?','hold'],
+['c','me','보관 요청',"Sure. We can hold it until closing. What's your name?",'네. 마감 때까지 보관돼요. 성함이 어떻게 되세요?'],
+['c','cu','반품 문의',"Can I return this without a receipt?",'영수증 없이 반품돼요?'],
+['c','cu','위치 질문',"Do you have any toques?",'비니 있어요?',0,'toque는 캐나다에서 비니를 부르는 말.'],
+['c','me','위치 질문',"Yes, they're by the front, next to the scarves.",'네, 입구 쪽 목도리 옆에 있어요.']
+];
+
+const CATS={m:'마트 캐셔',s:'웨이터(서버)',c:'옷 가게 점원'};
+const WHO={me:'내가 하는 말',cu:'손님이 하는 말'};
+
+function bigrams(s){
+  const t=s.replace(/[\s.,?!·~()\/]/g,'');
+  const set=new Set();
+  for(let i=0;i<t.length-1;i++) set.add(t.slice(i,i+2));
+  return set;
+}
+function sim(a,b){
+  if(!a.size||!b.size) return 0;
+  let n=0; a.forEach(x=>{ if(b.has(x)) n++; });
+  return n/(a.size+b.size-n);
+}
+function shuffle(arr){
+  const a=arr.slice();
+  for(let i=a.length-1;i>0;i--){
+    const j=Math.floor(Math.random()*(i+1));
+    const t=a[i]; a[i]=a[j]; a[j]=t;
+  }
+  return a;
+}
+
+const ITEMS=RAW.map((r,i)=>({id:i,cat:r[0],who:r[1],sit:r[2],en:r[3],ko:r[4],g:r[5]||'',note:r[6]||'',bg:bigrams(r[4])}));
+
+/* 보기 5개: 정답 1 + 같은 직종에서 고른 오답 4 (비슷한 문장 2, 무작위 2) */
+function buildChoices(it){
+  const seen=new Set([it.ko]);
+  const pool=[];
+  for(const c of ITEMS){
+    if(c.cat!==it.cat||seen.has(c.ko)) continue;
+    if(it.g&&c.g===it.g) continue;
+    if(c.en===it.en) continue;
+    const s=sim(it.bg,c.bg);
+    if(s>=0.7) continue;
+    seen.add(c.ko);
+    pool.push({ko:c.ko,s:s});
+  }
+  pool.sort((a,b)=>b.s-a.s);
+  const near=shuffle(pool.slice(0,6)).slice(0,2);
+  const far=shuffle(pool.slice(6)).slice(0,2);
+  return shuffle([it.ko].concat(near.map(x=>x.ko),far.map(x=>x.ko)));
+}
+
+const $=s=>document.querySelector(s);
+const state={cat:'all',who:'all',count:'10',instant:'no',queue:[],idx:0,score:0,log:[],picked:null,revealed:false,choices:[]};
+const canSpeak=typeof window!=='undefined'&&'speechSynthesis' in window&&typeof SpeechSynthesisUtterance!=='undefined';
+
+function show(name){
+  ['start','quiz','result'].forEach(id=>{ $('#'+id).hidden=(id!==name); });
+  window.scrollTo(0,0);
+}
+function currentPool(){
+  return ITEMS.filter(it=>(state.cat==='all'||it.cat===state.cat)&&(state.who==='all'||it.who===state.who));
+}
+function questionCount(pool){
+  return state.count==='all'?pool.length:Math.min(parseInt(state.count,10),pool.length);
+}
+function updateInfo(){
+  const pool=currentPool();
+  $('#poolInfo').textContent='선택한 범위 '+pool.length+'문장 중 '+questionCount(pool)+'문제를 무작위로 냅니다.';
+}
+
+function begin(items){
+  state.queue=items; state.idx=0; state.score=0; state.log=[];
+  show('quiz');
+  showQuestion();
+}
+function startNew(){
+  const pool=currentPool();
+  begin(shuffle(pool).slice(0,questionCount(pool)));
+}
+
+function showQuestion(){
+  const it=state.queue[state.idx];
+  state.picked=null; state.revealed=false;
+  state.choices=buildChoices(it);
+  $('#qNum').textContent=(state.idx+1)+' / '+state.queue.length;
+  $('#qScore').textContent='정답 '+state.score;
+  $('#bar').style.width=(state.idx/state.queue.length*100)+'%';
+  $('#qMeta').textContent=CATS[it.cat]+' · '+WHO[it.who];
+  $('#qEn').textContent=it.en;
+  const box=$('#opts');
+  box.innerHTML='';
+  state.choices.forEach((ko,i)=>{
+    const b=document.createElement('button');
+    b.type='button'; b.className='opt'; b.dataset.i=i;
+    const n=document.createElement('span'); n.className='num'; n.textContent=i+1;
+    const t=document.createElement('span'); t.className='txt'; t.textContent=ko;
+    b.appendChild(n); b.appendChild(t);
+    b.addEventListener('click',()=>pick(i));
+    box.appendChild(b);
+  });
+  $('#fb').hidden=true;
+  const act=$('#act');
+  act.textContent='정답 확인';
+  act.disabled=true;
+  act.hidden=(state.instant==='yes');
+}
+
+function pick(i){
+  if(state.revealed||i<0||i>=state.choices.length) return;
+  state.picked=i;
+  document.querySelectorAll('#opts .opt').forEach((b,k)=>b.classList.toggle('sel',k===i));
+  $('#act').disabled=false;
+  if(state.instant==='yes') reveal();
+}
+
+function reveal(){
+  if(state.picked===null||state.revealed) return;
+  state.revealed=true;
+  const it=state.queue[state.idx];
+  const right=state.choices.indexOf(it.ko);
+  const ok=(state.picked===right);
+  if(ok) state.score++;
+  state.log.push({it:it,picked:state.choices[state.picked],ok:ok});
+
+  document.querySelectorAll('#opts .opt').forEach((b,k)=>{
+    b.disabled=true;
+    b.classList.remove('sel');
+    if(k===right) b.classList.add('correct');
+    else if(k===state.picked) b.classList.add('wrong');
+    else b.classList.add('dim');
+  });
+
+  const fb=$('#fb');
+  fb.className='fb '+(ok?'ok':'no');
+  $('#fbVerdict').textContent=ok?'정답입니다':'오답입니다';
+  $('#fbAnswer').textContent='정답: '+it.ko;
+  $('#fbSit').textContent='상황: '+it.sit+' · '+WHO[it.who];
+  $('#fbNote').textContent=it.note;
+  $('#fbNote').hidden=!it.note;
+  fb.hidden=false;
+
+  $('#qScore').textContent='정답 '+state.score;
+  $('#bar').style.width=((state.idx+1)/state.queue.length*100)+'%';
+  const act=$('#act');
+  act.hidden=false; act.disabled=false;
+  act.textContent=(state.idx+1>=state.queue.length)?'결과 보기':'다음 문제';
+  act.focus();
+}
+
+function next(){
+  state.idx++;
+  if(state.idx>=state.queue.length) showResult(); else showQuestion();
+}
+
+function showResult(){
+  const n=state.log.length, s=state.score, pct=n?Math.round(s/n*100):0;
+  $('#rScore').textContent=s+' / '+n;
+  $('#rPct').textContent='정답률 '+pct+'%';
+  $('#rMsg').textContent=pct===100?'전부 맞혔어요.':pct>=80?'틀린 문장만 한 번 더 보면 됩니다.':'틀린 문장 위주로 다시 풀어 보세요.';
+  const wrong=state.log.filter(l=>!l.ok);
+  $('#rWrongWrap').hidden=!wrong.length;
+  $('#retryWrong').hidden=!wrong.length;
+  const list=$('#rList');
+  list.innerHTML='';
+  wrong.forEach(l=>{
+    const li=document.createElement('li');
+    const en=document.createElement('div'); en.className='r-en'; en.lang='en'; en.textContent=l.it.en;
+    const ok=document.createElement('div'); ok.className='r-ok'; ok.textContent='정답: '+l.it.ko;
+    const no=document.createElement('div'); no.className='r-no'; no.textContent='내가 고른 답: '+l.picked;
+    const meta=document.createElement('div'); meta.className='r-meta';
+    meta.textContent=CATS[l.it.cat]+' · '+l.it.sit+' · '+WHO[l.it.who]+(l.it.note?' · '+l.it.note:'');
+    li.appendChild(en); li.appendChild(ok); li.appendChild(no); li.appendChild(meta);
+    list.appendChild(li);
+  });
+  show('result');
+}
+
+function speak(text){
+  if(!canSpeak) return;
+  const clean=text.replace(/\(이름\)/g,'Alex').replace(/\s*\/\s*/g,', ');
+  const u=new SpeechSynthesisUtterance(clean);
+  u.lang='en-CA'; u.rate=0.95;
+  window.speechSynthesis.cancel();
+  window.speechSynthesis.speak(u);
+}
+
+/* 이벤트 연결 */
+document.querySelectorAll('.seg').forEach(seg=>{
+  seg.addEventListener('click',e=>{
+    const b=e.target.closest('button');
+    if(!b) return;
+    seg.querySelectorAll('button').forEach(x=>x.setAttribute('aria-pressed',x===b?'true':'false'));
+    state[seg.dataset.key]=b.dataset.val;
+    updateInfo();
+  });
+});
+$('#startBtn').addEventListener('click',startNew);
+$('#act').addEventListener('click',()=>{ if(state.revealed) next(); else reveal(); });
+$('#quitBtn').addEventListener('click',()=>{ if(state.log.length) showResult(); else show('start'); });
+$('#retryWrong').addEventListener('click',()=>{ begin(shuffle(state.log.filter(l=>!l.ok).map(l=>l.it))); });
+$('#retryNew').addEventListener('click',startNew);
+$('#goHome').addEventListener('click',()=>show('start'));
+$('#sayBtn').addEventListener('click',()=>{ const it=state.queue[state.idx]; if(it) speak(it.en); });
+$('#sayBtn').hidden=!canSpeak;
+
+document.addEventListener('keydown',e=>{
+  if($('#quiz').hidden||e.metaKey||e.ctrlKey||e.altKey) return;
+  if(e.key>='1'&&e.key<='5'){ pick(parseInt(e.key,10)-1); return; }
+  if(e.key==='Enter'){
+    const a=document.activeElement;
+    const act=$('#act');
+    if(a&&a.tagName==='BUTTON'&&a!==act){
+      const isOpt=a.classList.contains('opt');
+      if(!isOpt) return;                                   /* 발음 듣기·그만하기 버튼은 그대로 동작 */
+      if(!state.revealed&&state.picked!==Number(a.dataset.i)) return; /* 아직 안 고른 보기면 그 보기를 선택 */
+    }
+    if(a===act) return;                                    /* 버튼 자체의 클릭으로 처리 */
+    e.preventDefault();
+    if(!act.hidden&&!act.disabled) act.click();
+  }
+});
+
+$('#total').textContent=ITEMS.length;
+updateInfo();
+})();
+</script>
+</body>
+</html>
