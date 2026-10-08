@@ -36,7 +36,10 @@ button:focus-visible,select:focus-visible{outline:2px solid var(--accent); outli
 
 .eyebrow{font-size:.8rem; color:var(--accent); font-weight:600; letter-spacing:.02em}
 h1{font-size:clamp(1.7rem,6vw,2.2rem); line-height:1.2; margin:4px 0 10px; letter-spacing:-.02em; text-wrap:balance}
-.lede{margin:0 0 22px; color:var(--muted)}
+.lede{margin:0 0 10px; color:var(--muted)}
+.levels{margin:0 0 22px; font-size:.88rem; color:var(--muted)}
+.levels a{color:var(--accent); text-underline-offset:3px}
+.levels b{color:var(--ink); font-weight:600}
 
 .panel{background:var(--surface); border:1px solid var(--line); border-radius:12px; padding:20px; display:flex; flex-direction:column; gap:18px}
 .field{display:flex; flex-direction:column; gap:8px}
@@ -103,9 +106,10 @@ h2{font-size:1.05rem; margin:28px 0 6px; padding-bottom:6px; border-bottom:2px s
 <div class="wrap">
 
   <section id="start">
-    <div class="eyebrow">캐나다 일상생활 기준</div>
+    <div class="eyebrow">캐나다 일상생활 기준 · 기초</div>
     <h1>기초 영단어 500 퀴즈</h1>
     <p class="lede">영어 단어를 보고 알맞은 한글 뜻을 다섯 개 중에서 고르는 퀴즈입니다. 기초 단어 500개가 21개 주제로 들어 있고, 보기는 같은 주제의 다른 단어 뜻에서 나옵니다.</p>
+    <nav class="levels" aria-label="단계">단계 <b aria-current="page">기초</b> · <a href="../english-intermediate-quiz/">중급</a> · <a href="../english-advanced-quiz/">고급</a></nav>
 
     <div class="panel">
       <div class="field">
