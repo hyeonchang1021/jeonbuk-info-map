@@ -1,0 +1,356 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>[hidden]{display:none!important}</style>
+<title>중급 영단어 500 퀴즈</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+KR:wght@400;500;600;700&family=IBM+Plex+Serif:wght@500;600&display=swap">
+<style>
+/* 배치: 한 단짜리 문제지. 표제어는 사전처럼 세리프로 크게, 보기는 고딕, 번호·진행은 고정폭. 시작 → 문제 → 결과 세 화면을 차례로 보여 준다. */
+:root{
+  --bg:#f2f6f4; --surface:#ffffff; --ink:#15302a; --muted:#5a6f69; --line:#d5dfdb;
+  --accent:#1c6b58; --accent-soft:#e0efe9; --note:#96590a;
+  --ok:#1b7440; --ok-bg:#e2f2e7; --no:#b0281f; --no-bg:#fbe7e4;
+  --f-word:"IBM Plex Serif",Georgia,"Times New Roman",serif;
+  --f-body:"IBM Plex Sans KR","Apple SD Gothic Neo","Malgun Gothic","Noto Sans KR",system-ui,sans-serif;
+  --f-data:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0f1917; --surface:#17231f; --ink:#e4edea; --muted:#93a8a2; --line:#2b3a36;
+    --accent:#62c6aa; --accent-soft:#1d332d; --note:#e2a94f;
+    --ok:#77d49c; --ok-bg:#183024; --no:#f2958b; --no-bg:#3a2220; color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0f1917; --surface:#17231f; --ink:#e4edea; --muted:#93a8a2; --line:#2b3a36;
+  --accent:#62c6aa; --accent-soft:#1d332d; --note:#e2a94f;
+  --ok:#77d49c; --ok-bg:#183024; --no:#f2958b; --no-bg:#3a2220; color-scheme:dark;
+}
+*{box-sizing:border-box}
+body{margin:0; background:var(--bg); color:var(--ink); font-family:var(--f-body); font-size:16px; line-height:1.55; word-break:keep-all}
+.wrap{max-width:640px; margin:0 auto; padding-inline:16px; padding-block:28px 56px}
+button,select{font:inherit; color:inherit}
+button:focus-visible,select:focus-visible{outline:2px solid var(--accent); outline-offset:2px}
+
+.eyebrow{font-size:.8rem; color:var(--accent); font-weight:600; letter-spacing:.02em}
+h1{font-size:clamp(1.7rem,6vw,2.2rem); line-height:1.2; margin:4px 0 10px; letter-spacing:-.02em; text-wrap:balance}
+.lede{margin:0 0 10px; color:var(--muted)}
+.levels{margin:0 0 22px; font-size:.88rem; color:var(--muted)}
+.levels a{color:var(--accent); text-underline-offset:3px}
+.levels b{color:var(--ink); font-weight:600}
+
+.panel{background:var(--surface); border:1px solid var(--line); border-radius:12px; padding:20px; display:flex; flex-direction:column; gap:18px}
+.field{display:flex; flex-direction:column; gap:8px}
+.label{font-size:.85rem; color:var(--muted)}
+.field select{width:100%; min-height:44px; padding:0 12px; background:var(--surface); border:1px solid var(--line); border-radius:8px}
+.seg{display:flex; flex-wrap:wrap; gap:8px}
+.seg button{min-height:42px; padding:0 14px; background:transparent; border:1px solid var(--line); border-radius:8px; cursor:pointer}
+.seg button[aria-pressed="true"]{background:var(--accent); border-color:var(--accent); color:var(--surface); font-weight:600}
+.info{margin:0; font-size:.88rem; color:var(--muted); font-variant-numeric:tabular-nums}
+.primary{width:100%; min-height:52px; padding:0 18px; border:0; border-radius:10px; background:var(--ink); color:var(--bg); font-weight:700; cursor:pointer}
+.primary:disabled{opacity:.35; cursor:default}
+.ghost{min-height:48px; padding:0 16px; border:1px solid var(--line); border-radius:10px; background:transparent; cursor:pointer}
+
+.top{display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:10px; font-family:var(--f-data); font-size:.82rem; color:var(--muted); font-variant-numeric:tabular-nums}
+.top .quit{font-family:var(--f-body); border:0; background:none; color:var(--muted); cursor:pointer; padding:6px 0; text-decoration:underline; text-underline-offset:3px}
+.track{height:4px; background:var(--line); border-radius:4px; overflow:hidden; margin-bottom:24px}
+.track i{display:block; height:100%; width:0; background:var(--accent); transition:width .25s}
+.meta{font-size:.82rem; color:var(--muted)}
+.word{font-family:var(--f-word); font-weight:600; font-size:clamp(2.1rem,9vw,3rem); line-height:1.15; margin:6px 0 12px; word-break:normal; overflow-wrap:anywhere}
+.say{display:inline-flex; align-items:center; gap:6px; min-height:36px; padding:0 12px; border:1px solid var(--line); border-radius:999px; background:transparent; font-size:.85rem; color:var(--muted); cursor:pointer}
+.say svg{width:15px; height:15px}
+.ask{font-size:.9rem; color:var(--muted); margin:22px 0 10px}
+.opts{display:flex; flex-direction:column; gap:10px}
+.opt{display:flex; align-items:center; gap:12px; width:100%; min-height:54px; padding:12px 14px; text-align:left; background:var(--surface); border:1px solid var(--line); border-radius:10px; cursor:pointer}
+.opt .num{flex:none; width:26px; height:26px; border-radius:50%; border:1px solid var(--line); display:grid; place-items:center; font-family:var(--f-data); font-size:.78rem; color:var(--muted)}
+.opt .txt{min-width:0}
+.opt:disabled{cursor:default; color:var(--ink)}
+.opt.sel{border-color:var(--accent); background:var(--accent-soft)}
+.opt.sel .num{background:var(--accent); border-color:var(--accent); color:var(--surface)}
+.opt.correct{border-color:var(--ok); background:var(--ok-bg)}
+.opt.correct .num{background:var(--ok); border-color:var(--ok); color:var(--surface)}
+.opt.wrong{border-color:var(--no); background:var(--no-bg)}
+.opt.wrong .num{background:var(--no); border-color:var(--no); color:var(--surface)}
+.opt.dim{opacity:.55}
+
+.fb{margin-top:14px; padding:14px 16px; background:var(--surface); border:1px solid var(--line); border-radius:10px}
+.fb.ok{border-color:var(--ok)}
+.fb.no{border-color:var(--no)}
+.fb .verdict{font-weight:700}
+.fb.ok .verdict{color:var(--ok)}
+.fb.no .verdict{color:var(--no)}
+.fb .line{font-size:.95rem; margin-top:2px}
+.fb .sub{font-size:.84rem; color:var(--muted); margin-top:4px}
+.fb .memo{font-size:.84rem; color:var(--note); margin-top:4px}
+.actions{margin-top:16px}
+.keys{font-size:.78rem; color:var(--muted); text-align:center; margin:10px 0 0}
+@media (hover:none){ .keys{display:none} }
+
+.score{font-family:var(--f-data); font-weight:500; font-size:clamp(2.6rem,11vw,3.6rem); line-height:1.1; letter-spacing:-.03em; margin-top:10px; font-variant-numeric:tabular-nums}
+.pct{margin:6px 0 2px; color:var(--muted)}
+.btns{display:flex; flex-direction:column; gap:10px; margin:22px 0 8px}
+h2{font-size:1.05rem; margin:28px 0 6px; padding-bottom:6px; border-bottom:2px solid var(--ink)}
+.review{list-style:none; margin:0; padding:0}
+.review li{padding:12px 0; border-bottom:1px solid var(--line)}
+.r-w{font-family:var(--f-word); font-weight:600; font-size:1.15rem}
+.r-pos{font-size:.75rem; color:var(--accent); margin-left:8px}
+.r-ok{color:var(--ok); font-size:.92rem; margin-top:2px}
+.r-no{color:var(--no); font-size:.92rem}
+.r-meta{font-size:.78rem; color:var(--muted); margin-top:4px}
+@media (prefers-reduced-motion: reduce){ .track i{transition:none} }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <section id="start">
+    <div class="eyebrow">캐나다 일상생활 기준 · 중급</div>
+    <h1>중급 영단어 500 퀴즈</h1>
+    <p class="lede">영어 단어를 보고 알맞은 한글 뜻을 다섯 개 중에서 고르는 퀴즈입니다. 기초 500단어 다음 단계로, 집 계약·금융·행정·직장에서 쓰는 단어와 구동사 500개가 20개 주제로 들어 있습니다. 보기는 같은 주제의 다른 단어 뜻에서 나옵니다.</p>
+    <p class="levels">단계 <a href="../english-500-quiz/">기초</a> · <b>중급</b></p>
+
+    <div class="panel">
+      <div class="field">
+        <label class="label" for="cat">주제</label>
+        <select id="cat"><option value="all">전체 주제 (500)</option><option value="0">집·주거 (25)</option><option value="1">살림·생활용품 (25)</option><option value="2">장보기·쇼핑 (25)</option><option value="3">식당·음식 (25)</option><option value="4">돈·금융 (25)</option><option value="5">교통·운전 (25)</option><option value="6">여행·숙소 (25)</option><option value="7">건강·병원 (25)</option><option value="8">직장·업무 (25)</option><option value="9">고용·급여 (25)</option><option value="10">행정·공공 서비스 (25)</option><option value="11">사람·관계 (25)</option><option value="12">의사소통 동사 (25)</option><option value="13">일상 동사 (25)</option><option value="14">변화·결과 동사 (25)</option><option value="15">감정·성격 형용사 (25)</option><option value="16">상태·평가 형용사 (25)</option><option value="17">부사·연결어 (25)</option><option value="18">구동사 1 (25)</option><option value="19">구동사 2 (25)</option></select>
+      </div>
+      <div class="field">
+        <span class="label" id="l-count">문제 수</span>
+        <div class="seg" role="group" aria-labelledby="l-count" data-key="count">
+          <button type="button" id="n10" data-val="10" aria-pressed="true">10</button>
+          <button type="button" id="n20" data-val="20" aria-pressed="false">20</button>
+          <button type="button" id="n30" data-val="30" aria-pressed="false">30</button>
+          <button type="button" id="n50" data-val="50" aria-pressed="false">50</button>
+          <button type="button" id="nall" data-val="all" aria-pressed="false">전체</button>
+        </div>
+      </div>
+      <div class="field">
+        <span class="label" id="l-instant">채점 방식</span>
+        <div class="seg" role="group" aria-labelledby="l-instant" data-key="instant">
+          <button type="button" id="m-check" data-val="no" aria-pressed="true">고른 뒤 정답 확인 버튼</button>
+          <button type="button" id="m-instant" data-val="yes" aria-pressed="false">고르면 바로 채점</button>
+        </div>
+      </div>
+      <p class="info" id="poolInfo">선택한 범위 500단어 중 10문제를 무작위로 냅니다.</p>
+      <button type="button" class="primary" id="startBtn">시작하기</button>
+    </div>
+  </section>
+
+  <section id="quiz" hidden>
+    <div class="top">
+      <span id="qNum"></span>
+      <span id="qScore"></span>
+      <button type="button" class="quit" id="quitBtn">그만하기</button>
+    </div>
+    <div class="track" aria-hidden="true"><i id="bar"></i></div>
+
+    <div class="meta" id="qMeta"></div>
+    <p class="word" id="qWord" lang="en"></p>
+    <button type="button" class="say" id="sayBtn">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 5 6 9H3v6h3l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M18.5 5.5a9 9 0 0 1 0 13"/></svg>
+      발음 듣기
+    </button>
+
+    <p class="ask">알맞은 뜻을 고르세요.</p>
+    <div class="opts" id="opts"></div>
+
+    <div class="fb" id="fb" role="status" aria-live="polite" hidden>
+      <div class="verdict" id="fbVerdict"></div>
+      <div class="line" id="fbAnswer"></div>
+      <div class="sub" id="fbSub"></div>
+      <div class="memo" id="fbMemo"></div>
+    </div>
+
+    <div class="actions">
+      <button type="button" class="primary" id="act" disabled>정답 확인</button>
+    </div>
+    <p class="keys">키보드: 1~5로 고르고 Enter로 확인 · 다음</p>
+  </section>
+
+  <section id="result" hidden>
+    <div class="eyebrow">결과</div>
+    <div class="score" id="rScore"></div>
+    <p class="pct" id="rPct"></p>
+    <p id="rMsg" style="margin:0"></p>
+    <div class="btns">
+      <button type="button" class="primary" id="retryWrong">틀린 단어만 다시 풀기</button>
+      <button type="button" class="ghost" id="retryNew">같은 설정으로 새로 풀기</button>
+      <button type="button" class="ghost" id="goHome">처음으로</button>
+    </div>
+    <div id="rWrongWrap">
+      <h2>틀린 단어</h2>
+      <ul class="review" id="rList"></ul>
+    </div>
+  </section>
+
+</div>
+
+<script>
+(function(){
+'use strict';
+/* CATS: 주제 이름. RAW: [주제 번호, 단어, 품사, 뜻, 메모, 비슷한 뜻 묶음(같은 묶음끼리는 보기로 같이 안 나옴)] */
+var CATS=["집·주거","살림·생활용품","장보기·쇼핑","식당·음식","돈·금융","교통·운전","여행·숙소","건강·병원","직장·업무","고용·급여","행정·공공 서비스","사람·관계","의사소통 동사","일상 동사","변화·결과 동사","감정·성격 형용사","상태·평가 형용사","부사·연결어","구동사 1","구동사 2"];
+var RAW=[[0,"landlord","명","집주인","",""],[0,"tenant","명","세입자","",""],[0,"lease","명·동","임대차 계약(을 하다)","",""],[0,"utilities","명","공과금 (전기·수도·가스)","보통 복수형으로 씀",""],[0,"basement","명","지하실, 지하층","캐나다는 지하 셋방(basement suite)이 흔함",""],[0,"furnished","형","가구가 딸린","",""],[0,"unit","명","(아파트 등의) 한 세대; 단위","","g2"],[0,"superintendent","명","건물 관리인","줄여서 super",""],[0,"neighbourhood","명","동네, 지역","캐나다식 철자 (미국 neighborhood)",""],[0,"furnace","명","(집 전체를 데우는) 난방기","","g0"],[0,"heating","명","난방","","g0"],[0,"thermostat","명","온도 조절기","",""],[0,"leak","명·동","누수, (물·가스가) 새다","",""],[0,"repair","명·동","수리(하다)","","g1"],[0,"maintenance","명","유지 보수, 관리","","g1"],[0,"garage","명","차고","",""],[0,"balcony","명","발코니","",""],[0,"hallway","명","복도","",""],[0,"ceiling","명","천장","",""],[0,"roof","명","지붕","",""],[0,"yard","명","마당","",""],[0,"fence","명","울타리","",""],[0,"mailbox","명","우편함","",""],[0,"lock","명·동","자물쇠, 잠그다","",""],[0,"condo","명","콘도 (소유하는 아파트 한 세대)","북미에서 분양 아파트를 condo라고 함","g2"],[1,"dishes","명","설거지거리, 그릇들","do the dishes '설거지하다'",""],[1,"dishwasher","명","식기세척기","",""],[1,"washer","명","세탁기","",""],[1,"dryer","명","건조기","",""],[1,"detergent","명","세제","",""],[1,"vacuum","명·동","진공청소기, 청소기를 돌리다","",""],[1,"broom","명","빗자루","",""],[1,"mop","명·동","대걸레(로 닦다)","",""],[1,"towel","명","수건","",""],[1,"blanket","명","담요","",""],[1,"pillow","명","베개","",""],[1,"shelf","명","선반","",""],[1,"drawer","명","서랍","",""],[1,"mirror","명","거울","",""],[1,"sink","명","싱크대, 세면대","",""],[1,"toilet","명","변기","",""],[1,"shower","명·동","샤워(하다)","",""],[1,"recycling","명","재활용(품)","캐나다 여러 도시에서 재활용은 blue bin",""],[1,"compost","명","음식물 쓰레기 (퇴비용)","캐나다 여러 도시에서 음식물 쓰레기는 green bin",""],[1,"iron","명·동","다리미, 다림질하다; 철","",""],[1,"hanger","명","옷걸이","",""],[1,"scissors","명","가위","",""],[1,"outlet","명","콘센트; 할인 매장","북미에서 콘센트는 outlet",""],[1,"stove","명","(가스·전기) 레인지","",""],[1,"microwave","명","전자레인지","",""],[2,"groceries","명","식료품, 장 본 것","",""],[2,"aisle","명","(매장·비행기의) 통로","발음은 '아일' (s 묵음)",""],[2,"cart","명","쇼핑 카트","캐나다 일부 지역은 buggy라고도 함",""],[2,"basket","명","바구니","",""],[2,"checkout","명","계산대","",""],[2,"cashier","명","계산원","",""],[2,"brand","명","상표, 브랜드","",""],[2,"quality","명","품질","",""],[2,"quantity","명","수량","",""],[2,"stock","명","재고","in stock '재고 있음', out of stock '품절'",""],[2,"bargain","명","싸게 산 물건, 특가","","g3"],[2,"coupon","명","쿠폰","",""],[2,"flyer","명","(할인) 전단지","",""],[2,"warranty","명","품질 보증(서)","",""],[2,"gift card","명","상품권, 기프트 카드","",""],[2,"item","명","물품, 항목","","g4"],[2,"product","명","제품","","g4"],[2,"expire","동","(기한이) 만료되다","캐나다는 유통기한을 expiry date라고 함",""],[2,"fresh","형","신선한","",""],[2,"frozen","형","냉동된, 얼어붙은","",""],[2,"organic","형","유기농의","",""],[2,"deal","명","거래; 할인 상품","a good deal '싸게 잘 산 것'","g3"],[2,"purchase","명·동","구매(하다)","",""],[2,"membership","명","회원(권), 회원 자격","",""],[2,"compare","동","비교하다","",""],[3,"appetizer","명","전채 요리, 애피타이저","",""],[3,"entrée","명","메인 요리","북미에서는 메인 요리를 entrée라고 함",""],[3,"side dish","명","곁들이는 요리","",""],[3,"portion","명","(음식의) 1인분, 양","",""],[3,"spicy","형","매운","",""],[3,"sour","형","신, 시큼한","",""],[3,"bitter","형","쓴","",""],[3,"salty","형","짠","",""],[3,"sweet","형","단, 달콤한","",""],[3,"greasy","형","기름진, 느끼한","",""],[3,"raw","형","날것의, 익히지 않은","",""],[3,"fried","형","튀긴","",""],[3,"grilled","형","(석쇠에) 구운","",""],[3,"boil","동","끓이다, 삶다","",""],[3,"bake","동","(오븐에) 굽다","",""],[3,"recipe","명","조리법","",""],[3,"ingredient","명","재료","",""],[3,"leftovers","명","남은 음식","",""],[3,"takeout","명","포장 음식","캐나다·미국 takeout (영국 takeaway)",""],[3,"delivery","명","배달","",""],[3,"refill","명·동","리필(하다), 다시 채우다","",""],[3,"napkin","명","냅킨","",""],[3,"vegetarian","형·명","채식(주의자)의, 채식주의자","",""],[3,"gluten-free","형","글루텐이 없는","",""],[3,"server","명","(식당) 서버, 종업원; 서버 컴퓨터","북미 식당에서 waiter 대신 많이 씀",""],[4,"deposit","명·동","입금(하다); 보증금","","g6"],[4,"withdraw","동","(돈을) 인출하다","",""],[4,"balance","명","잔액; 균형","",""],[4,"transaction","명","거래","",""],[4,"e-transfer","명","이메일·전화번호로 하는 송금","캐나다에서 흔한 Interac e-Transfer",""],[4,"cheque","명","수표","캐나다식 철자 (미국 check)",""],[4,"savings","명","저축(액), 예금","","g6"],[4,"interest","명","이자; 관심","",""],[4,"loan","명","대출","","g5"],[4,"debt","명","빚, 부채","b는 묵음 ('뎃')","g5"],[4,"budget","명","예산","",""],[4,"invoice","명","청구서, 송장","",""],[4,"payment","명","지불, 납부(금)","",""],[4,"installment","명","할부 (나눠 내는 돈)","",""],[4,"credit score","명","신용 점수","",""],[4,"afford","동","(돈·시간의) 여유가 있다","can't afford '살 형편이 안 되다'",""],[4,"income","명","소득","",""],[4,"expense","명","비용, 지출","",""],[4,"charge","명·동","요금, 청구하다; 충전하다","",""],[4,"owe","동","빚지다, 갚아야 하다","",""],[4,"currency","명","통화 (화폐)","",""],[4,"exchange rate","명","환율","",""],[4,"loonie","명","캐나다 1달러 동전","동전에 새(loon) 그림이 있어서 붙은 이름",""],[4,"toonie","명","캐나다 2달러 동전","",""],[4,"statement","명","(은행) 거래 내역서; 진술","",""],[5,"intersection","명","교차로","",""],[5,"traffic light","명","신호등","",""],[5,"crosswalk","명","횡단보도","",""],[5,"sidewalk","명","인도, 보도","",""],[5,"lane","명","차선; 좁은 길","",""],[5,"detour","명","우회로","","g7"],[5,"construction","명","공사, 건설","",""],[5,"speed limit","명","제한 속도","",""],[5,"penalty","명","벌금, 처벌","",""],[5,"accident","명","사고","",""],[5,"commute","명·동","통근(하다)","",""],[5,"rush hour","명","출퇴근 혼잡 시간","",""],[5,"pedestrian","명","보행자","",""],[5,"vehicle","명","차량","",""],[5,"brake","명·동","브레이크(를 밟다)","",""],[5,"tire","명","타이어","캐나다·미국식 철자 (영국 tyre)",""],[5,"fuel","명","연료","",""],[5,"gas station","명","주유소","",""],[5,"route","명","경로, 노선","","g7"],[5,"delay","명·동","지연(되다), 미루다","",""],[5,"platform","명","(역의) 승강장","",""],[5,"one-way","형","일방통행의; 편도의","",""],[5,"round trip","명","왕복 (여행)","",""],[5,"merge","동","(차선에) 합류하다; 합치다","",""],[5,"transit","명","대중교통","캐나다에서는 대중교통을 흔히 transit이라고 함",""],[6,"passport","명","여권","",""],[6,"visa","명","비자, 입국 허가","",""],[6,"customs","명","세관","",""],[6,"border","명","국경","",""],[6,"luggage","명","짐, 수하물","","g8"],[6,"baggage claim","명","수하물 찾는 곳","","g8"],[6,"boarding pass","명","탑승권","",""],[6,"departure","명","출발","",""],[6,"arrival","명","도착","",""],[6,"flight","명","항공편, 비행","",""],[6,"gate","명","탑승구; 문","",""],[6,"check-in","명","체크인, 탑승 수속","",""],[6,"booking","명","예약","",""],[6,"accommodation","명","숙소","",""],[6,"vacancy","명","빈방; (일자리) 공석","",""],[6,"front desk","명","(호텔) 안내 데스크","",""],[6,"sightseeing","명","관광","",""],[6,"tourist","명","관광객","",""],[6,"destination","명","목적지","",""],[6,"itinerary","명","여행 일정표","",""],[6,"souvenir","명","기념품","",""],[6,"guide","명·동","안내원, 안내하다","",""],[6,"abroad","부","해외에(서), 해외로","",""],[6,"local","형·명","현지의, 동네의; 현지인","",""],[6,"jet lag","명","시차증","",""],[7,"symptom","명","증상","",""],[7,"prescription","명","처방(전)","",""],[7,"walk-in clinic","명","예약 없이 가는 동네 병원","캐나다에서 흔한 형태의 의원",""],[7,"family doctor","명","주치의, 가정의","캐나다는 보통 family doctor를 거쳐 전문의에게 감",""],[7,"emergency","명","응급 (상황)","",""],[7,"ambulance","명","구급차","",""],[7,"injury","명","부상","",""],[7,"bruise","명","멍","",""],[7,"sprain","명·동","염좌, (발목 등을) 삐다","",""],[7,"rash","명","발진, 두드러기","",""],[7,"dizzy","형","어지러운","",""],[7,"nauseous","형","메스꺼운","",""],[7,"sore","형","아픈, 쑤시는","a sore throat '목이 아픔'",""],[7,"swollen","형","부은","",""],[7,"infection","명","감염","",""],[7,"vaccine","명","백신","",""],[7,"pill","명","알약","",""],[7,"dose","명","(약의) 1회 복용량","",""],[7,"side effect","명","부작용","",""],[7,"recover","동","회복하다","",""],[7,"check-up","명","건강 검진","",""],[7,"dentist","명","치과 의사","",""],[7,"health card","명","건강 보험 카드","주(州) 정부가 발급하는 의료보험 카드",""],[7,"blood pressure","명","혈압","",""],[7,"surgery","명","수술","",""],[8,"colleague","명","동료","",""],[8,"supervisor","명","감독자, 현장 상사","",""],[8,"employee","명","직원, 피고용인","",""],[8,"employer","명","고용주","",""],[8,"client","명","고객, 의뢰인","",""],[8,"deadline","명","마감 기한","",""],[8,"project","명","프로젝트, 과제","",""],[8,"responsibility","명","책임, 맡은 일","",""],[8,"report","명·동","보고(서), 보고하다","",""],[8,"feedback","명","피드백, 의견","",""],[8,"document","명·동","문서, 기록하다","",""],[8,"agenda","명","(회의) 안건","",""],[8,"presentation","명","발표","",""],[8,"team","명","팀","",""],[8,"department","명","부서","",""],[8,"policy","명","방침, 정책","",""],[8,"procedure","명","절차","",""],[8,"priority","명","우선순위","",""],[8,"assign","동","(일을) 맡기다, 배정하다","",""],[8,"complete","동·형","완료하다; 완전한","",""],[8,"organize","동","정리하다, 준비하다","",""],[8,"handle","동","처리하다, 다루다","",""],[8,"cover","동","(근무를) 대신하다; 덮다","cover a shift '근무를 대신 서다'",""],[8,"workplace","명","직장, 일터","",""],[8,"update","명·동","최신 소식, 업데이트하다","",""],[9,"apply","동","지원하다, 신청하다","",""],[9,"applicant","명","지원자","",""],[9,"application","명","지원(서), 신청(서); 앱","",""],[9,"opening","명","(일자리) 공석; 개점","",""],[9,"full-time","형","정규직의, 전일제의","",""],[9,"part-time","형","시간제의","",""],[9,"contract","명","계약(서)","",""],[9,"probation","명","수습 기간","",""],[9,"hourly","형","시간당의","",""],[9,"benefits","명","복리후생","",""],[9,"raise","명·동","(임금) 인상, 올리다","",""],[9,"promotion","명","승진; 판촉 행사","",""],[9,"reference","명","추천인; 참고","",""],[9,"cover letter","명","자기소개서","",""],[9,"qualification","명","자격 (요건)","","g9"],[9,"certificate","명","자격증, 증명서","","g9"],[9,"permit","명","허가증","work permit '취업 허가증'",""],[9,"SIN","명","사회보험번호","Social Insurance Number, 캐나다에서 일하려면 필요",""],[9,"minimum wage","명","최저 임금","",""],[9,"deduction","명","공제 (월급에서 빠지는 돈)","",""],[9,"pay stub","명","급여 명세서","",""],[9,"vacation pay","명","휴가 수당","캐나다 대부분 주에서 최소 급여의 4%",""],[9,"resign","동","사직하다","",""],[9,"fire","동·명","해고하다; 불","","g10"],[9,"layoff","명","(일감 부족에 따른) 해고","","g10"],[10,"government","명","정부","",""],[10,"province","명","주(州)","캐나다는 10개 주와 3개 준주",""],[10,"form","명","서식, 신청서","",""],[10,"signature","명","서명","","g12"],[10,"sign","동·명","서명하다; 표지판","","g12"],[10,"identification","명","신분증, 신원 확인","줄여서 ID",""],[10,"proof","명","증명, 증거","proof of address '주소 증명'",""],[10,"renew","동","갱신하다","",""],[10,"valid","형","유효한","",""],[10,"insurance","명","보험","",""],[10,"tax return","명","세금 신고(서)","캐나다 개인 세금 신고 마감은 보통 4월 30일",""],[10,"citizen","명","시민, 국민","","g13"],[10,"resident","명","거주자, 주민","permanent resident '영주권자'","g13"],[10,"immigration","명","이민; 출입국 관리","",""],[10,"status","명","상태, (법적) 신분","",""],[10,"register","동","등록하다","","g11"],[10,"registration","명","등록","","g11"],[10,"official","형·명","공식적인; 공무원","",""],[10,"counter","명","창구, 카운터","",""],[10,"lineup","명","(사람들이 선) 줄","캐나다에서 줄은 lineup, 줄 서다는 line up",""],[10,"copy","명·동","사본, 복사하다","",""],[10,"confirmation","명","확인(서), 확정","",""],[10,"postal code","명","우편번호","캐나다식 (미국 zip code)",""],[10,"public","형","공공의, 대중의","",""],[10,"permission","명","허락, 허가","",""],[11,"relative","명","친척","",""],[11,"cousin","명","사촌","",""],[11,"uncle","명","삼촌, 외삼촌, 고모부, 이모부","",""],[11,"aunt","명","고모, 이모, 숙모","",""],[11,"nephew","명","(남자) 조카","",""],[11,"niece","명","(여자) 조카","",""],[11,"grandparent","명","조부모","",""],[11,"partner","명","동반자, 배우자, 파트너","","g14"],[11,"couple","명","부부, 커플; 두어 개","a couple of '두어 개의'","g14"],[11,"stranger","명","낯선 사람","",""],[11,"acquaintance","명","아는 사람, 지인","",""],[11,"relationship","명","관계","",""],[11,"generation","명","세대","",""],[11,"teenager","명","십 대","",""],[11,"senior","명·형","노인, 어르신; 상급의","",""],[11,"toddler","명","걸음마 하는 아기","",""],[11,"boyfriend","명","남자 친구","",""],[11,"girlfriend","명","여자 친구","",""],[11,"classmate","명","반 친구","",""],[11,"host","명·동","(초대한) 주인, 주최하다","",""],[11,"community","명","지역 사회, 공동체","",""],[11,"volunteer","명·동","자원봉사자, 자원하다","",""],[11,"member","명","구성원, 회원","",""],[11,"personality","명","성격","",""],[11,"background","명","배경, 출신","",""],[12,"explain","동","설명하다","","g15"],[12,"describe","동","묘사하다, 설명하다","","g15"],[12,"mention","동","언급하다","",""],[12,"suggest","동","제안하다","","g16"],[12,"recommend","동","추천하다","","g16"],[12,"request","동·명","요청(하다)","",""],[12,"complain","동","불평하다, 항의하다","",""],[12,"apologize","동","사과하다","",""],[12,"appreciate","동","고마워하다; 진가를 알다","I appreciate it. '정말 고마워요.'",""],[12,"confirm","동","확정하다, 확인해 주다","",""],[12,"discuss","동","논의하다","",""],[12,"argue","동","말다툼하다, 주장하다","","g17"],[12,"insist","동","고집하다, 우기다","","g17"],[12,"repeat","동","반복하다, 다시 말하다","",""],[12,"reply","동·명","답장(하다), 대답하다","",""],[12,"inform","동","알리다, 통지하다","","g18"],[12,"announce","동","발표하다, 알리다","","g18"],[12,"warn","동","경고하다","",""],[12,"promise","동·명","약속(하다)","",""],[12,"refuse","동","거절하다","",""],[12,"admit","동","인정하다","",""],[12,"persuade","동","설득하다","",""],[12,"interrupt","동","(말을) 끊다, 방해하다","",""],[12,"pronounce","동","발음하다","",""],[12,"translate","동","번역하다, 통역하다","",""],[13,"prepare","동","준비하다","","g21"],[13,"arrange","동","정리하다, 마련하다","","g21"],[13,"cancel","동","취소하다","",""],[13,"reserve","동","예약하다; 따로 잡아 두다","",""],[13,"attend","동","참석하다","","g20"],[13,"join","동","가입하다, 함께하다","","g20"],[13,"visit","동·명","방문(하다)","",""],[13,"invite","동","초대하다","",""],[13,"celebrate","동","축하하다, 기념하다","",""],[13,"share","동","나누다, 공유하다","",""],[13,"avoid","동","피하다","",""],[13,"allow","동","허락하다, 허용하다","",""],[13,"prefer","동","더 좋아하다","",""],[13,"enjoy","동","즐기다","",""],[13,"miss","동","그리워하다; 놓치다","",""],[13,"notice","동·명","알아차리다; 공지","",""],[13,"spill","동","쏟다, 엎지르다","",""],[13,"drop","동","떨어뜨리다","",""],[13,"hurry","동","서두르다","",""],[13,"rest","동·명","쉬다; 나머지","","g19"],[13,"exercise","명·동","운동(하다)","",""],[13,"relax","동","긴장을 풀다, 느긋하게 쉬다","","g19"],[13,"deliver","동","배달하다","",""],[13,"pack","동","(짐을) 싸다","",""],[13,"measure","동","재다, 측정하다","",""],[14,"increase","동·명","증가하다, 늘리다; 증가","","g26"],[14,"decrease","동·명","감소하다, 줄다; 감소","","g22"],[14,"improve","동","개선하다, 나아지다","","g23"],[14,"reduce","동","줄이다","","g22"],[14,"develop","동","발전시키다, 개발하다","","g23"],[14,"grow","동","자라다, 커지다","","g26"],[14,"replace","동","교체하다, 대신하다","",""],[14,"remove","동","제거하다, 없애다","",""],[14,"add","동","더하다, 추가하다","","g25"],[14,"include","동","포함하다","","g25"],[14,"require","동","필요로 하다, 요구하다","",""],[14,"prevent","동","막다, 예방하다","",""],[14,"cause","동·명","일으키다; 원인","",""],[14,"affect","동","영향을 미치다","",""],[14,"depend","동","(~에) 달려 있다","depend on '~에 달려 있다'",""],[14,"manage","동","(어떻게든) 해내다; 관리하다","",""],[14,"succeed","동","성공하다","","g24"],[14,"fail","동","실패하다","",""],[14,"solve","동","해결하다, 풀다","",""],[14,"achieve","동","달성하다, 이루다","","g24"],[14,"continue","동","계속하다","",""],[14,"expect","동","기대하다, 예상하다","",""],[14,"realize","동","깨닫다","",""],[14,"consider","동","고려하다","",""],[14,"damage","명·동","손상, 손상시키다","",""],[15,"nervous","형","긴장한, 초조한","","g27"],[15,"anxious","형","불안해하는, 걱정하는","","g27"],[15,"upset","형","속상한, 기분이 상한","","g28"],[15,"disappointed","형","실망한","",""],[15,"embarrassed","형","창피한, 당황한","",""],[15,"frustrated","형","답답한, 좌절한","","g28"],[15,"confused","형","혼란스러운","",""],[15,"surprised","형","놀란","",""],[15,"satisfied","형","만족한","",""],[15,"proud","형","자랑스러운","",""],[15,"grateful","형","감사하는","",""],[15,"lonely","형","외로운","",""],[15,"jealous","형","질투하는, 부러워하는","",""],[15,"relieved","형","안심한","",""],[15,"confident","형","자신감 있는","",""],[15,"shy","형","수줍어하는","",""],[15,"polite","형","공손한, 예의 바른","",""],[15,"rude","형","무례한","",""],[15,"honest","형","정직한","",""],[15,"patient","형·명","참을성 있는; 환자","",""],[15,"generous","형","너그러운, 후한","",""],[15,"curious","형","호기심 많은","",""],[15,"lazy","형","게으른","",""],[15,"calm","형·동","침착한, 차분한; 진정시키다","",""],[15,"reliable","형","믿을 수 있는","",""],[16,"available","형","이용 가능한, (사람이) 시간이 되는","",""],[16,"convenient","형","편리한","",""],[16,"necessary","형","필요한","",""],[16,"possible","형","가능한","",""],[16,"serious","형","심각한, 진지한","",""],[16,"simple","형","간단한","",""],[16,"complicated","형","복잡한","",""],[16,"common","형","흔한, 공통의","",""],[16,"rare","형","드문; (고기가) 덜 익은","",""],[16,"similar","형","비슷한","",""],[16,"crowded","형","붐비는","",""],[16,"messy","형","지저분한","",""],[16,"tidy","형","깔끔한, 정돈된","",""],[16,"broken","형","고장 난, 깨진","",""],[16,"missing","형","없어진, 빠진","",""],[16,"extra","형","추가의, 여분의","",""],[16,"whole","형","전체의, 통째의","",""],[16,"private","형","사적인, 개인의","",""],[16,"strict","형","엄격한","",""],[16,"flexible","형","유연한, 융통성 있는","",""],[16,"excellent","형","훌륭한","","g29"],[16,"terrible","형","끔찍한, 형편없는","",""],[16,"awesome","형","끝내주는, 굉장한","캐나다 일상 대화에서 아주 자주 씀","g29"],[16,"reasonable","형","합리적인, (값이) 적당한","",""],[16,"obvious","형","명백한, 뻔한","",""],[17,"however","부","그러나, 하지만","","g30"],[17,"although","접","비록 ~이지만","","g30"],[17,"instead","부","대신에","",""],[17,"otherwise","부","그렇지 않으면","","g33"],[17,"therefore","부","그러므로","",""],[17,"besides","부·전","게다가; ~ 외에","",""],[17,"unless","접","~하지 않는 한","","g33"],[17,"while","접","~하는 동안; ~인 반면","",""],[17,"since","접·전","~ 이후로; ~이기 때문에","",""],[17,"though","부·접","그래도; ~이지만","","g30"],[17,"actually","부","사실은, 실제로","",""],[17,"probably","부","아마","",""],[17,"definitely","부","확실히, 분명히","",""],[17,"especially","부","특히","",""],[17,"almost","부","거의","","g31"],[17,"nearly","부","거의, 하마터면","","g31"],[17,"recently","부","최근에","",""],[17,"immediately","부","즉시","",""],[17,"eventually","부","결국, 마침내","","g32"],[17,"finally","부","마침내, 마지막으로","","g32"],[17,"currently","부","현재","",""],[17,"rarely","부","좀처럼 ~ 않는","",""],[17,"anyway","부","어쨌든","",""],[17,"whether","접","~인지 (아닌지)","",""],[17,"unfortunately","부","안타깝게도, 유감스럽게도","",""],[18,"pick up","구동사","(물건을) 집다; (사람을) 데리러 가다","",""],[18,"drop off","구동사","(차로) 내려 주다; 맡기다","",""],[18,"fill out","구동사","(서식을) 작성하다","",""],[18,"sign up","구동사","등록하다, 가입하다","",""],[18,"look for","구동사","찾다","",""],[18,"look after","구동사","돌보다","",""],[18,"look forward to","구동사","고대하다, 기대하다","",""],[18,"find out","구동사","알아내다","","g34"],[18,"figure out","구동사","이해하다, (방법을) 알아내다","","g34"],[18,"turn on","구동사","켜다","",""],[18,"turn off","구동사","끄다","",""],[18,"turn down","구동사","거절하다; (소리를) 줄이다","",""],[18,"put on","구동사","(옷을) 입다, 착용하다","","g35"],[18,"take off","구동사","(옷을) 벗다; 이륙하다","",""],[18,"try on","구동사","(옷을) 입어 보다","","g35"],[18,"get in","구동사","(차에) 타다","",""],[18,"get off","구동사","(버스·기차에서) 내리다","",""],[18,"get along","구동사","사이좋게 지내다","",""],[18,"check out","구동사","체크아웃하다; 확인해 보다","",""],[18,"run out of","구동사","~이 다 떨어지다","",""],[18,"give up","구동사","포기하다","",""],[18,"set up","구동사","설치하다, 준비하다","",""],[18,"show up","구동사","나타나다, 오다","",""],[18,"hang up","구동사","전화를 끊다","",""],[18,"hold on","구동사","잠깐 기다리다","",""],[19,"clean up","구동사","청소하다, 치우다","","g36"],[19,"throw away","구동사","버리다","",""],[19,"put away","구동사","제자리에 두다, 치우다","","g36"],[19,"give back","구동사","돌려주다","","g37"],[19,"pay back","구동사","(빌린 돈을) 갚다","","g37"],[19,"take out","구동사","꺼내다; (쓰레기를) 내다 놓다","",""],[19,"bring up","구동사","(화제를) 꺼내다; 기르다","",""],[19,"come up with","구동사","(생각을) 떠올리다","",""],[19,"work out","구동사","운동하다; 잘 풀리다","",""],[19,"break down","구동사","고장 나다","",""],[19,"carry on","구동사","계속하다","",""],[19,"cut down on","구동사","(양을) 줄이다","",""],[19,"deal with","구동사","처리하다, 대처하다","",""],[19,"end up","구동사","결국 ~하게 되다","",""],[19,"fall behind","구동사","뒤처지다","",""],[19,"get over","구동사","극복하다, (병에서) 회복하다","",""],[19,"go over","구동사","검토하다, 살펴보다","",""],[19,"hand in","구동사","제출하다","",""],[19,"keep up with","구동사","(속도·소식을) 따라가다","",""],[19,"let down","구동사","실망시키다","",""],[19,"move in","구동사","이사 들어오다","",""],[19,"move out","구동사","이사 나가다","",""],[19,"put off","구동사","미루다","","g38"],[19,"run into","구동사","우연히 만나다","",""],[19,"call off","구동사","취소하다","","g38"]];
+var ITEMS=RAW.map(function(r,i){ return {id:i,cat:r[0],w:r[1],pos:r[2],ko:r[3],note:r[4]||'',g:r[5]||'',p1:r[2].split('·')[0]}; });
+
+function shuffle(arr){
+  var a=arr.slice();
+  for(var i=a.length-1;i>0;i--){ var j=Math.floor(Math.random()*(i+1)); var t=a[i]; a[i]=a[j]; a[j]=t; }
+  return a;
+}
+/* 보기 5개: 정답 1 + 같은 주제의 오답 4. 품사가 같은 단어를 먼저 쓰고 모자라면 같은 주제의 나머지에서 채운다. */
+function buildChoices(it){
+  var seen={}; seen[it.ko]=1;
+  var same=[], rest=[];
+  ITEMS.forEach(function(c){
+    if(c.cat!==it.cat||c.id===it.id||seen[c.ko]) return;
+    if(it.g&&c.g===it.g) return;
+    seen[c.ko]=1;
+    (c.p1===it.p1?same:rest).push(c.ko);
+  });
+  var wrong=shuffle(same).slice(0,4);
+  if(wrong.length<4) wrong=wrong.concat(shuffle(rest).slice(0,4-wrong.length));
+  return shuffle([it.ko].concat(wrong));
+}
+
+function $(s){ return document.querySelector(s); }
+var state={cat:'all',count:'10',instant:'no',queue:[],idx:0,score:0,log:[],picked:null,revealed:false,choices:[]};
+var canSpeak=('speechSynthesis' in window)&&(typeof SpeechSynthesisUtterance!=='undefined');
+
+function show(name){
+  ['start','quiz','result'].forEach(function(id){ $('#'+id).hidden=(id!==name); });
+  window.scrollTo(0,0);
+}
+function currentPool(){ return ITEMS.filter(function(it){ return state.cat==='all'||String(it.cat)===state.cat; }); }
+function questionCount(pool){ return state.count==='all'?pool.length:Math.min(parseInt(state.count,10),pool.length); }
+function updateInfo(){
+  var pool=currentPool();
+  $('#poolInfo').textContent='선택한 범위 '+pool.length+'단어 중 '+questionCount(pool)+'문제를 무작위로 냅니다.';
+}
+function begin(items){
+  state.queue=items; state.idx=0; state.score=0; state.log=[];
+  show('quiz'); showQuestion();
+}
+function startNew(){ var pool=currentPool(); begin(shuffle(pool).slice(0,questionCount(pool))); }
+
+function showQuestion(){
+  var it=state.queue[state.idx];
+  state.picked=null; state.revealed=false; state.choices=buildChoices(it);
+  $('#qNum').textContent=(state.idx+1)+' / '+state.queue.length;
+  $('#qScore').textContent='정답 '+state.score;
+  $('#bar').style.width=(state.idx/state.queue.length*100)+'%';
+  $('#qMeta').textContent=CATS[it.cat];
+  $('#qWord').textContent=it.w;
+  var box=$('#opts'); box.innerHTML='';
+  state.choices.forEach(function(ko,i){
+    var b=document.createElement('button'); b.type='button'; b.className='opt'; b.dataset.i=i;
+    var n=document.createElement('span'); n.className='num'; n.textContent=i+1;
+    var t=document.createElement('span'); t.className='txt'; t.textContent=ko;
+    b.appendChild(n); b.appendChild(t);
+    b.addEventListener('click',function(){ pick(i); });
+    box.appendChild(b);
+  });
+  $('#fb').hidden=true;
+  var act=$('#act'); act.textContent='정답 확인'; act.disabled=true; act.hidden=(state.instant==='yes');
+}
+function pick(i){
+  if(state.revealed||i<0||i>=state.choices.length) return;
+  state.picked=i;
+  [].forEach.call(document.querySelectorAll('#opts .opt'),function(b,k){ b.classList.toggle('sel',k===i); });
+  $('#act').disabled=false;
+  if(state.instant==='yes') reveal();
+}
+function reveal(){
+  if(state.picked===null||state.revealed) return;
+  state.revealed=true;
+  var it=state.queue[state.idx], right=state.choices.indexOf(it.ko), ok=(state.picked===right);
+  if(ok) state.score++;
+  state.log.push({it:it,picked:state.choices[state.picked],ok:ok});
+  [].forEach.call(document.querySelectorAll('#opts .opt'),function(b,k){
+    b.disabled=true; b.classList.remove('sel');
+    if(k===right) b.classList.add('correct'); else if(k===state.picked) b.classList.add('wrong'); else b.classList.add('dim');
+  });
+  var fb=$('#fb'); fb.className='fb '+(ok?'ok':'no');
+  $('#fbVerdict').textContent=ok?'정답입니다':'오답입니다';
+  $('#fbAnswer').textContent=it.w+' = '+it.ko;
+  $('#fbSub').textContent=CATS[it.cat]+' · 품사 '+it.pos;
+  $('#fbMemo').textContent=it.note; $('#fbMemo').hidden=!it.note;
+  fb.hidden=false;
+  $('#qScore').textContent='정답 '+state.score;
+  $('#bar').style.width=((state.idx+1)/state.queue.length*100)+'%';
+  var act=$('#act'); act.hidden=false; act.disabled=false;
+  act.textContent=(state.idx+1>=state.queue.length)?'결과 보기':'다음 문제';
+  act.focus();
+}
+function next(){ state.idx++; if(state.idx>=state.queue.length) showResult(); else showQuestion(); }
+
+function showResult(){
+  var n=state.log.length, s=state.score, pct=n?Math.round(s/n*100):0;
+  $('#rScore').textContent=s+' / '+n;
+  $('#rPct').textContent='정답률 '+pct+'%';
+  $('#rMsg').textContent=pct===100?'전부 맞혔어요.':pct>=80?'틀린 단어만 한 번 더 보면 됩니다.':'틀린 단어 위주로 다시 풀어 보세요.';
+  var wrong=state.log.filter(function(l){ return !l.ok; });
+  $('#rWrongWrap').hidden=!wrong.length; $('#retryWrong').hidden=!wrong.length;
+  var list=$('#rList'); list.innerHTML='';
+  wrong.forEach(function(l){
+    var li=document.createElement('li');
+    var head=document.createElement('div');
+    var w=document.createElement('span'); w.className='r-w'; w.lang='en'; w.textContent=l.it.w;
+    var p=document.createElement('span'); p.className='r-pos'; p.textContent=l.it.pos;
+    head.appendChild(w); head.appendChild(p);
+    var ok=document.createElement('div'); ok.className='r-ok'; ok.textContent='정답: '+l.it.ko;
+    var no=document.createElement('div'); no.className='r-no'; no.textContent='내가 고른 답: '+l.picked;
+    var meta=document.createElement('div'); meta.className='r-meta'; meta.textContent=CATS[l.it.cat]+(l.it.note?' · '+l.it.note:'');
+    li.appendChild(head); li.appendChild(ok); li.appendChild(no); li.appendChild(meta);
+    list.appendChild(li);
+  });
+  show('result');
+}
+function speak(text){
+  if(!canSpeak) return;
+  try{
+    var u=new SpeechSynthesisUtterance(text); u.lang='en-CA'; u.rate=0.9;
+    window.speechSynthesis.cancel(); window.speechSynthesis.speak(u);
+  }catch(e){}
+}
+
+$('#cat').addEventListener('change',function(){ state.cat=this.value; updateInfo(); });
+[].forEach.call(document.querySelectorAll('.seg'),function(seg){
+  seg.addEventListener('click',function(e){
+    var b=e.target.closest('button'); if(!b) return;
+    [].forEach.call(seg.querySelectorAll('button'),function(x){ x.setAttribute('aria-pressed',x===b?'true':'false'); });
+    state[seg.dataset.key]=b.dataset.val; updateInfo();
+  });
+});
+$('#startBtn').addEventListener('click',startNew);
+$('#act').addEventListener('click',function(){ if(state.revealed) next(); else reveal(); });
+$('#quitBtn').addEventListener('click',function(){ if(state.log.length) showResult(); else show('start'); });
+$('#retryWrong').addEventListener('click',function(){ begin(shuffle(state.log.filter(function(l){ return !l.ok; }).map(function(l){ return l.it; }))); });
+$('#retryNew').addEventListener('click',startNew);
+$('#goHome').addEventListener('click',function(){ show('start'); });
+$('#sayBtn').addEventListener('click',function(){ var it=state.queue[state.idx]; if(it) speak(it.w); });
+$('#sayBtn').hidden=!canSpeak;
+
+document.addEventListener('keydown',function(e){
+  if($('#quiz').hidden||e.metaKey||e.ctrlKey||e.altKey) return;
+  if(e.key>='1'&&e.key<='5'){ pick(parseInt(e.key,10)-1); return; }
+  if(e.key==='Enter'){
+    var a=document.activeElement, act=$('#act');
+    if(a===act) return;                                  /* 버튼 자체의 클릭으로 처리 */
+    if(a&&a.tagName==='BUTTON'){
+      if(!a.classList.contains('opt')) return;           /* 발음 듣기·그만하기는 그대로 동작 */
+      if(!state.revealed&&state.picked!==Number(a.dataset.i)) return; /* 아직 안 고른 보기면 그 보기를 선택 */
+    }
+    e.preventDefault();
+    if(!act.hidden&&!act.disabled) act.click();
+  }
+});
+
+state.cat=$('#cat').value||'all';
+updateInfo();
+})();
+</script>
+</body>
+</html>
