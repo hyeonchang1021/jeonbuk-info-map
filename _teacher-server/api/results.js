@@ -20,6 +20,9 @@ export default async function handler(req, res) {
   if (!isTeacher(req)) return send(res, 401, { error: '비밀번호가 맞지 않습니다.' });
 
   if (req.method === 'GET') {
+    // since=<가장 최근에 받은 id> 를 주면 그보다 새로운 기록만 읽어 온다 (저장소 읽기 횟수를 아끼려고).
+    const since = String((req.query && req.query.since) || '');
+    if (since && !ID_RE.test(since)) return send(res, 400, { error: '요청 형식이 올바르지 않습니다.' });
     const blobs = [];
     let cursor;
     do {
@@ -28,14 +31,16 @@ export default async function handler(req, res) {
       cursor = r.hasMore ? r.cursor : undefined;
     } while (cursor && blobs.length < MAX_LIST);
 
+    const idOf = (b) => b.pathname.slice('attempts/'.length).replace(/\.json$/, '');
     blobs.sort((a, b) => b.pathname.localeCompare(a.pathname)); // 이름이 받은 시각으로 시작해서 최신순이 된다
-    const pick = blobs.slice(0, MAX_READ);
+    const ids = blobs.map(idOf);
+    const pick = (since ? blobs.filter((b) => idOf(b) > since) : blobs).slice(0, MAX_READ);
     const attempts = [];
     for (let i = 0; i < pick.length; i += 16) {
       const part = await Promise.all(pick.slice(i, i + 16).map((b) => readOne(b.pathname)));
       attempts.push(...part.filter(Boolean));
     }
-    return send(res, 200, { attempts, stored: blobs.length, truncated: blobs.length > pick.length });
+    return send(res, 200, { attempts, ids: ids.slice(0, MAX_READ), incremental: !!since, stored: blobs.length, truncated: blobs.length > MAX_READ });
   }
 
   if (req.method === 'DELETE') {

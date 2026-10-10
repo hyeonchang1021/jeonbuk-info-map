@@ -193,13 +193,25 @@ function api(method,path){
     return r.json().catch(function(){return {};}).then(function(j){ if(!r.ok){ var e=new Error(j.error||('요청 실패 ('+r.status+')')); e.status=r.status; throw e;} return j; });
   });
 }
-function load(){
+function stamp(){ S.loadedAt=new Date(); $('#updated').textContent='갱신 '+p2(S.loadedAt.getHours())+':'+p2(S.loadedAt.getMinutes())+':'+p2(S.loadedAt.getSeconds()); }
+/* 처음에는 전체를, 그다음부터는 새로 들어온 기록만 받아 합친다 (저장소 읽기 횟수를 아끼려고). */
+function merge(j){
+  if(!j.incremental){ S.attempts=j.attempts||[]; }
+  else {
+    var keep={}; (j.ids||[]).forEach(function(id){ keep[id]=1; });
+    var have={}; S.attempts=S.attempts.filter(function(a){ return keep[a.id]; });
+    S.attempts.forEach(function(a){ have[a.id]=1; });
+    (j.attempts||[]).forEach(function(a){ if(!have[a.id]) S.attempts.push(a); });
+    S.attempts.sort(function(a,b){ return a.id<b.id?1:a.id>b.id?-1:0; });
+  }
+  S.stored=j.stored||S.attempts.length; S.truncated=!!j.truncated;
+}
+function load(full){
   if(S.loading) return Promise.resolve();
   S.loading=true; $('#refreshBtn').disabled=true; $('#updated').textContent='불러오는 중…';
-  return api('GET','/api/results').then(function(j){
-    S.attempts=j.attempts||[]; S.stored=j.stored||S.attempts.length; S.truncated=!!j.truncated; S.loadedAt=new Date();
-    $('#updated').textContent='갱신 '+p2(S.loadedAt.getHours())+':'+p2(S.loadedAt.getMinutes())+':'+p2(S.loadedAt.getSeconds());
-    render();
+  var since=(!full&&S.attempts.length)?S.attempts[0].id:'';
+  return api('GET','/api/results'+(since?'?since='+encodeURIComponent(since):'')).then(function(j){
+    merge(j); stamp(); render();
   }).catch(function(e){
     if(e.status===401){ logout('비밀번호가 맞지 않습니다.'); return; }
     $('#updated').textContent='불러오지 못했습니다: '+e.message;
@@ -401,7 +413,7 @@ $('#csvBtn').addEventListener('click',function(){
 });
 
 /* ---------- 로그인 ---------- */
-function showApp(){ $('#loginView').hidden=true; $('#appView').hidden=false; load(); }
+function showApp(){ $('#loginView').hidden=true; $('#appView').hidden=false; load(true); }
 function logout(msg){
   S.key=''; sset(KEY,''); S.attempts=[];
   $('#appView').hidden=true; $('#loginView').hidden=false;
@@ -413,18 +425,19 @@ $('#loginForm').addEventListener('submit',function(ev){
   var btn=$('#loginBtn'); btn.disabled=true; $('#loginErr').hidden=true;
   S.key=v;
   api('GET','/api/results').then(function(j){
-    sset(KEY,v); S.attempts=j.attempts||[]; S.stored=j.stored||0; S.truncated=!!j.truncated;
+    sset(KEY,v); merge(j);
     $('#loginView').hidden=true; $('#appView').hidden=false;
-    S.loadedAt=new Date(); $('#updated').textContent='갱신 '+p2(S.loadedAt.getHours())+':'+p2(S.loadedAt.getMinutes())+':'+p2(S.loadedAt.getSeconds()); render();
+    stamp(); render();
   }).catch(function(e){ S.key=''; var m=$('#loginErr'); m.textContent=e.status===401?'비밀번호가 맞지 않습니다.':('서버에 연결하지 못했습니다: '+e.message); m.hidden=false; })
   .then(function(){ btn.disabled=false; });
 });
 $('#logoutBtn').addEventListener('click',function(){ logout(''); });
-$('#refreshBtn').addEventListener('click',load);
+$('#refreshBtn').addEventListener('click',function(){ load(false); });
 ['#fName','#fLevel','#fPeriod','#fDone'].forEach(function(s){ $(s).addEventListener(s==='#fName'?'input':'change',render); });
 $('#fReset').addEventListener('click',function(){ $('#fName').value=''; $('#fLevel').value=''; $('#fPeriod').value='all'; $('#fDone').checked=false; render(); });
 ['attempts','students','words'].forEach(function(t){ $('#tab-'+t).addEventListener('click',function(){ S.tab=t; render(); }); });
-setInterval(function(){ if(S.key && !document.hidden && !$('#detail').open) load(); },60000);
+/* 5분마다 새 기록만 확인한다. 화면을 안 보고 있을 때는 쉰다. */
+setInterval(function(){ if(S.key && !document.hidden && !$('#detail').open) load(false); },300000);
 
 S.key=sget(KEY);
 if(S.key) showApp(); else logout('');
