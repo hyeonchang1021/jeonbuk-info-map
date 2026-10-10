@@ -45,6 +45,14 @@ h1{font-size:clamp(1.7rem,6vw,2.2rem); line-height:1.2; margin:4px 0 10px; lette
 .field{display:flex; flex-direction:column; gap:8px}
 .label{font-size:.85rem; color:var(--muted)}
 .field select{width:100%; min-height:44px; padding:0 12px; background:var(--surface); border:1px solid var(--line); border-radius:8px}
+.field input.text{width:100%; min-height:44px; padding:0 12px; font:inherit; color:var(--ink); background:var(--surface); border:1px solid var(--line); border-radius:8px}
+.field input.text:focus-visible{outline:2px solid var(--accent); outline-offset:2px}
+.field input.text[aria-invalid="true"]{border-color:var(--no)}
+.hint{margin:0; font-size:.82rem; color:var(--muted)}
+.hint.err{color:var(--no)}
+.send{margin:14px 0 0; font-size:.88rem; color:var(--muted)}
+.send.ok{color:var(--ok)}
+.send.no{color:var(--no)}
 .seg{display:flex; flex-wrap:wrap; gap:8px}
 .seg button{min-height:42px; padding:0 14px; background:transparent; border:1px solid var(--line); border-radius:8px; cursor:pointer}
 .seg button[aria-pressed="true"]{background:var(--accent); border-color:var(--accent); color:var(--surface); font-weight:600}
@@ -112,6 +120,11 @@ h2{font-size:1.05rem; margin:28px 0 6px; padding-bottom:6px; border-bottom:2px s
     <nav class="levels" aria-label="단계">단계 <a href="../english-500-quiz/">기초</a> · <a href="../english-intermediate-quiz/">중급</a> · <b aria-current="page">고급</b></nav>
 
     <div class="panel">
+      <div class="field" id="nameField">
+        <label class="label" for="studentName">이름</label>
+        <input class="text" id="studentName" type="text" maxlength="20" autocomplete="name" placeholder="이름을 입력하세요" aria-describedby="nameHint">
+        <p class="hint" id="nameHint">퀴즈를 마치면 이름과 함께 결과(푼 시간, 맞힌 단어와 틀린 단어)가 선생님께 전송됩니다.</p>
+      </div>
       <div class="field">
         <label class="label" for="cat">주제</label>
         <select id="cat"><option value="all">전체 주제 (500)</option><option value="0">비즈니스 (25)</option><option value="1">회의·협상 (25)</option><option value="2">경제·금융 (25)</option><option value="3">법·계약·권리 (25)</option><option value="4">사회·공공 (25)</option><option value="5">언론·정보 (25)</option><option value="6">과학·기술 (25)</option><option value="7">환경·기후 (25)</option><option value="8">건강·의학 (25)</option><option value="9">교육·학문 (25)</option><option value="10">생각·판단 동사 (25)</option><option value="11">변화·영향 동사 (25)</option><option value="12">말하기·태도 동사 (25)</option><option value="13">성격·태도 형용사 (25)</option><option value="14">평가·판단 형용사 (25)</option><option value="15">추상 명사 (25)</option><option value="16">부사·담화 표지 (25)</option><option value="17">고급 구동사 (25)</option><option value="18">관용 표현 (25)</option><option value="19">캐나다 구어·관용 (25)</option></select>
@@ -174,7 +187,9 @@ h2{font-size:1.05rem; margin:28px 0 6px; padding-bottom:6px; border-bottom:2px s
     <div class="score" id="rScore"></div>
     <p class="pct" id="rPct"></p>
     <p id="rMsg" style="margin:0"></p>
+    <p class="send" id="sendStatus" role="status" aria-live="polite" hidden></p>
     <div class="btns">
+      <button type="button" class="ghost" id="resend" hidden>결과 다시 보내기</button>
       <button type="button" class="primary" id="retryWrong">틀린 단어만 다시 풀기</button>
       <button type="button" class="ghost" id="retryNew">같은 설정으로 새로 풀기</button>
       <button type="button" class="ghost" id="goHome">처음으로</button>
@@ -216,7 +231,11 @@ function buildChoices(it){
 }
 
 function $(s){ return document.querySelector(s); }
-var state={cat:'all',count:'10',instant:'no',queue:[],idx:0,score:0,log:[],picked:null,revealed:false,choices:[]};
+/* 결과를 받는 선생님 서버 주소와 이 페이지의 단계. 주소가 비어 있으면 이름 칸과 전송을 숨긴다. */
+var API_URL='https://english-quiz-teacher.vercel.app/api/submit', LEVEL='고급';
+var CAN_SEND=/^https:\/\//.test(API_URL);
+var NAME_KEY='englishQuizName';
+var state={cat:'all',count:'10',instant:'no',queue:[],idx:0,score:0,log:[],picked:null,revealed:false,choices:[],name:'',kind:'new',startedAt:null,payload:null};
 var canSpeak=('speechSynthesis' in window)&&(typeof SpeechSynthesisUtterance!=='undefined');
 
 function show(name){
@@ -229,11 +248,49 @@ function updateInfo(){
   var pool=currentPool();
   $('#poolInfo').textContent='선택한 범위 '+pool.length+'단어 중 '+questionCount(pool)+'문제를 무작위로 냅니다.';
 }
-function begin(items){
+function begin(items,kind){
   state.queue=items; state.idx=0; state.score=0; state.log=[];
+  state.kind=kind||'new'; state.startedAt=new Date(); state.payload=null;
   show('quiz'); showQuestion();
 }
-function startNew(){ var pool=currentPool(); begin(shuffle(pool).slice(0,questionCount(pool))); }
+function checkName(){
+  if(!CAN_SEND) return true;
+  var input=$('#studentName'), v=input.value.replace(/\s+/g,' ').trim(), hint=$('#nameHint');
+  if(!v){
+    input.setAttribute('aria-invalid','true'); hint.className='hint err'; hint.textContent='이름을 입력해야 시작할 수 있어요.';
+    input.focus(); return false;
+  }
+  input.removeAttribute('aria-invalid'); hint.className='hint';
+  hint.textContent='퀴즈를 마치면 이름과 함께 결과(푼 시간, 맞힌 단어와 틀린 단어)가 선생님께 전송됩니다.';
+  state.name=v; try{ localStorage.setItem(NAME_KEY,v); }catch(e){}
+  return true;
+}
+function startNew(){ if(!checkName()) return; var pool=currentPool(); begin(shuffle(pool).slice(0,questionCount(pool)),'new'); }
+
+/* ---------- 선생님 서버로 결과 보내기 ---------- */
+function buildPayload(){
+  var end=new Date();
+  return {
+    name:state.name, level:LEVEL,
+    topic:state.cat==='all'?'전체 주제':CATS[Number(state.cat)],
+    mode:state.instant==='yes'?'instant':'check', kind:state.kind,
+    planned:state.queue.length, completed:state.log.length>=state.queue.length,
+    startedAt:(state.startedAt||end).toISOString(), finishedAt:end.toISOString(),
+    durationSec:Math.round((end-(state.startedAt||end))/1000),
+    page:String(location.href).slice(0,200),
+    answers:state.log.map(function(l){ return {w:l.it.w,ko:l.it.ko,picked:l.picked,ok:l.ok,cat:CATS[l.it.cat],pos:l.it.pos}; })
+  };
+}
+function sendResult(){
+  var st=$('#sendStatus'), btn=$('#resend');
+  if(!CAN_SEND||!state.payload) return;
+  btn.hidden=true; st.hidden=false; st.className='send'; st.textContent='선생님께 결과를 보내는 중…';
+  var p=state.payload;
+  fetch(API_URL,{method:'POST',headers:{'Content-Type':'text/plain;charset=UTF-8'},body:JSON.stringify(p)})
+    .then(function(r){ if(!r.ok) throw new Error('HTTP '+r.status); return r.json(); })
+    .then(function(){ if(state.payload!==p) return; st.className='send ok'; st.textContent=p.name+' 님의 결과를 선생님께 보냈습니다.'; })
+    .catch(function(){ if(state.payload!==p) return; st.className='send no'; st.textContent='결과를 보내지 못했습니다. 인터넷 연결을 확인하고 다시 보내 주세요.'; btn.hidden=false; });
+}
 
 function showQuestion(){
   var it=state.queue[state.idx];
@@ -307,6 +364,8 @@ function showResult(){
     list.appendChild(li);
   });
   show('result');
+  if(CAN_SEND&&n>0){ state.payload=buildPayload(); sendResult(); }
+  else { $('#sendStatus').hidden=true; $('#resend').hidden=true; }
 }
 function speak(text){
   if(!canSpeak) return;
@@ -327,7 +386,10 @@ $('#cat').addEventListener('change',function(){ state.cat=this.value; updateInfo
 $('#startBtn').addEventListener('click',startNew);
 $('#act').addEventListener('click',function(){ if(state.revealed) next(); else reveal(); });
 $('#quitBtn').addEventListener('click',function(){ if(state.log.length) showResult(); else show('start'); });
-$('#retryWrong').addEventListener('click',function(){ begin(shuffle(state.log.filter(function(l){ return !l.ok; }).map(function(l){ return l.it; }))); });
+$('#retryWrong').addEventListener('click',function(){ begin(shuffle(state.log.filter(function(l){ return !l.ok; }).map(function(l){ return l.it; })),'retry'); });
+$('#resend').addEventListener('click',sendResult);
+$('#studentName').addEventListener('keydown',function(e){ if(e.key==='Enter'){ e.preventDefault(); startNew(); } });
+$('#studentName').addEventListener('input',function(){ if(this.value.trim()) this.removeAttribute('aria-invalid'); });
 $('#retryNew').addEventListener('click',startNew);
 $('#goHome').addEventListener('click',function(){ show('start'); });
 $('#sayBtn').addEventListener('click',function(){ var it=state.queue[state.idx]; if(it) speak(it.w); });
@@ -350,6 +412,8 @@ document.addEventListener('keydown',function(e){
 
 state.cat=$('#cat').value||'all';
 updateInfo();
+if(CAN_SEND){ try{ $('#studentName').value=localStorage.getItem(NAME_KEY)||''; }catch(e){} }
+else { $('#nameField').hidden=true; }
 })();
 </script>
 </body>

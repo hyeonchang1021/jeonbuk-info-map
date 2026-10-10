@@ -1,5 +1,7 @@
 # 영단어 퀴즈 선생님 관리 서버
 
+**관리 화면 주소: <https://english-quiz-teacher.vercel.app/>**
+
 기초·중급·고급 영단어 퀴즈(`../english-*-quiz/`)가 보낸 결과를 받아 저장하고, 선생님용 관리 화면을 보여 주는 Vercel 프로젝트.
 
 - `api/submit.js` — 학생 퀴즈 결과 받기 (POST, 누구나)
