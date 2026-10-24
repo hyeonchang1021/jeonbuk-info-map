@@ -86,13 +86,28 @@ h1{font-size:clamp(1.7rem,6vw,2.2rem); line-height:1.2; margin:4px 0 10px; lette
 .badge{display:inline-block; padding:2px 10px; border-radius:999px; font-size:.85rem; font-weight:600}
 .badge.ok{background:var(--ok-bg); color:var(--ok)} .badge.mid{background:var(--mid-bg); color:var(--mid)} .badge.no{background:var(--no-bg); color:var(--no)}
 .tries{font-size:.84rem; color:var(--muted)}
+.parts{display:grid; grid-template-columns:auto 1fr auto; gap:4px 10px; align-items:center; margin:14px 0 0; padding:12px 14px; border:1px solid var(--line); border-radius:10px; background:var(--surface)}
+.parts .pn{font-size:.86rem; font-weight:600}
+.parts .pb{height:6px; border-radius:6px; background:var(--line); overflow:hidden}
+.parts .pb i{display:block; height:100%; border-radius:6px; background:var(--accent)}
+.parts .pb i.lo{background:var(--no)} .parts .pb i.md{background:var(--mid)}
+.parts .pv{font-family:var(--f-data); font-size:.9rem; font-variant-numeric:tabular-nums; text-align:right; min-width:2.6em}
+.parts .pd{grid-column:1/-1; font-size:.8rem; color:var(--muted); margin:-2px 0 6px}
+.parts .pd:last-child{margin-bottom:0}
+.parts .cap{grid-column:1/-1; font-size:.82rem; color:var(--no); margin:2px 0 0}
+.diff{display:flex; flex-wrap:wrap; gap:6px; margin:10px 0 0; padding:0; list-style:none}
+.diff li{padding:3px 10px; border-radius:999px; background:var(--no-bg); color:var(--no); font-family:var(--f-word); font-size:.9rem}
+.diff li.ins{background:var(--mid-bg); color:var(--mid)}
+details.rule{margin:14px 0 0; font-size:.86rem; color:var(--muted)}
+details.rule summary{cursor:pointer; color:var(--ink); font-weight:600}
+details.rule ul{margin:8px 0 0; padding-left:18px} details.rule li{margin:3px 0}
 .err{margin:10px 0 0; color:var(--no); font-size:.9rem}
 .actions{display:grid; grid-template-columns:1fr 1.4fr; gap:10px; margin-top:16px}
 .keys{font-size:.78rem; color:var(--muted); text-align:center; margin:10px 0 0}
 @media (hover:none){ .keys{display:none} }
 
 .big{font-family:var(--f-data); font-weight:500; font-size:clamp(2.6rem,11vw,3.6rem); line-height:1.1; letter-spacing:-.03em; margin-top:10px; font-variant-numeric:tabular-nums}
-.sub{margin:6px 0 2px; color:var(--muted)}
+.sub{margin:6px 0 2px; color:var(--muted); white-space:pre-line}
 .send{margin:14px 0 0; font-size:.88rem; color:var(--muted)}
 .send.ok{color:var(--ok)} .send.no{color:var(--no)}
 .btns{display:flex; flex-direction:column; gap:10px; margin:20px 0 8px}
@@ -106,6 +121,7 @@ h2{font-size:1.05rem; margin:28px 0 6px; padding-bottom:6px; border-bottom:2px s
 .review .s span.no{color:var(--no); text-decoration:underline wavy; text-underline-offset:4px}
 .review .pts{font-family:var(--f-data); font-size:.9rem; white-space:nowrap}
 .review .h{font-size:.85rem; color:var(--muted); margin-top:2px}
+.review .h2{font-size:.8rem; color:var(--muted); margin-top:2px; font-variant-numeric:tabular-nums}
 </style>
 </head>
 <body>
@@ -122,7 +138,7 @@ h2{font-size:1.05rem; margin:28px 0 6px; padding-bottom:6px; border-bottom:2px s
       <div class="field" id="nameField">
         <label class="label" for="studentName">이름</label>
         <input class="text" id="studentName" type="text" maxlength="20" autocomplete="name" placeholder="이름을 입력하세요" aria-describedby="nameHint">
-        <p class="hint" id="nameHint">연습을 마치면 이름과 함께 결과(문장별 점수, 잘못 들린 단어)가 선생님께 전송됩니다.</p>
+        <p class="hint" id="nameHint">연습을 마치면 이름과 함께 결과(문장별 점수와 세부 점수, 잘못 들린 단어)가 선생님께 전송됩니다.</p>
       </div>
       <div class="field">
         <span class="label" id="l-job">직종</span>
@@ -153,6 +169,16 @@ h2{font-size:1.05rem; margin:28px 0 6px; padding-bottom:6px; border-bottom:2px s
       <p class="info" id="poolInfo"></p>
       <button type="button" class="primary" id="startBtn">시작하기</button>
       <p class="hint">말하기를 누르면 마이크를 씁니다. Chrome에서는 알아듣기 위해 음성이 Google 서버로 전송되어 처리됩니다.</p>
+      <details class="rule">
+        <summary>채점 기준 (엄격)</summary>
+        <ul>
+          <li><b>정확도 60%</b> · 바뀐 단어, 빠진 단어, 덧붙인 단어(um, the 등)를 모두 감점합니다.</li>
+          <li><b>유창성 20%</b> · 실제로 말한 시간으로 말하기 속도(초당 음절)와 문장 중간에 멈춘 횟수를 봅니다. 쉼표·마침표 자리의 짧은 멈춤은 괜찮습니다.</li>
+          <li><b>명료도 20%</b> · 음성 인식기가 얼마나 확신하고 알아들었는지를 점수로 바꿉니다.</li>
+          <li>한 단어라도 틀리면 최대 85점이라 통과할 수 없습니다. <b>90점 이상</b>이 통과입니다.</li>
+          <li>선생님께는 최고 점수와 함께 첫 시도 점수도 전송됩니다.</li>
+        </ul>
+      </details>
     </div>
   </section>
 
@@ -186,6 +212,8 @@ h2{font-size:1.05rem; margin:28px 0 6px; padding-bottom:6px; border-bottom:2px s
       <span class="badge" id="vBadge"></span>
       <span class="tries" id="vTries"></span>
     </div>
+    <div class="parts" id="vParts" hidden></div>
+    <ul class="diff" id="vDiff" lang="en" hidden></ul>
     <p class="err" id="pErr" role="alert" hidden></p>
 
     <div class="actions">
@@ -217,9 +245,13 @@ h2{font-size:1.05rem; margin:28px 0 6px; padding-bottom:6px; border-bottom:2px s
 </div>
 
 <script>
-/* 발음 채점: 목표 문장과 음성 인식 결과를 단어 단위로 맞춰 본다.
-   - 축약형(I'm ↔ I am), 숫자(fifteen ↔ 15, forty-two ↔ 42), %·$ 같은 표기 차이는 같은 말로 본다.
-   - 순서를 지키며 가장 많이 겹치는 단어(LCS)를 맞힌 단어로 센다. 군말이 더 들어간 것은 감점하지 않는다. */
+/* 발음 채점 (엄격 모드)
+   총점 = 정확도 60% + 유창성 20% + 명료도 20%  (측정 못 한 항목은 빼고 나머지 비율로 다시 나눔)
+   - 정확도: 목표 문장과 인식 결과를 단어 단위로 맞춰(편집 거리) 바뀐 단어·빠진 단어·덧붙은 단어를 모두 감점한다.
+             축약형(I'm ↔ I am), 숫자(fifteen ↔ 15), %·$ 같은 표기 차이만 같은 말로 본다.
+   - 유창성: 마이크 소리로 실제 말한 구간을 재서 말하기 속도(음절/초)와 중간 멈춤을 본다.
+   - 명료도: 음성 인식기가 들려준 확신도(confidence)를 점수로 바꾼다.
+   - 한 단어라도 틀리거나 빠지면 총점은 최대 85점(통과 불가). */
 var PronScore = (function () {
   'use strict';
   var CONTRACTIONS = {
@@ -242,6 +274,11 @@ var PronScore = (function () {
     eighteen: 18, nineteen: 19 };
   var TENS = { twenty: 20, thirty: 30, forty: 40, fifty: 50, sixty: 60, seventy: 70, eighty: 80, ninety: 90 };
 
+  var W = { acc: 0.6, flu: 0.2, cla: 0.2 };
+  var CAP_IF_WRONG = 85;
+
+  function clamp(x, a, b) { return x < a ? a : x > b ? b : x; }
+
   function wordTokens(word) {
     var w = String(word).toLowerCase().replace(/[‘’ʼ`]/g, "'").replace(/%/g, ' percent ').replace(/\$/g, ' ');
     w = w.replace(/[^a-z0-9'.\s-]/g, ' ').replace(/(\d)\.(\d)/g, '$1 $2').replace(/[.\-]/g, ' ');
@@ -262,7 +299,7 @@ var PronScore = (function () {
 
   /* 문장을 [{t: 비교용 토큰, w: 원래 단어 번호}] 로. 십의 자리+일의 자리(forty two)는 한 숫자로 합친다. */
   function tokenize(text) {
-    var words = String(text).trim().split(/\s+/).filter(Boolean);
+    var words = String(text || '').trim().split(/\s+/).filter(Boolean);
     var toks = [];
     words.forEach(function (word, i) { wordTokens(word).forEach(function (t) { toks.push({ t: t, w: [i] }); }); });
     var merged = [];
@@ -277,43 +314,157 @@ var PronScore = (function () {
     return { words: words, toks: merged };
   }
 
-  function lcsMatch(a, b) {
-    var n = a.length, m = b.length, i, j;
-    var dp = [];
-    for (i = 0; i <= n; i++) { dp.push(new Array(m + 1).fill(0)); }
-    for (i = n - 1; i >= 0; i--) for (j = m - 1; j >= 0; j--)
-      dp[i][j] = a[i] === b[j] ? dp[i + 1][j + 1] + 1 : Math.max(dp[i + 1][j], dp[i][j + 1]);
-    var hit = new Array(n).fill(false);
-    i = 0; j = 0;
-    while (i < n && j < m) {
-      if (a[i] === b[j]) { hit[i] = true; i++; j++; }
-      else if (dp[i + 1][j] >= dp[i][j + 1]) i++;
-      else j++;
+  /* 편집 거리 정렬. ops: {op:'ok'|'sub'|'del'|'ins', i: 목표 토큰 번호, j: 들린 토큰 번호} */
+  function align(a, b) {
+    var n = a.length, m = b.length, i, j, d = [];
+    for (i = 0; i <= n; i++) { d.push(new Array(m + 1)); d[i][0] = i; }
+    for (j = 0; j <= m; j++) d[0][j] = j;
+    for (i = 1; i <= n; i++) for (j = 1; j <= m; j++)
+      d[i][j] = Math.min(d[i - 1][j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1), d[i - 1][j] + 1, d[i][j - 1] + 1);
+    var ops = [];
+    i = n; j = m;
+    while (i > 0 || j > 0) {
+      if (i > 0 && j > 0 && d[i][j] === d[i - 1][j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1)) {
+        ops.push({ op: a[i - 1] === b[j - 1] ? 'ok' : 'sub', i: i - 1, j: j - 1 }); i--; j--;
+      } else if (i > 0 && d[i][j] === d[i - 1][j] + 1) { ops.push({ op: 'del', i: i - 1 }); i--; }
+      else { ops.push({ op: 'ins', j: j - 1 }); j--; }
     }
-    return hit;
+    return ops.reverse();
   }
 
-  function compare(target, heard) {
-    var T = tokenize(target), H = tokenize(heard || '');
-    var hit = lcsMatch(T.toks.map(function (x) { return x.t; }), H.toks.map(function (x) { return x.t; }));
-    var wordOk = T.words.map(function () { return true; });
-    var wordHasTok = T.words.map(function () { return false; });
-    T.toks.forEach(function (tok, k) { tok.w.forEach(function (wi) { wordHasTok[wi] = true; if (!hit[k]) wordOk[wi] = false; }); });
-    var total = T.toks.length, got = hit.filter(Boolean).length;
-    var words = T.words.map(function (w, i) { return { text: w, ok: wordHasTok[i] ? wordOk[i] : true }; });
-    var missed = [];
-    words.forEach(function (x) { if (!x.ok) { var c = x.text.replace(/^[^A-Za-z0-9$]+|[^A-Za-z0-9%]+$/g, ''); if (c) missed.push(c); } });
-    return { score: total ? Math.round(got / total * 100) : 0, words: words, missed: missed, heard: heard || '' };
+  function clean(w) { return String(w).replace(/^[^A-Za-z0-9$']+|[^A-Za-z0-9%']+$/g, ''); }
+
+  /* 단어 정확도 */
+  function words(target, heard) {
+    var T = tokenize(target), H = tokenize(heard);
+    var ops = align(T.toks.map(function (x) { return x.t; }), H.toks.map(function (x) { return x.t; }));
+    var tokOk = T.toks.map(function () { return false; }), tokHeard = T.toks.map(function () { return null; });
+    var S = 0, D = 0, I = 0, inserted = [];
+    ops.forEach(function (o) {
+      if (o.op === 'ok') tokOk[o.i] = true;
+      else if (o.op === 'sub') { S++; tokHeard[o.i] = clean(H.words[H.toks[o.j].w[0]]); }
+      else if (o.op === 'del') D++;
+      else { I++; inserted.push(clean(H.words[H.toks[o.j].w[0]])); }
+    });
+    var wordOk = T.words.map(function () { return null; }), wordHeard = T.words.map(function () { return []; });
+    T.toks.forEach(function (tok, k) {
+      tok.w.forEach(function (wi) {
+        wordOk[wi] = (wordOk[wi] === null ? true : wordOk[wi]) && tokOk[k];
+        if (tokHeard[k] && wordHeard[wi].indexOf(tokHeard[k]) < 0) wordHeard[wi].push(tokHeard[k]);
+      });
+    });
+    var list = T.words.map(function (w, i) {
+      return { text: w, ok: wordOk[i] === null ? true : wordOk[i], heard: wordHeard[i].join(' ') };
+    });
+    var missed = [], diff = [];
+    list.forEach(function (x) {
+      if (x.ok) return;
+      var c = clean(x.text); if (!c) return;
+      missed.push(c);
+      diff.push(c + ' → ' + (x.heard || '(빠짐)'));
+    });
+    inserted.filter(Boolean).forEach(function (w) { diff.push('+ ' + w); });
+    var N = T.toks.length, hit = tokOk.filter(Boolean).length;
+    return {
+      words: list, missed: missed, diff: diff, inserted: inserted.filter(Boolean),
+      total: N, matched: hit, subs: S, dels: D, ins: I,
+      acc: N ? Math.round(clamp(1 - (S + D + I) / N, 0, 1) * 100) : 0,
+      complete: N ? Math.round(hit / N * 100) : 0
+    };
   }
 
-  /* 인식 후보 여러 개 중 점수가 가장 높은 것을 고른다. */
-  function best(target, candidates) {
-    var r = null;
-    (candidates || []).forEach(function (c) { var x = compare(target, c); if (!r || x.score > r.score) r = x; });
-    return r || compare(target, '');
+  /* 음절 수 어림 (영어 철자 규칙 기반) */
+  function syllables(text) {
+    var n = 0;
+    String(text).split(/\s+/).forEach(function (raw) {
+      var bare = raw.replace(/[^A-Za-z0-9%]/g, '');
+      if (/^[A-Z]{2,4}$/.test(bare)) { n += bare.length; return; }   /* ID, TV 같은 약어는 글자마다 */
+      if (/%/.test(bare)) n += 2;                                      /* percent */
+      var w = raw.toLowerCase().replace(/[^a-z0-9]/g, '');
+      if (!w) return;
+      if (/^\d+$/.test(w)) { n += w.length; return; }
+      if (w.length <= 3) { n += 1; return; }
+      w = w.replace(/(?:[^laeiouy]es|[^laeiouy]e|ed)$/, function (m) { return /[td]ed$/.test(m) ? m : m.charAt(0); });
+      w = w.replace(/^y/, '');
+      var g = w.match(/[aeiouy]+/g);
+      n += Math.max(1, g ? g.length : 1);
+    });
+    return n;
   }
 
-  return { compare: compare, best: best, tokenize: tokenize };
+  /* 마이크 소리 [{t: ms, rms}] 로 말한 구간·멈춤을 찾는다. */
+  function speechSpan(frames) {
+    if (!frames || frames.length < 10) return null;
+    var levels = frames.map(function (f) { return f.rms; }).slice().sort(function (a, b) { return a - b; });
+    var floor = levels[Math.floor(levels.length * 0.2)];
+    var peak = levels[Math.floor(levels.length * 0.98)];
+    var thr = Math.max(floor * 3, 0.006, floor + (peak - floor) * 0.12);
+    if (peak < thr) return null;
+    var runs = [], cur = null, step = frames.length > 1 ? (frames[frames.length - 1].t - frames[0].t) / (frames.length - 1) : 20;
+    frames.forEach(function (f) {
+      if (f.rms >= thr) { if (cur && f.t - cur.e <= 150) cur.e = f.t; else { cur = { s: f.t, e: f.t }; runs.push(cur); } }
+    });
+    runs = runs.filter(function (r) { return r.e - r.s + step >= 60; });
+    if (!runs.length) return null;
+    var start = runs[0].s, end = runs[runs.length - 1].e + step, gaps = [];
+    for (var k = 1; k < runs.length; k++) { var g = runs[k].s - runs[k - 1].e - step; if (g >= 400) gaps.push(g); }
+    var voiced = runs.reduce(function (t, r) { return t + (r.e - r.s + step); }, 0);
+    if (voiced < 200) return null;
+    return { start: start, end: end, sec: (end - start) / 1000, voicedSec: voiced / 1000, pauses: gaps };
+  }
+
+  /* 유창성: 속도 점수 - 멈춤 감점. 문장 안 쉼표·마침표 개수만큼은 1초 미만 멈춤을 봐준다. */
+  function fluency(target, frames) {
+    var sp = speechSpan(frames);
+    if (!sp || sp.sec <= 0.15) return null;
+    var syl = syllables(target), rate = syl / sp.sec;
+    var rs = rate >= 3.5 ? 100 : rate >= 2 ? 55 + (rate - 2) / 1.5 * 45 : rate >= 1 ? (rate - 1) * 55 : 0;
+    if (syl < 5) rs = Math.max(rs, 70);
+    var free = (String(target).replace(/[.?!]+\s*$/, '').match(/[,.;:?!]\s/g) || []).length;
+    var pen = 0, counted = [];
+    sp.pauses.slice().sort(function (a, b) { return a - b; }).forEach(function (g) {
+      if (free > 0 && g < 1000) { free--; return; }
+      counted.push(g); pen += g >= 800 ? 18 : 8;
+    });
+    return {
+      score: Math.round(clamp(rs - pen, 0, 100)),
+      rate: Math.round(rate * 10) / 10, syllables: syl, sec: Math.round(sp.sec * 100) / 100,
+      pauses: counted.length, longestPause: counted.length ? Math.round(Math.max.apply(null, counted)) : 0
+    };
+  }
+
+  /* 명료도: 인식 확신도 0.45 이하 0점, 0.92 이상 100점 */
+  function clarity(conf) {
+    if (typeof conf !== 'number' || !(conf > 0) || conf > 1) return null;
+    return { score: Math.round(clamp((conf - 0.45) / (0.92 - 0.45), 0, 1) * 100), conf: Math.round(conf * 100) / 100 };
+  }
+
+  /* opts: {confidence: 0~1, frames: [{t, rms}]} */
+  function assess(target, heard, opts) {
+    opts = opts || {};
+    var wd = words(target, heard || '');
+    var fl = fluency(target, opts.frames), cl = clarity(opts.confidence);
+    var sum = wd.acc * W.acc, wt = W.acc;
+    if (fl) { sum += fl.score * W.flu; wt += W.flu; }
+    if (cl) { sum += cl.score * W.cla; wt += W.cla; }
+    var score = Math.round(sum / wt);
+    var allOk = wd.matched === wd.total && wd.ins === 0;
+    if (!allOk) score = Math.min(score, CAP_IF_WRONG);
+    if (!wd.matched) score = 0;
+    return {
+      score: score, allOk: allOk, heard: heard || '',
+      words: wd.words, missed: wd.missed, diff: wd.diff,
+      acc: wd.acc, complete: wd.complete, matched: wd.matched, total: wd.total, inserted: wd.ins,
+      flu: fl ? fl.score : null, fluency: fl,
+      cla: cl ? cl.score : null, clarity: cl
+    };
+  }
+
+  /* 예전 방식과 같은 이름(테스트용): 단어 정확도만 */
+  function compare(target, heard) { return assess(target, heard, {}); }
+
+  return { assess: assess, compare: compare, words: words, tokenize: tokenize, syllables: syllables,
+           speechSpan: speechSpan, fluency: fluency, clarity: clarity, align: align, CAP_IF_WRONG: CAP_IF_WRONG };
 })();
 if (typeof module !== 'undefined') module.exports = PronScore;
 
@@ -339,7 +490,8 @@ function shuffle(a){ a=a.slice(); for(var i=a.length-1;i>0;i--){ var j=Math.floo
 function show(name){ ['start','practice','result'].forEach(function(id){ $('#'+id).hidden=(id!==name); }); window.scrollTo(0,0); }
 
 var S={job:'all',who:'me',count:'10',queue:[],idx:0,res:[],name:'',kind:'new',startedAt:null,payload:null,
-       listening:false,rec:null,stream:null,recorder:null,chunks:[],audioUrl:null,recordOk:canRecord};
+       listening:false,rec:null,stream:null,recorder:null,chunks:[],audioUrl:null,recordOk:canRecord,
+       actx:null,analyser:null,meter:null,frames:[]};
 
 /* ---------- 시작 화면 ---------- */
 function pool(){ return ITEMS.filter(function(it){ return (S.job==='all'||it.job===S.job)&&(S.who==='all'||it.who===S.who); }); }
@@ -356,12 +508,12 @@ function checkName(){
   if(!CAN_SEND) return true;
   var input=$('#studentName'), v=input.value.replace(/\s+/g,' ').trim(), hint=$('#nameHint');
   if(!v){ input.setAttribute('aria-invalid','true'); hint.className='hint err'; hint.textContent='이름을 입력해야 시작할 수 있어요.'; input.focus(); return false; }
-  input.removeAttribute('aria-invalid'); hint.className='hint'; hint.textContent='연습을 마치면 이름과 함께 결과(문장별 점수, 잘못 들린 단어)가 선생님께 전송됩니다.';
+  input.removeAttribute('aria-invalid'); hint.className='hint'; hint.textContent='연습을 마치면 이름과 함께 결과(문장별 점수와 세부 점수, 잘못 들린 단어)가 선생님께 전송됩니다.';
   S.name=v; try{ localStorage.setItem(NAME_KEY,v); }catch(e){}
   return true;
 }
 function begin(items,kind){
-  S.queue=items; S.idx=0; S.res=items.map(function(){ return {tries:0,best:null,skipped:false}; });
+  S.queue=items; S.idx=0; S.res=items.map(function(){ return {tries:0,best:null,first:null,skipped:false}; });
   S.kind=kind||'new'; S.startedAt=new Date(); S.payload=null;
   show('practice'); showItem();
 }
@@ -415,6 +567,29 @@ function startRecording(st){
 }
 function stopRecording(){ try{ if(S.recorder&&S.recorder.state!=='inactive') S.recorder.stop(); }catch(e){} }
 
+/* 유창성 채점용: 말하는 동안 마이크 소리 크기를 20ms마다 기록한다. 소리 자체는 저장하거나 보내지 않는다. */
+function startMeter(st){
+  S.frames=[]; stopMeter();
+  if(!st) return;
+  try{
+    if(!S.actx){
+      var AC=window.AudioContext||window.webkitAudioContext; if(!AC) return;
+      S.actx=new AC(); var src=S.actx.createMediaStreamSource(st);
+      S.analyser=S.actx.createAnalyser(); S.analyser.fftSize=1024;
+      var mute=S.actx.createGain(); mute.gain.value=0;
+      src.connect(S.analyser); S.analyser.connect(mute); mute.connect(S.actx.destination);
+    }
+    if(S.actx.state==='suspended') S.actx.resume();
+    var buf=new Float32Array(S.analyser.fftSize), t0=performance.now();
+    S.meter=setInterval(function(){
+      S.analyser.getFloatTimeDomainData(buf);
+      var sum=0; for(var i=0;i<buf.length;i++) sum+=buf[i]*buf[i];
+      S.frames.push({t:Math.round(performance.now()-t0), rms:Math.sqrt(sum/buf.length)});
+    },20);
+  }catch(e){ S.analyser=null; }
+}
+function stopMeter(){ if(S.meter){ clearInterval(S.meter); S.meter=null; } }
+
 function startListening(){
   if(S.listening){ stopListening(); return; }
   if(synth) synth.cancel();
@@ -425,17 +600,17 @@ function startListening(){
       startRecording(st); micUI(true); return;
     }
     var rec=new SR(); S.rec=rec;
-    rec.lang='en-CA'; rec.interimResults=true; rec.maxAlternatives=3; rec.continuous=false;
+    rec.lang='en-CA'; rec.interimResults=true; rec.maxAlternatives=1; rec.continuous=false;
     var finals=[], gotAny=false, failed=false;
     rec.onresult=function(e){
       var interim='', fin=[];
       for(var i=0;i<e.results.length;i++){
         var r=e.results[i];
-        if(r.isFinal){ var alts=[]; for(var k=0;k<r.length;k++) alts.push(r[k].transcript); fin.push(alts); }
+        if(r.isFinal) fin.push({text:r[0].transcript, conf:r[0].confidence});
         else interim+=r[0].transcript;
       }
       finals=fin; gotAny=true;
-      var shown=fin.map(function(a){ return a[0]; }).join(' ')+(interim?' '+interim:'');
+      var shown=fin.map(function(a){ return a.text; }).join(' ')+(interim?' '+interim:'');
       var v=$('#heardV'); v.textContent=shown.trim()||'…'; v.className='v'+(interim?' interim':'');
     };
     rec.onerror=function(e){
@@ -445,13 +620,14 @@ function startListening(){
       if(e.error!=='aborted') setErr(m||('음성 인식 오류: '+e.error));
     };
     rec.onend=function(){
-      stopRecording(); micUI(false); S.rec=null;
+      stopRecording(); stopMeter(); micUI(false); S.rec=null;
       if(!finals.length){ if(!failed&&!gotAny) setErr('아무 말도 들리지 않았어요. 다시 말해 주세요.'); return; }
-      var n=Math.max.apply(null,finals.map(function(a){ return a.length; })), cands=[];
-      for(var k=0;k<n;k++) cands.push(finals.map(function(a){ return a[k]||a[0]; }).join(' '));
-      grade(cands);
+      var heard=finals.map(function(a){ return a.text.trim(); }).join(' ');
+      var cw=0, cs=0;   /* 확신도: 인식된 구간 길이로 가중 평균. 0이나 빈 값이면 이 브라우저는 제공하지 않는 것 */
+      finals.forEach(function(a){ var L=a.text.length||1; if(typeof a.conf==='number'&&a.conf>0){ cw+=L; cs+=a.conf*L; } });
+      grade(heard, cw?cs/cw:null, S.frames.slice());
     };
-    try{ rec.start(); startRecording(st); micUI(true); }catch(e){ setErr('음성 인식을 시작하지 못했어요. 잠시 뒤 다시 눌러 주세요.'); }
+    try{ rec.start(); startRecording(st); startMeter(st); micUI(true); }catch(e){ setErr('음성 인식을 시작하지 못했어요. 잠시 뒤 다시 눌러 주세요.'); }
   });
 }
 function stopListening(){
@@ -461,27 +637,53 @@ function stopListening(){
 }
 
 /* ---------- 채점 ---------- */
-function band(score){ return score>=PASS?['ok','통과']:score>=60?['mid','조금만 더']:['no','다시 해 보세요']; }
+function band(score){ return score>=PASS?['ok','통과']:score>=70?['mid','조금만 더']:['no','다시 해 보세요']; }
+function lvl(v){ return v>=90?'':v>=70?'md':'lo'; }
+function partRows(r){
+  var rows=[], f=r.fluency, c=r.clarity;
+  rows.push(['정확도',r.acc,'단어 '+r.total+'개 중 '+r.matched+'개 맞음'+(r.inserted?' · 덧붙인 말 '+r.inserted+'개':'')]);
+  rows.push(['유창성',r.flu,f?('속도 '+f.rate+'음절/초 (목표 3.5 이상) · 말한 시간 '+f.sec+'초'+(f.pauses?' · 중간 멈춤 '+f.pauses+'회(가장 긴 '+(f.longestPause/1000).toFixed(1)+'초)':' · 중간 멈춤 없음')):'측정 못 함 (이 기기에서는 녹음과 인식을 함께 쓸 수 없어요)']);
+  rows.push(['명료도',r.cla,c?('인식 확신도 '+c.conf.toFixed(2)+' (0.92 이상이면 만점)'):'측정 못 함 (이 브라우저는 확신도를 알려 주지 않아요)']);
+  return rows;
+}
+function paintParts(r){
+  var box=$('#vParts'); box.textContent='';
+  partRows(r).forEach(function(x){
+    var n=document.createElement('span'); n.className='pn'; n.textContent=x[0];
+    var b=document.createElement('span'); b.className='pb'; var i=document.createElement('i');
+    if(x[1]!=null){ i.style.width=x[1]+'%'; i.className=lvl(x[1]); } b.appendChild(i);
+    var v=document.createElement('span'); v.className='pv'; v.textContent=x[1]==null?'-':x[1];
+    var d=document.createElement('span'); d.className='pd'; d.textContent=x[2];
+    box.appendChild(n); box.appendChild(b); box.appendChild(v); box.appendChild(d);
+  });
+  if(!r.allOk&&r.matched){ var cap=document.createElement('span'); cap.className='cap'; cap.textContent='틀리거나 빠지거나 덧붙인 단어가 있으면 최대 '+PronScore.CAP_IF_WRONG+'점이에요.'; box.appendChild(cap); }
+  box.hidden=false;
+  var dl=$('#vDiff'); dl.textContent='';
+  r.diff.forEach(function(t){ var li=document.createElement('li'); li.textContent=t; if(t.charAt(0)==='+') li.className='ins'; dl.appendChild(li); });
+  dl.hidden=!r.diff.length;
+}
 function paintSentence(el,words){
   el.textContent='';
   words.forEach(function(w,i){ if(i) el.appendChild(document.createTextNode(' ')); var s=document.createElement('span'); s.textContent=w.text; if(w.ok!==null) s.className=w.ok?'ok':'no'; el.appendChild(s); });
 }
-function grade(cands){
-  var it=S.queue[S.idx], r=PronScore.best(it.en,cands), st=S.res[S.idx];
+function grade(heard,conf,frames){
+  var it=S.queue[S.idx], r=PronScore.assess(it.en,heard,{confidence:conf,frames:frames}), st=S.res[S.idx];
   st.tries++; st.skipped=false;
+  if(!st.first) st.first=r;
   if(!st.best||r.score>=st.best.score) st.best=r;
   paintSentence($('#pEn'),r.words);
   var v=$('#heardV'); v.textContent=r.heard||'…'; v.className='v';
   var b=band(r.score);
   $('#vScore').textContent=r.score+'점';
   var badge=$('#vBadge'); badge.className='badge '+b[0]; badge.textContent=b[1];
-  $('#vTries').textContent='시도 '+st.tries+'회 · 최고 '+st.best.score+'점';
-  $('#verdict').hidden=false;
+  $('#vTries').textContent='시도 '+st.tries+'회 · 최고 '+st.best.score+'점'+(st.tries>1?' · 첫 시도 '+st.first.score+'점':'');
+  $('#verdict').hidden=false; paintParts(r);
   micUI(false); updateTop();
 }
 
 /* ---------- 문장 화면 ---------- */
-function avgOf(list){ var xs=list.filter(function(x){ return x.best; }).map(function(x){ return x.best.score; }); return xs.length?Math.round(xs.reduce(function(a,b){return a+b;},0)/xs.length):null; }
+function mean(xs){ xs=xs.filter(function(v){ return v!=null; }); return xs.length?Math.round(xs.reduce(function(a,b){return a+b;},0)/xs.length):null; }
+function avgOf(list,key,which){ return mean(list.filter(function(x){ return x[which||'best']; }).map(function(x){ return x[which||'best'][key||'score']; })); }
 function updateTop(){
   $('#pNum').textContent=(S.idx+1)+' / '+S.queue.length;
   var a=avgOf(S.res); $('#pAvg').textContent=SR?('평균 '+(a==null?'-':a+'점')):'';
@@ -496,7 +698,7 @@ function showItem(){
   $('#pMemo').textContent=it.note; $('#pMemo').hidden=!it.note;
   $('#heardK').textContent=SR?'들린 문장':'녹음';
   var v=$('#heardV'); v.className='v'; v.textContent=SR?'아직 말하지 않았어요. 듣기로 먼저 들어 보고 말하기를 누르세요.':'듣기로 먼저 들어 보고, 말하기를 눌러 녹음한 뒤 내 녹음 듣기로 비교해 보세요.';
-  $('#verdict').hidden=true; setErr('');
+  $('#verdict').hidden=true; $('#vParts').hidden=true; $('#vDiff').hidden=true; setErr('');
   if(S.audioUrl){ URL.revokeObjectURL(S.audioUrl); S.audioUrl=null; } $('#mineBtn').hidden=true;
   $('#nextBtn').textContent=(S.idx+1>=S.queue.length)?'결과 보기':'다음 문장';
   $('#playBtn').disabled=!synth; $('#slowBtn').disabled=!synth;
@@ -517,8 +719,11 @@ function showResult(){
   var tried=done.filter(function(x){ return x.r.best; });
   var avg=avgOf(done.map(function(x){ return x.r; }));
   var passed=tried.filter(function(x){ return x.r.best.score>=PASS; }).length;
+  var rs=done.map(function(x){ return x.r; });
+  function v(n){ return n==null?'-':n; }
   $('#rAvg').textContent=SR?(avg==null?'-':avg+'점'):(done.length+'문장');
-  $('#rSub').textContent=SR?('평균 점수 · 통과 '+passed+' / '+done.length+'문장'+(done.length>tried.length?' · 건너뜀 '+(done.length-tried.length):'')):'이 브라우저에서는 점수 없이 듣기와 녹음만 했어요.';
+  $('#rSub').textContent=SR?('평균 점수 · 통과 '+passed+' / '+done.length+'문장'+(done.length>tried.length?' · 건너뜀 '+(done.length-tried.length):'')
+    +(tried.length?'\n정확도 '+v(avgOf(rs,'acc'))+' · 유창성 '+v(avgOf(rs,'flu'))+' · 명료도 '+v(avgOf(rs,'cla'))+' · 첫 시도 평균 '+v(avgOf(rs,'score','first'))+'점':'')):'이 브라우저에서는 점수 없이 듣기와 녹음만 했어요.';
   var miss={};
   tried.forEach(function(x){ x.r.best.missed.forEach(function(w){ var k=w.toLowerCase(); miss[k]=(miss[k]||0)+1; }); });
   var top=Object.keys(miss).sort(function(a,b){ return miss[b]-miss[a]; }).slice(0,15);
@@ -536,7 +741,13 @@ function showResult(){
     r1.appendChild(s); r1.appendChild(p); li.appendChild(r1);
     var h=document.createElement('div'); h.className='h';
     h.textContent=x.it.ko+(x.r.best?(' · 들린 문장: '+(x.r.best.heard||'(없음)')):'');
-    li.appendChild(h); list.appendChild(li);
+    li.appendChild(h);
+    if(x.r.best){
+      var b=x.r.best, h2=document.createElement('div'); h2.className='h2';
+      h2.textContent='정확 '+b.acc+' · 유창 '+v(b.flu)+' · 명료 '+v(b.cla)+(x.r.tries>1?' · 첫 시도 '+x.r.first.score+'점 · '+x.r.tries+'회':'')+(b.diff.length?' · '+b.diff.join(', '):'');
+      li.appendChild(h2);
+    }
+    list.appendChild(li);
   });
   var low=done.filter(function(x){ return !x.r.best||x.r.best.score<PASS; });
   $('#retryLow').hidden=!SR||!low.length;
@@ -554,9 +765,12 @@ function buildPayload(done){
     startedAt:S.startedAt.toISOString(), finishedAt:end.toISOString(),
     durationSec:Math.round((end-S.startedAt)/1000), page:String(location.href).slice(0,200),
     answers:done.map(function(x){
-      var b=x.r.best;
+      var b=x.r.best, f=x.r.first;
       return {w:x.it.en, ko:x.it.ko, picked:b?b.heard:'', ok:!!(b&&b.score>=PASS), cat:JOBS[x.it.job]+' · '+x.it.sit,
-              score:b?b.score:0, missed:b?b.missed:[], tries:x.r.tries, skipped:!b};
+              score:b?b.score:0, missed:b?b.missed:[], tries:x.r.tries, skipped:!b,
+              first:f?f.score:null, acc:b?b.acc:null, flu:b?b.flu:null, cla:b?b.cla:null,
+              rate:b&&b.fluency?b.fluency.rate:null, pauses:b&&b.fluency?b.fluency.pauses:null,
+              conf:b&&b.clarity?b.clarity.conf:null, diff:b?b.diff:[]};
     })
   };
 }

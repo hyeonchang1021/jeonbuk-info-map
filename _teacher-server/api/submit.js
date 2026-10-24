@@ -3,6 +3,11 @@ import { put } from '@vercel/blob';
 import { randomBytes } from 'node:crypto';
 import { LEVELS, send, readJson, str, int, iso } from './_shared.js';
 
+// 값이 없으면 null (세부 점수를 잴 수 없었던 경우)
+const nint = (v, min, max) => (v === null || v === undefined || v === '' || !Number.isFinite(Number(v))) ? null : int(v, min, max);
+const nnum = (v, min, max) => (v === null || v === undefined || v === '' || !Number.isFinite(Number(v))) ? null : Math.min(max, Math.max(min, Math.round(Number(v) * 100) / 100));
+const avg = (xs) => { xs = xs.filter((v) => v !== null); return xs.length ? Math.round(xs.reduce((t, v) => t + v, 0) / xs.length) : null; };
+
 const CORS = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
@@ -31,6 +36,15 @@ export function validate(b) {
       x.tries = int(a && a.tries, 0, 99);
       x.skipped = !!(a && a.skipped);
       x.ok = !x.skipped && x.score >= 90;
+      // 세부 점수 (엄격 채점). 예전 페이지에서 온 기록에는 없다.
+      x.first = nint(a && a.first, 0, 100);
+      x.acc = nint(a && a.acc, 0, 100);
+      x.flu = nint(a && a.flu, 0, 100);
+      x.cla = nint(a && a.cla, 0, 100);
+      x.rate = nnum(a && a.rate, 0, 20);
+      x.pauses = nint(a && a.pauses, 0, 50);
+      x.conf = nnum(a && a.conf, 0, 1);
+      x.diff = (Array.isArray(a && a.diff) ? a.diff : []).slice(0, 40).map((m) => str(m, 90)).filter(Boolean);
     }
     return x;
   }).filter((a) => a.w);
@@ -46,7 +60,14 @@ export function validate(b) {
       planned,
       answered: answers.length,
       score: answers.filter((a) => a.ok).length,
-      ...(speak ? { avgScore: scored.length ? Math.round(scored.reduce((t, a) => t + a.score, 0) / scored.length) : 0, scoredCount: scored.length } : {}),
+      ...(speak ? {
+        avgScore: scored.length ? Math.round(scored.reduce((t, a) => t + a.score, 0) / scored.length) : 0,
+        scoredCount: scored.length,
+        avgFirst: avg(scored.map((a) => a.first)),
+        avgAcc: avg(scored.map((a) => a.acc)),
+        avgFlu: avg(scored.map((a) => a.flu)),
+        avgCla: avg(scored.map((a) => a.cla)),
+      } : {}),
       completed: answers.length >= planned && answers.length > 0,
       startedAt: iso(b.startedAt),
       finishedAt: iso(b.finishedAt),

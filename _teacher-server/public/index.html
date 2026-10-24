@@ -386,9 +386,14 @@ function openDetail(a){
   $('#dSub').textContent=fmtFull(when(a))+' 제출';
   var b=$('#dBody'); b.textContent='';
   var dl=el('dl','facts');
-  [['단계',a.level],['주제',a.topic],['방식',kindText(a)],isSpeak(a)?['점수','평균 '+(a.avgScore||0)+'점 · 통과 '+a.score+' / '+a.answered]:['정답',a.score+' / '+a.answered+' ('+pct(a)+'%)'],['상태',a.completed?'끝까지 풂':('중단 ('+a.answered+'/'+a.planned+')')],['걸린 시간',fmtDur(a.durationSec)],['시작',a.startedAt?fmtFull(new Date(a.startedAt)):'-'],['끝',a.finishedAt?fmtFull(new Date(a.finishedAt)):'-']].forEach(function(p){
+  [['단계',a.level],['주제',a.topic],['방식',kindText(a)],isSpeak(a)?['점수','평균 '+(a.avgScore||0)+'점 · 통과 '+a.score+' / '+a.answered+(a.avgFirst!=null?' · 첫 시도 평균 '+a.avgFirst+'점':'')]:['정답',a.score+' / '+a.answered+' ('+pct(a)+'%)'],['상태',a.completed?'끝까지 풂':('중단 ('+a.answered+'/'+a.planned+')')],['걸린 시간',fmtDur(a.durationSec)],['시작',a.startedAt?fmtFull(new Date(a.startedAt)):'-'],['끝',a.finishedAt?fmtFull(new Date(a.finishedAt)):'-']].forEach(function(p){
     var d=el('div'); d.appendChild(el('dt',null,p[0])); d.appendChild(el('dd',null,p[1])); dl.appendChild(d);
   });
+  if(isSpeak(a)&&(a.avgAcc!=null||a.avgFlu!=null||a.avgCla!=null)){
+    [['정확도 평균',a.avgAcc],['유창성 평균',a.avgFlu],['명료도 평균',a.avgCla]].forEach(function(p){
+      var d=el('div'); d.appendChild(el('dt',null,p[0])); d.appendChild(el('dd',null,p[1]==null?'측정 안 됨':p[1]+'점')); dl.appendChild(d);
+    });
+  }
   b.appendChild(dl);
   if(isSpeak(a)){ b.appendChild(sentenceList(a)); }
   else {
@@ -409,10 +414,17 @@ function sentenceList(a){
     li.appendChild(r1);
     li.appendChild(el('span','ans',x.ko+(x.cat?'  · '+x.cat:'')));
     if(!x.skipped) li.appendChild(el('span','heard','들린 문장: '+(x.picked||'(없음)')));
-    if(x.missed&&x.missed.length) li.appendChild(el('span','miss','다르게 들린 단어: '+x.missed.join(', ')));
+    if(!x.skipped&&x.acc!=null) li.appendChild(el('span','heard',subText(x)));
+    if(x.diff&&x.diff.length) li.appendChild(el('span','miss','단어 비교: '+x.diff.join(', ')));
+    else if(x.missed&&x.missed.length) li.appendChild(el('span','miss','다르게 들린 단어: '+x.missed.join(', ')));
     ul.appendChild(li);
   });
   s.appendChild(ul); return s;
+}
+function subText(x){
+  var p=['정확 '+x.acc, '유창 '+(x.flu==null?'-':x.flu)+(x.rate!=null?' ('+x.rate+'음절/초'+(x.pauses?', 멈춤 '+x.pauses+'회':'')+')':''), '명료 '+(x.cla==null?'-':x.cla)+(x.conf!=null?' (확신도 '+x.conf+')':'')];
+  if(x.tries>1&&x.first!=null) p.push('첫 시도 '+x.first+'점');
+  return '세부: '+p.join(' · ');
 }
 function wordList(title,items,wrong){
   var s=el('section'); s.appendChild(el('h3',null,title));
@@ -443,14 +455,14 @@ $('#dDelete').addEventListener('click',function(){
 /* ---------- CSV ---------- */
 function csvCell(v){ v=String(v==null?'':v); return /[",\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v; }
 $('#csvBtn').addEventListener('click',function(){
-  var head=['제출 시각','이름','단계','주제','방식','정답·통과 수','푼 문제·문장 수','계획 수','정답률(%)·발음 평균 점수','걸린 시간(초)','상태','틀린 단어·낮은 점수 문장','맞힌 단어·통과 문장'];
+  var head=['제출 시각','이름','단계','주제','방식','정답·통과 수','푼 문제·문장 수','계획 수','정답률(%)·발음 평균 점수','걸린 시간(초)','상태','틀린 단어·낮은 점수 문장','맞힌 단어·통과 문장','발음 첫 시도 평균','발음 정확도 평균','발음 유창성 평균','발음 명료도 평균'];
   var lines=[head.join(',')];
   filtered().forEach(function(a){
     var wrong=isSpeak(a)
-      ? (a.answers||[]).filter(function(x){return !x.ok;}).map(function(x){return x.skipped?(x.w+' [건너뜀]'):(x.w+' ['+x.score+'점'+(x.missed&&x.missed.length?': '+x.missed.join(' '):'')+']');}).join('; ')
+      ? (a.answers||[]).filter(function(x){return !x.ok;}).map(function(x){return x.skipped?(x.w+' [건너뜀]'):(x.w+' ['+x.score+'점'+(x.acc!=null?' 정확'+x.acc+'/유창'+(x.flu==null?'-':x.flu)+'/명료'+(x.cla==null?'-':x.cla):'')+(x.diff&&x.diff.length?': '+x.diff.join(' | '):(x.missed&&x.missed.length?': '+x.missed.join(' '):''))+']');}).join('; ')
       : (a.answers||[]).filter(function(x){return !x.ok;}).map(function(x){return x.w+'('+x.ko+')';}).join('; ');
     var right=(a.answers||[]).filter(function(x){return x.ok;}).map(function(x){return x.w;}).join('; ');
-    lines.push([fmtFull(when(a)),a.name,a.level,a.topic,kindText(a),a.score,a.answered,a.planned,pct(a),a.durationSec,a.completed?'완료':'중단',wrong,right].map(csvCell).join(','));
+    lines.push([fmtFull(when(a)),a.name,a.level,a.topic,kindText(a),a.score,a.answered,a.planned,pct(a),a.durationSec,a.completed?'완료':'중단',wrong,right,a.avgFirst,a.avgAcc,a.avgFlu,a.avgCla].map(csvCell).join(','));
   });
   var blob=new Blob(['﻿'+lines.join('\r\n')],{type:'text/csv;charset=utf-8'});
   var url=URL.createObjectURL(blob), a=document.createElement('a');
