@@ -15,25 +15,38 @@ export function validate(b) {
   const name = str(b.name, 30).trim();
   if (!name) return { error: '이름이 없습니다.' };
   if (!LEVELS.includes(b.level)) return { error: '단계가 올바르지 않습니다.' };
-  const answers = (Array.isArray(b.answers) ? b.answers : []).slice(0, 600).map((a) => ({
-    w: str(a && a.w, 80),
-    ko: str(a && a.ko, 160),
-    picked: str(a && a.picked, 160),
-    ok: !!(a && a.ok),
-    cat: str(a && a.cat, 40),
-    pos: str(a && a.pos, 16),
-  })).filter((a) => a.w);
+  const speak = b.level === '발음';
+  const answers = (Array.isArray(b.answers) ? b.answers : []).slice(0, 600).map((a) => {
+    const x = {
+      w: str(a && a.w, speak ? 300 : 80),
+      ko: str(a && a.ko, 200),
+      picked: str(a && a.picked, speak ? 400 : 160),
+      ok: !!(a && a.ok),
+      cat: str(a && a.cat, 60),
+      pos: str(a && a.pos, 16),
+    };
+    if (speak) {
+      x.score = int(a && a.score, 0, 100);
+      x.missed = (Array.isArray(a && a.missed) ? a.missed : []).slice(0, 40).map((m) => str(m, 40)).filter(Boolean);
+      x.tries = int(a && a.tries, 0, 99);
+      x.skipped = !!(a && a.skipped);
+      x.ok = !x.skipped && x.score >= 90;
+    }
+    return x;
+  }).filter((a) => a.w);
   const planned = int(b.planned, answers.length, 1000);
+  const scored = answers.filter((a) => speak && !a.skipped);
   return {
     rec: {
       name,
       level: b.level,
       topic: str(b.topic, 40) || '전체 주제',
-      mode: b.mode === 'instant' ? 'instant' : 'check',
+      mode: speak ? 'speaking' : b.mode === 'instant' ? 'instant' : 'check',
       kind: b.kind === 'retry' ? 'retry' : 'new',
       planned,
       answered: answers.length,
       score: answers.filter((a) => a.ok).length,
+      ...(speak ? { avgScore: scored.length ? Math.round(scored.reduce((t, a) => t + a.score, 0) / scored.length) : 0, scoredCount: scored.length } : {}),
       completed: answers.length >= planned && answers.length > 0,
       startedAt: iso(b.startedAt),
       finishedAt: iso(b.finishedAt),

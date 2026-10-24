@@ -1,0 +1,8 @@
+# 현장 영어 발음 연습
+
+캐나다 현장 회화 문장(마트 캐셔·서버·요리사 등 226문장)을 듣고 따라 말하면, 브라우저 음성 인식으로 단어별 맞음/틀림과 점수(0~100)를 보여 줍니다.
+
+- 주소: https://hyeonchang1021.github.io/jeonbuk-info-map/english-pronunciation/
+- 90점 이상이면 통과. 결과는 선생님 관리 화면(https://english-quiz-teacher.vercel.app/)에 '발음' 단계로 기록됩니다.
+- 음성 인식은 Chrome·Edge·Safari에서 동작합니다. Chrome은 인식을 위해 음성을 Google 서버로 보냅니다.
+- 인식이 안 되는 브라우저에서는 듣기·녹음만 되고 결과는 보내지 않습니다.

@@ -1,7 +1,7 @@
 // 여러 API가 함께 쓰는 도구. 파일 이름이 _ 로 시작하면 Vercel이 주소로 노출하지 않는다.
 import { timingSafeEqual, scryptSync } from 'node:crypto';
 
-export const LEVELS = ['기초', '중급', '고급'];
+export const LEVELS = ['기초', '중급', '고급', '발음']; // 발음 = 현장 영어 발음 연습
 
 export function send(res, status, body, headers = {}) {
   res.statusCode = status;
