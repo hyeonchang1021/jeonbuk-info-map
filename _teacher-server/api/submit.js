@@ -21,13 +21,14 @@ export function validate(b) {
   if (!name) return { error: '이름이 없습니다.' };
   if (!LEVELS.includes(b.level)) return { error: '단계가 올바르지 않습니다.' };
   const speak = b.level === '발음';
+  const talk = b.level === '회화';   // 상황 회화 미션: 학생이 자유롭게 한 말과 세부 점수
   const answers = (Array.isArray(b.answers) ? b.answers : []).slice(0, 600).map((a) => {
     const x = {
-      w: str(a && a.w, speak ? 300 : 80),
+      w: str(a && a.w, speak || talk ? 300 : 80),
       ko: str(a && a.ko, 200),
-      picked: str(a && a.picked, speak ? 400 : 160),
+      picked: str(a && a.picked, talk ? 1200 : speak ? 400 : 160),
       ok: !!(a && a.ok),
-      cat: str(a && a.cat, 60),
+      cat: str(a && a.cat, talk ? 100 : 60),
       pos: str(a && a.pos, 16),
     };
     if (speak) {
@@ -46,20 +47,50 @@ export function validate(b) {
       x.conf = nnum(a && a.conf, 0, 1);
       x.diff = (Array.isArray(a && a.diff) ? a.diff : []).slice(0, 40).map((m) => str(m, 90)).filter(Boolean);
     }
+    if (talk) {
+      const labels = (v) => (Array.isArray(v) ? v : []).slice(0, 10).map((m) => str(m, 40)).filter(Boolean);
+      x.score = int(a && a.score, 0, 100);
+      x.tries = int(a && a.tries, 0, 99);
+      x.skipped = !!(a && a.skipped);
+      x.ok = !x.skipped && x.score >= 70;
+      x.first = nint(a && a.first, 0, 100);
+      x.content = nint(a && a.content, 0, 100);
+      x.amount = nint(a && a.amount, 0, 100);
+      x.flu = nint(a && a.flu, 0, 100);
+      x.cla = nint(a && a.cla, 0, 100);
+      x.words = nint(a && a.words, 0, 1000);
+      x.goal = nint(a && a.goal, 0, 1000);
+      x.rate = nnum(a && a.rate, 0, 20);
+      x.pauses = nint(a && a.pauses, 0, 50);
+      x.conf = nnum(a && a.conf, 0, 1);
+      x.hit = labels(a && a.hit);
+      x.miss = labels(a && a.miss);
+      x.hint = !!(a && a.hint);
+      x.shadow = nint(a && a.shadow, 0, 100);
+    }
     return x;
   }).filter((a) => a.w);
   const planned = int(b.planned, answers.length, 1000);
-  const scored = answers.filter((a) => speak && !a.skipped);
+  const scored = answers.filter((a) => (speak || talk) && !a.skipped);
   return {
     rec: {
       name,
       level: b.level,
       topic: str(b.topic, 40) || '전체 주제',
-      mode: speak ? 'speaking' : b.mode === 'instant' ? 'instant' : 'check',
+      mode: talk ? 'mission' : speak ? 'speaking' : b.mode === 'instant' ? 'instant' : 'check',
       kind: b.kind === 'retry' ? 'retry' : 'new',
       planned,
       answered: answers.length,
       score: answers.filter((a) => a.ok).length,
+      ...(talk ? {
+        avgScore: scored.length ? Math.round(scored.reduce((t, a) => t + a.score, 0) / scored.length) : 0,
+        scoredCount: scored.length,
+        avgFirst: avg(scored.map((a) => a.first)),
+        avgContent: avg(scored.map((a) => a.content)),
+        avgAmount: avg(scored.map((a) => a.amount)),
+        avgFlu: avg(scored.map((a) => a.flu)),
+        avgCla: avg(scored.map((a) => a.cla)),
+      } : {}),
       ...(speak ? {
         avgScore: scored.length ? Math.round(scored.reduce((t, a) => t + a.score, 0) / scored.length) : 0,
         scoredCount: scored.length,
@@ -99,6 +130,7 @@ export default async function handler(req, res) {
       access: 'private',
       contentType: 'application/json',
       addRandomSuffix: false,
+      cacheControlMaxAge: 60,   // 나중에 선생님 메모로 덮어써도 1분 안에 반영되도록
     });
   } catch (e) {
     console.error('save failed', e && e.message);

@@ -73,13 +73,19 @@ td.name{font-weight:600}
 td.words{white-space:normal; min-width:220px; color:var(--muted); font-size:.85rem}
 .w{font-family:var(--f-word); font-weight:600; color:var(--ink)}
 .pill{display:inline-block; padding:1px 8px; border-radius:999px; font-size:.75rem; font-weight:600; border:1px solid var(--line)}
-.pill.l1{color:var(--accent)} .pill.l2{color:var(--note)} .pill.l3{color:var(--no)} .pill.l4{color:var(--ok); border-style:dashed}
+.pill.l1{color:var(--accent)} .pill.l2{color:var(--note)} .pill.l3{color:var(--no)} .pill.l4{color:var(--ok); border-style:dashed} .pill.l5{color:var(--warn); border-style:dashed}
 .slist{list-style:none; margin:0; padding:0; border-top:1px solid var(--line)}
 .slist li{padding:9px 0; border-bottom:1px solid var(--line); font-size:.9rem; display:flex; flex-direction:column; gap:2px}
 .slist .r1{display:flex; justify-content:space-between; gap:10px; align-items:baseline}
 .slist .pts{font-family:var(--f-data); white-space:nowrap}
 .slist .heard{color:var(--muted); font-size:.85rem}
 .slist .miss{color:var(--no); font-size:.85rem}
+.slist .cust{font-family:var(--f-word); font-size:.92rem}
+.slist .said{font-family:var(--f-word); font-size:.95rem; color:var(--accent)}
+.slist .hit{color:var(--ok); font-size:.85rem}
+.note{display:flex; flex-direction:column; gap:6px}
+.note textarea{width:100%; min-height:72px; padding:8px 10px; border:1px solid var(--line); border-radius:8px; background:var(--surface); color:var(--ink); font:inherit; resize:vertical}
+.note .nrow{display:flex; align-items:center; gap:10px; flex-wrap:wrap; font-size:.82rem; color:var(--muted)}
 .pill.done{background:var(--ok-bg); color:var(--ok); border-color:transparent}
 .pill.quit{background:var(--warn-bg); color:var(--warn); border-color:transparent}
 .bar{display:inline-flex; align-items:center; gap:8px}
@@ -114,7 +120,7 @@ h3{font-size:.95rem; margin:0 0 6px}
 <section id="loginView" class="login" hidden>
   <div class="eyebrow">선생님 전용</div>
   <h1>영단어 퀴즈 관리</h1>
-  <p>학생들이 푼 기초·중급·고급 퀴즈와 발음 연습 결과를 봅니다. 관리 비밀번호를 입력하세요.</p>
+  <p>학생들이 푼 기초·중급·고급 퀴즈, 발음 연습, 상황 회화 미션 결과를 봅니다. 관리 비밀번호를 입력하세요.</p>
   <form id="loginForm">
     <label for="pw" class="eyebrow" style="display:block;margin-bottom:6px">비밀번호</label>
     <input id="pw" type="password" autocomplete="current-password" required>
@@ -142,7 +148,7 @@ h3{font-size:.95rem; margin:0 0 6px}
   <div class="filters" role="search">
     <input type="search" id="fName" placeholder="학생 이름으로 찾기" aria-label="학생 이름으로 찾기">
     <select id="fLevel" aria-label="단계">
-      <option value="">전체 단계</option><option>기초</option><option>중급</option><option>고급</option><option>발음</option>
+      <option value="">전체 단계</option><option>기초</option><option>중급</option><option>고급</option><option>발음</option><option>회화</option>
     </select>
     <select id="fPeriod" aria-label="기간">
       <option value="all">전체 기간</option><option value="today">오늘</option><option value="7">최근 7일</option><option value="30">최근 30일</option>
@@ -175,7 +181,7 @@ h3{font-size:.95rem; margin:0 0 6px}
 <script>
 (function(){
 'use strict';
-var QUIZ_LINKS=[['기초','https://hyeonchang1021.github.io/jeonbuk-info-map/english-500-quiz/'],['중급','https://hyeonchang1021.github.io/jeonbuk-info-map/english-intermediate-quiz/'],['고급','https://hyeonchang1021.github.io/jeonbuk-info-map/english-advanced-quiz/'],['발음 연습','https://hyeonchang1021.github.io/jeonbuk-info-map/english-pronunciation/']];
+var QUIZ_LINKS=[['기초','https://hyeonchang1021.github.io/jeonbuk-info-map/english-500-quiz/'],['중급','https://hyeonchang1021.github.io/jeonbuk-info-map/english-intermediate-quiz/'],['고급','https://hyeonchang1021.github.io/jeonbuk-info-map/english-advanced-quiz/'],['발음 연습','https://hyeonchang1021.github.io/jeonbuk-info-map/english-pronunciation/'],['상황 회화','https://hyeonchang1021.github.io/jeonbuk-info-map/english-speaking-mission/']];
 var KEY='quizTeacherKey';
 var S={key:'',attempts:[],stored:0,truncated:false,tab:'attempts',sel:null,loading:false,loadedAt:null};
 function $(s){return document.querySelector(s);}
@@ -185,19 +191,28 @@ function sset(k,v){try{ if(v) sessionStorage.setItem(k,v); else sessionStorage.r
 
 /* ---------- 형식 ---------- */
 function isSpeak(a){return a.level==='발음';}
-function pct(a){ if(isSpeak(a)) return a.avgScore||0; return a.answered?Math.round(a.score/a.answered*100):0;}
+function isTalk(a){return a.level==='회화';}
+function isOral(a){return isSpeak(a)||isTalk(a);}   /* 점수(0~100)로 채점하는 말하기 연습 */
+function pct(a){ if(isOral(a)) return a.avgScore||0; return a.answered?Math.round(a.score/a.answered*100):0;}
+function missedKeys(a){ var seen={}, out=[]; (a.answers||[]).forEach(function(x){ if(x.skipped) return; (x.miss||[]).forEach(function(k){ if(!seen[k]){ seen[k]=1; out.push(k); } }); }); return out; }
+function dash(v){ return v==null?'-':v; }
 function missedWords(a){ var seen={}, out=[]; (a.answers||[]).forEach(function(x){ (x.missed||[]).forEach(function(w){ var k=w.toLowerCase(); if(!seen[k]){ seen[k]=1; out.push(w); } }); }); return out; }
 function when(a){return new Date(a.finishedAt||a.receivedAt);}
 function p2(n){return (n<10?'0':'')+n;}
 function fmtDate(d){return (d.getMonth()+1)+'월 '+d.getDate()+'일 '+p2(d.getHours())+':'+p2(d.getMinutes());}
 function fmtFull(d){return d.getFullYear()+'-'+p2(d.getMonth()+1)+'-'+p2(d.getDate())+' '+p2(d.getHours())+':'+p2(d.getMinutes())+':'+p2(d.getSeconds());}
 function fmtDur(s){s=s||0; var m=Math.floor(s/60), r=s%60; return m?(m+'분 '+(r<10?'0':'')+r+'초'):(r+'초');}
-function levelCls(l){return l==='기초'?'l1':l==='중급'?'l2':l==='발음'?'l4':'l3';}
-function kindText(a){ if(isSpeak(a)) return (a.kind==='retry'?'낮은 점수 다시':'새로 연습')+' · 발음 연습'; return (a.kind==='retry'?'틀린 단어 다시':'새로 풀기')+' · '+(a.mode==='instant'?'바로 채점':'확인 버튼');}
+function levelCls(l){return l==='기초'?'l1':l==='중급'?'l2':l==='발음'?'l4':l==='회화'?'l5':'l3';}
+function kindText(a){ if(isTalk(a)) return '상황 회화 미션'; if(isSpeak(a)) return (a.kind==='retry'?'낮은 점수 다시':'새로 연습')+' · 발음 연습'; return (a.kind==='retry'?'틀린 단어 다시':'새로 풀기')+' · '+(a.mode==='instant'?'바로 채점':'확인 버튼');}
 
 /* ---------- 서버 ---------- */
 function api(method,path){
   return fetch(path,{method:method,headers:{'x-teacher-key':S.key},cache:'no-store'}).then(function(r){
+    return r.json().catch(function(){return {};}).then(function(j){ if(!r.ok){ var e=new Error(j.error||('요청 실패 ('+r.status+')')); e.status=r.status; throw e;} return j; });
+  });
+}
+function apiPost(path,obj){
+  return fetch(path,{method:'POST',headers:{'x-teacher-key':S.key,'Content-Type':'application/json'},body:JSON.stringify(obj),cache:'no-store'}).then(function(r){
     return r.json().catch(function(){return {};}).then(function(j){ if(!r.ok){ var e=new Error(j.error||('요청 실패 ('+r.status+')')); e.status=r.status; throw e;} return j; });
   });
 }
@@ -244,11 +259,15 @@ function filtered(){
 /* ---------- 그리기 ---------- */
 function render(){
   var list=filtered();
-  var names={}, ans=0, ok=0, sp=0, spn=0;
-  list.forEach(function(a){ names[a.name]=1; if(isSpeak(a)){ if(a.scoredCount){ sp+=a.avgScore*a.scoredCount; spn+=a.scoredCount; } } else { ans+=a.answered; ok+=a.score; } });
+  var names={}, ans=0, ok=0, sp=0, spn=0, tk=0, tkn=0;
+  list.forEach(function(a){ names[a.name]=1;
+    if(isSpeak(a)){ if(a.scoredCount){ sp+=a.avgScore*a.scoredCount; spn+=a.scoredCount; } }
+    else if(isTalk(a)){ if(a.scoredCount){ tk+=a.avgScore*a.scoredCount; tkn+=a.scoredCount; } }
+    else { ans+=a.answered; ok+=a.score; } });
   var sum=$('#summary'); sum.textContent='';
   var parts=[['응시',list.length+'건'],['학생',Object.keys(names).length+'명'],['퀴즈 푼 문제',ans+'개'],['퀴즈 평균 정답률',(ans?Math.round(ok/ans*100):0)+'%']];
   if(spn) parts.push(['발음 연습 문장',spn+'개'],['발음 평균',Math.round(sp/spn)+'점']);
+  if(tkn) parts.push(['회화 대화',tkn+'번'],['회화 평균',Math.round(tk/tkn)+'점']);
   parts.forEach(function(p){
     var s=el('span'); s.appendChild(document.createTextNode(p[0]+' ')); s.appendChild(el('b',null,p[1])); sum.appendChild(s);
   });
@@ -280,7 +299,7 @@ function barCell(p,unit){ var c=el('td'), b=el('span','bar'), i=el('i'), f=el('b
 function pillCell(text,cls){ var c=el('td'); c.appendChild(el('span','pill '+cls,text)); return c; }
 
 function attemptsTable(list){
-  var t=table([['응시 시각'],['이름'],['단계'],['주제'],['방식'],['정답·통과','num'],['정답률·점수'],['걸린 시간','num'],['상태'],['틀린 단어']]);
+  var t=table([['응시 시각'],['이름'],['단계'],['주제'],['방식'],['정답·통과','num'],['정답률·점수'],['걸린 시간','num'],['상태'],['틀린 단어 · 빠뜨린 내용']]);
   list.forEach(function(a){
     var tr=el('tr');
     tr.appendChild(td(fmtDate(when(a))));
@@ -288,11 +307,11 @@ function attemptsTable(list){
     tr.appendChild(pillCell(a.level,levelCls(a.level)));
     tr.appendChild(td(a.topic));
     tr.appendChild(td(kindText(a)));
-    tr.appendChild(td((isSpeak(a)?'통과 ':'')+a.score+' / '+a.answered,'num'));
-    tr.appendChild(barCell(pct(a),isSpeak(a)?'점':'%'));
+    tr.appendChild(td((isOral(a)?'통과 ':'')+a.score+' / '+a.answered,'num'));
+    tr.appendChild(barCell(pct(a),isOral(a)?'점':'%'));
     tr.appendChild(td(fmtDur(a.durationSec),'num'));
     tr.appendChild(a.completed?pillCell('완료','done'):pillCell('중단 '+a.answered+'/'+a.planned,'quit'));
-    var wrong=isSpeak(a)?missedWords(a):(a.answers||[]).filter(function(x){return !x.ok;}).map(function(x){return x.w;});
+    var wrong=isTalk(a)?missedKeys(a):isSpeak(a)?missedWords(a):(a.answers||[]).filter(function(x){return !x.ok;}).map(function(x){return x.w;});
     tr.appendChild(td(wrong.length?(wrong.slice(0,6).join(', ')+(wrong.length>6?' 외 '+(wrong.length-6)+'개':'')):'없음','words'));
     rowLink(tr,function(){ openDetail(a); });
     t.body.appendChild(tr);
@@ -303,14 +322,15 @@ function attemptsTable(list){
 function studentsTable(list){
   var by={};
   list.forEach(function(a){
-    var s=by[a.name]||(by[a.name]={name:a.name,n:0,ans:0,ok:0,last:null,lv:{'기초':0,'중급':0,'고급':0,'발음':0},best:0,sp:0,spn:0});
+    var s=by[a.name]||(by[a.name]={name:a.name,n:0,ans:0,ok:0,last:null,lv:{'기초':0,'중급':0,'고급':0,'발음':0,'회화':0},best:0,sp:0,spn:0,tk:0,tkn:0});
     s.n++; s.lv[a.level]=(s.lv[a.level]||0)+1;
     if(isSpeak(a)){ if(a.scoredCount){ s.sp+=a.avgScore*a.scoredCount; s.spn+=a.scoredCount; } }
+    else if(isTalk(a)){ if(a.scoredCount){ s.tk+=a.avgScore*a.scoredCount; s.tkn+=a.scoredCount; } }
     else { s.ans+=a.answered; s.ok+=a.score; if(a.answered>=5) s.best=Math.max(s.best,pct(a)); }
     if(!s.last||when(a)>s.last) s.last=when(a);
   });
   var rows=Object.keys(by).map(function(k){return by[k];}).sort(function(a,b){return b.last-a.last;});
-  var t=table([['이름'],['응시','num'],['푼 문제','num'],['퀴즈 평균 정답률'],['최고 정답률','num'],['발음 평균'],['기초','num'],['중급','num'],['고급','num'],['발음','num'],['최근 응시']]);
+  var t=table([['이름'],['응시','num'],['푼 문제','num'],['퀴즈 평균 정답률'],['최고 정답률','num'],['발음 평균'],['회화 평균'],['기초','num'],['중급','num'],['고급','num'],['발음','num'],['회화','num'],['최근 응시']]);
   rows.forEach(function(s){
     var tr=el('tr');
     tr.appendChild(td(s.name,'name'));
@@ -319,22 +339,37 @@ function studentsTable(list){
     tr.appendChild(barCell(s.ans?Math.round(s.ok/s.ans*100):0));
     tr.appendChild(td(s.best?s.best+'%':'-','num'));
     tr.appendChild(s.spn?barCell(Math.round(s.sp/s.spn),'점'):td('-'));
+    tr.appendChild(s.tkn?barCell(Math.round(s.tk/s.tkn),'점'):td('-'));
     tr.appendChild(td(String(s.lv['기초']||0),'num'));
     tr.appendChild(td(String(s.lv['중급']||0),'num'));
     tr.appendChild(td(String(s.lv['고급']||0),'num'));
     tr.appendChild(td(String(s.lv['발음']||0),'num'));
+    tr.appendChild(td(String(s.lv['회화']||0),'num'));
     tr.appendChild(td(fmtDate(s.last)));
     rowLink(tr,function(){ $('#fName').value=s.name; S.tab='attempts'; render(); });
     t.body.appendChild(tr);
   });
   var w=el('div'); w.appendChild(t.wrap);
-  w.appendChild(el('p','foot','줄을 누르면 그 학생의 응시 기록만 보여 줍니다. 최고 정답률은 5문제 이상 푼 퀴즈만 셉니다. 발음 평균은 채점된 문장들의 평균 점수입니다.')).style.padding='0 12px 12px';
+  w.appendChild(el('p','foot','줄을 누르면 그 학생의 응시 기록만 보여 줍니다. 최고 정답률은 5문제 이상 푼 퀴즈만 셉니다. 발음·회화 평균은 채점된 문장·대화들의 평균 점수입니다.')).style.padding='0 12px 12px';
   return w;
 }
 
 function wordsTable(list){
   var by={};
   list.forEach(function(a){
+    if(isTalk(a)){
+      (a.answers||[]).forEach(function(x){
+        if(x.skipped) return;
+        var mt=String(x.cat||'').replace(/ · 대화 \d+$/,'');
+        (x.hit||[]).concat(x.miss||[]).forEach(function(k){
+          var key='회화|'+k, s=by[key]||(by[key]={w:k,ko:'',level:'회화',asked:0,wrong:0,who:{},picks:{},missions:{}});
+          s.asked++; s.missions[mt]=1;
+          if((x.miss||[]).indexOf(k)>=0){ s.wrong++; s.who[a.name]=1; if(x.picked) s.picks['한 말: '+x.picked]=(s.picks['한 말: '+x.picked]||0)+1; }
+          s.ko='미션: '+Object.keys(s.missions).slice(0,3).join(', ');
+        });
+      });
+      return;
+    }
     if(isSpeak(a)){
       (a.answers||[]).forEach(function(x){
         if(x.skipped) return;
@@ -358,7 +393,7 @@ function wordsTable(list){
   var rows=Object.keys(by).map(function(k){return by[k];}).filter(function(s){return s.wrong>0;})
     .sort(function(a,b){ return b.wrong-a.wrong || (b.wrong/b.asked)-(a.wrong/a.asked) || a.w.localeCompare(b.w); }).slice(0,100);
   if(!rows.length){ var d=el('div','empty','이 조건에서는 틀린 단어가 없습니다.'); return d; }
-  var t=table([['단어'],['단계'],['정답 뜻 / 예문'],['틀린 수','num'],['출제 수','num'],['오답률'],['많이 고른 오답 / 들린 문장'],['틀린 학생']]);
+  var t=table([['단어'],['단계'],['정답 뜻 / 예문 / 미션'],['틀린 수','num'],['출제 수','num'],['오답률'],['많이 고른 오답 / 들린 문장'],['틀린 학생']]);
   rows.forEach(function(s){
     var tr=el('tr');
     var c=el('td'); c.appendChild(el('span','w',s.w)); tr.appendChild(c);
@@ -374,7 +409,7 @@ function wordsTable(list){
     t.body.appendChild(tr);
   });
   var w=el('div'); w.appendChild(t.wrap);
-  w.appendChild(el('p','foot','지금 필터에 해당하는 응시에서 틀린 횟수가 많은 순서로 최대 100개를 보여 줍니다. 발음 연습은 기계가 다르게 알아들은 단어를 셉니다.')).style.padding='0 12px 12px';
+  w.appendChild(el('p','foot','지금 필터에 해당하는 응시에서 틀린 횟수가 많은 순서로 최대 100개를 보여 줍니다. 발음 연습은 기계가 다르게 알아들은 단어를, 상황 회화는 대답에서 빠뜨린 내용을 셉니다.')).style.padding='0 12px 12px';
   return w;
 }
 
@@ -382,11 +417,11 @@ function wordsTable(list){
 var armTimer=null;
 function openDetail(a){
   S.sel=a;
-  $('#dTitle').textContent=a.name+' · '+(isSpeak(a)?('발음 연습 평균 '+(a.avgScore||0)+'점'):(a.level+' '+a.score+'/'+a.answered));
+  $('#dTitle').textContent=a.name+' · '+(isTalk(a)?('상황 회화 평균 '+(a.avgScore||0)+'점'):isSpeak(a)?('발음 연습 평균 '+(a.avgScore||0)+'점'):(a.level+' '+a.score+'/'+a.answered));
   $('#dSub').textContent=fmtFull(when(a))+' 제출';
   var b=$('#dBody'); b.textContent='';
   var dl=el('dl','facts');
-  [['단계',a.level],['주제',a.topic],['방식',kindText(a)],isSpeak(a)?['점수','평균 '+(a.avgScore||0)+'점 · 통과 '+a.score+' / '+a.answered+(a.avgFirst!=null?' · 첫 시도 평균 '+a.avgFirst+'점':'')]:['정답',a.score+' / '+a.answered+' ('+pct(a)+'%)'],['상태',a.completed?'끝까지 풂':('중단 ('+a.answered+'/'+a.planned+')')],['걸린 시간',fmtDur(a.durationSec)],['시작',a.startedAt?fmtFull(new Date(a.startedAt)):'-'],['끝',a.finishedAt?fmtFull(new Date(a.finishedAt)):'-']].forEach(function(p){
+  [['단계',a.level],['주제',a.topic],['방식',kindText(a)],isOral(a)?['점수','평균 '+(a.avgScore||0)+'점 · 통과 '+a.score+' / '+a.answered+(a.avgFirst!=null?' · 첫 시도 평균 '+a.avgFirst+'점':'')]:['정답',a.score+' / '+a.answered+' ('+pct(a)+'%)'],['상태',a.completed?'끝까지 풂':('중단 ('+a.answered+'/'+a.planned+')')],['걸린 시간',fmtDur(a.durationSec)],['시작',a.startedAt?fmtFull(new Date(a.startedAt)):'-'],['끝',a.finishedAt?fmtFull(new Date(a.finishedAt)):'-']].forEach(function(p){
     var d=el('div'); d.appendChild(el('dt',null,p[0])); d.appendChild(el('dd',null,p[1])); dl.appendChild(d);
   });
   if(isSpeak(a)&&(a.avgAcc!=null||a.avgFlu!=null||a.avgCla!=null)){
@@ -394,8 +429,15 @@ function openDetail(a){
       var d=el('div'); d.appendChild(el('dt',null,p[0])); d.appendChild(el('dd',null,p[1]==null?'측정 안 됨':p[1]+'점')); dl.appendChild(d);
     });
   }
+  if(isTalk(a)){
+    [['내용 평균',a.avgContent],['말한 양 평균',a.avgAmount],['유창성 평균',a.avgFlu],['명료도 평균',a.avgCla]].forEach(function(p){
+      var d=el('div'); d.appendChild(el('dt',null,p[0])); d.appendChild(el('dd',null,p[1]==null?'측정 안 됨':p[1]+'점')); dl.appendChild(d);
+    });
+  }
   b.appendChild(dl);
-  if(isSpeak(a)){ b.appendChild(sentenceList(a)); }
+  b.appendChild(noteBox(a));
+  if(isTalk(a)){ b.appendChild(talkList(a)); }
+  else if(isSpeak(a)){ b.appendChild(sentenceList(a)); }
   else {
     var wrong=(a.answers||[]).filter(function(x){return !x.ok;}), right=(a.answers||[]).filter(function(x){return x.ok;});
     b.appendChild(wordList('틀린 단어 '+wrong.length+'개',wrong,true));
@@ -420,6 +462,48 @@ function sentenceList(a){
     ul.appendChild(li);
   });
   s.appendChild(ul); return s;
+}
+function talkList(a){
+  var s=el('section'), items=a.answers||[];
+  s.appendChild(el('h3',null,'대화별 결과 '+items.length+'개 (한 순서대로)'));
+  var ul=el('ul','slist');
+  items.forEach(function(x){
+    var li=el('li'), r1=el('div','r1');
+    r1.appendChild(el('span','w',x.cat||'')); r1.appendChild(el('span','pts',x.skipped?'건너뜀':(x.score+'점'+(x.tries>1?' · '+x.tries+'회':''))));
+    li.appendChild(r1);
+    var c=el('span','cust','손님: '+x.w); c.lang='en'; li.appendChild(c);
+    li.appendChild(el('span','heard','할 일: '+(x.ko||'')));
+    if(!x.skipped){
+      var said=el('span','said','학생: '+(x.picked||'(없음)')); said.lang='en'; li.appendChild(said);
+      var p=['내용 '+dash(x.content),'말한 양 '+dash(x.amount)+(x.words!=null?' ('+x.words+'/'+x.goal+'단어)':''),
+             '유창 '+dash(x.flu)+(x.rate!=null?' ('+x.rate+'음절/초'+(x.pauses?', 긴 멈춤 '+x.pauses+'회':'')+')':''),
+             '명료 '+dash(x.cla)+(x.conf!=null?' (확신도 '+x.conf+')':'')];
+      if(x.tries>1&&x.first!=null) p.push('첫 시도 '+x.first+'점');
+      if(x.shadow!=null) p.push('모범 답안 따라 말하기 '+x.shadow+'점');
+      if(x.hint) p.push('힌트 봄');
+      li.appendChild(el('span','heard','세부: '+p.join(' · ')));
+      if(x.hit&&x.hit.length) li.appendChild(el('span','hit','말한 내용: '+x.hit.join(', ')));
+    }
+    if(x.miss&&x.miss.length) li.appendChild(el('span','miss','빠뜨린 내용: '+x.miss.join(', ')));
+    ul.appendChild(li);
+  });
+  s.appendChild(ul); return s;
+}
+function noteBox(a){
+  var s=el('section','note');
+  var lab=el('label','eyebrow','선생님 메모'); lab.htmlFor='noteText'; s.appendChild(lab);
+  var ta=el('textarea'); ta.id='noteText'; ta.maxLength=1000; ta.placeholder='이 기록에 대한 메모 (예: 사과 표현은 좋았음, 문장을 더 길게 말하기 연습 필요)'; ta.value=a.note||''; s.appendChild(ta);
+  var row=el('div','nrow'), btn=el('button','btn','메모 저장'), st=el('span',null,a.noteAt?('저장됨 '+fmtFull(new Date(a.noteAt))):'');
+  btn.type='button';
+  btn.addEventListener('click',function(){
+    btn.disabled=true; st.textContent='저장하는 중…';
+    apiPost('/api/results?id='+encodeURIComponent(a.id),{note:ta.value}).then(function(j){
+      a.note=j.note; a.noteAt=j.noteAt; st.textContent=j.note?('저장됨 '+fmtFull(new Date(j.noteAt))):'메모를 지웠습니다'; render();
+    }).catch(function(e){ st.textContent='저장 실패: '+e.message; }).then(function(){ btn.disabled=false; });
+  });
+  row.appendChild(btn); row.appendChild(st); s.appendChild(row);
+  var f=el('p','foot','메모는 선생님 화면에서만 보입니다.'); f.style.margin='0'; s.appendChild(f);
+  return s;
 }
 function subText(x){
   var p=['정확 '+x.acc, '유창 '+(x.flu==null?'-':x.flu)+(x.rate!=null?' ('+x.rate+'음절/초'+(x.pauses?', 멈춤 '+x.pauses+'회':'')+')':''), '명료 '+(x.cla==null?'-':x.cla)+(x.conf!=null?' (확신도 '+x.conf+')':'')];
@@ -455,14 +539,16 @@ $('#dDelete').addEventListener('click',function(){
 /* ---------- CSV ---------- */
 function csvCell(v){ v=String(v==null?'':v); return /[",\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v; }
 $('#csvBtn').addEventListener('click',function(){
-  var head=['제출 시각','이름','단계','주제','방식','정답·통과 수','푼 문제·문장 수','계획 수','정답률(%)·발음 평균 점수','걸린 시간(초)','상태','틀린 단어·낮은 점수 문장','맞힌 단어·통과 문장','발음 첫 시도 평균','발음 정확도 평균','발음 유창성 평균','발음 명료도 평균'];
+  var head=['제출 시각','이름','단계','주제','방식','정답·통과 수','푼 문제·문장·대화 수','계획 수','정답률(%)·발음·회화 평균 점수','걸린 시간(초)','상태','틀린 단어·낮은 점수 문장·대화','맞힌 단어·통과 문장·대화','발음·회화 첫 시도 평균','발음 정확도 평균','발음·회화 유창성 평균','발음·회화 명료도 평균','회화 내용 평균','회화 말한 양 평균','선생님 메모'];
   var lines=[head.join(',')];
   filtered().forEach(function(a){
-    var wrong=isSpeak(a)
+    var wrong=isTalk(a)
+      ? (a.answers||[]).filter(function(x){return !x.ok;}).map(function(x){return x.skipped?(x.cat+' [건너뜀]'):(x.cat+' ['+x.score+'점 내용'+dash(x.content)+'/양'+dash(x.amount)+'/유창'+dash(x.flu)+'/명료'+dash(x.cla)+(x.miss&&x.miss.length?' 빠뜨림: '+x.miss.join(' | '):'')+'] 학생: '+(x.picked||''));}).join('; ')
+      : isSpeak(a)
       ? (a.answers||[]).filter(function(x){return !x.ok;}).map(function(x){return x.skipped?(x.w+' [건너뜀]'):(x.w+' ['+x.score+'점'+(x.acc!=null?' 정확'+x.acc+'/유창'+(x.flu==null?'-':x.flu)+'/명료'+(x.cla==null?'-':x.cla):'')+(x.diff&&x.diff.length?': '+x.diff.join(' | '):(x.missed&&x.missed.length?': '+x.missed.join(' '):''))+']');}).join('; ')
       : (a.answers||[]).filter(function(x){return !x.ok;}).map(function(x){return x.w+'('+x.ko+')';}).join('; ');
-    var right=(a.answers||[]).filter(function(x){return x.ok;}).map(function(x){return x.w;}).join('; ');
-    lines.push([fmtFull(when(a)),a.name,a.level,a.topic,kindText(a),a.score,a.answered,a.planned,pct(a),a.durationSec,a.completed?'완료':'중단',wrong,right,a.avgFirst,a.avgAcc,a.avgFlu,a.avgCla].map(csvCell).join(','));
+    var right=(a.answers||[]).filter(function(x){return x.ok;}).map(function(x){return isTalk(a)?(x.cat+' ['+x.score+'점] 학생: '+(x.picked||'')):x.w;}).join('; ');
+    lines.push([fmtFull(when(a)),a.name,a.level,a.topic,kindText(a),a.score,a.answered,a.planned,pct(a),a.durationSec,a.completed?'완료':'중단',wrong,right,a.avgFirst,a.avgAcc,a.avgFlu,a.avgCla,a.avgContent,a.avgAmount,a.note||''].map(csvCell).join(','));
   });
   var blob=new Blob(['﻿'+lines.join('\r\n')],{type:'text/csv;charset=utf-8'});
   var url=URL.createObjectURL(blob), a=document.createElement('a');

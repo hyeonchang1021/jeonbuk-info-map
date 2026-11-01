@@ -1,6 +1,14 @@
 // 선생님 화면에서 쓰는 API. 비밀번호가 맞을 때만 응시 기록을 돌려주거나 지운다.
-import { list, get, del } from '@vercel/blob';
-import { send, isTeacher, ID_RE } from './_shared.js';
+import { list, get, del, put } from '@vercel/blob';
+import { send, isTeacher, ID_RE, readJson, str } from './_shared.js';
+
+// 선생님 메모를 기록에 붙이거나(내용 있음) 뗀다(빈 내용). 로컬 시험 서버도 같은 함수를 쓴다.
+export function applyNote(rec, body) {
+  const note = str(body && body.note, 1000).trim();
+  if (note) { rec.note = note; rec.noteAt = new Date().toISOString(); }
+  else { delete rec.note; delete rec.noteAt; }
+  return rec;
+}
 
 const MAX_LIST = 5000;   // 저장소에서 훑는 최대 건수
 const MAX_READ = 2000;   // 화면에 돌려주는 최대 건수 (최신순)
@@ -41,6 +49,24 @@ export default async function handler(req, res) {
       attempts.push(...part.filter(Boolean));
     }
     return send(res, 200, { attempts, ids: ids.slice(0, MAX_READ), incremental: !!since, stored: blobs.length, truncated: blobs.length > MAX_READ });
+  }
+
+  if (req.method === 'POST') {
+    const id = String((req.query && req.query.id) || '');
+    if (!ID_RE.test(id)) return send(res, 400, { error: '메모를 붙일 기록을 찾지 못했습니다.' });
+    let body;
+    try { body = await readJson(req, 20000); } catch { return send(res, 400, { error: '요청 형식이 올바르지 않습니다.' }); }
+    const pathname = `attempts/${id}.json`;
+    const rec = await readOne(pathname);
+    if (!rec) return send(res, 404, { error: '기록이 없습니다. 이미 지워졌을 수 있습니다.' });
+    applyNote(rec, body);
+    try {
+      await put(pathname, JSON.stringify(rec), { access: 'private', contentType: 'application/json', addRandomSuffix: false, allowOverwrite: true, cacheControlMaxAge: 60 });
+    } catch (e) {
+      console.error('note save failed', id, e && e.message);
+      return send(res, 500, { error: '메모를 저장하지 못했습니다.' });
+    }
+    return send(res, 200, { ok: true, note: rec.note || '', noteAt: rec.noteAt || null });
   }
 
   if (req.method === 'DELETE') {

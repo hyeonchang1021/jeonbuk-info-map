@@ -1,0 +1,1008 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>상황 회화 미션</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+KR:wght@400;500;600;700&family=IBM+Plex+Serif:wght@500;600&display=swap">
+<style>
+/* 배치: 발음 연습과 같은 한 단 카드. 상황 → 손님 말(말풍선) → 할 일 체크리스트 → 대답(마이크) → 평가 → 모범 답안 따라 말하기 순서로 위에서 아래로 내려간다. */
+[hidden]{display:none!important}
+:root{
+  --bg:#f2f6f4; --surface:#ffffff; --ink:#15302a; --muted:#5a6f69; --line:#d5dfdb;
+  --accent:#1c6b58; --accent-soft:#e0efe9; --note:#96590a;
+  --ok:#1b7440; --ok-bg:#e2f2e7; --no:#b0281f; --no-bg:#fbe7e4; --mid:#8a5a00; --mid-bg:#fbf0d9;
+  --f-word:"IBM Plex Serif",Georgia,"Times New Roman",serif;
+  --f-body:"IBM Plex Sans KR","Apple SD Gothic Neo","Malgun Gothic","Noto Sans KR",system-ui,sans-serif;
+  --f-data:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+  color-scheme:light;
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    --bg:#0f1917; --surface:#17231f; --ink:#e4edea; --muted:#93a8a2; --line:#2b3a36;
+    --accent:#62c6aa; --accent-soft:#1d332d; --note:#e2a94f;
+    --ok:#77d49c; --ok-bg:#183024; --no:#f2958b; --no-bg:#3a2220; --mid:#e8b960; --mid-bg:#352a16;
+    color-scheme:dark;
+  }
+}
+*{box-sizing:border-box}
+body{margin:0; background:var(--bg); color:var(--ink); font-family:var(--f-body); font-size:16px; line-height:1.55; word-break:keep-all}
+.wrap{max-width:660px; margin:0 auto; padding-inline:16px; padding-block:28px 56px}
+button,select,input{font:inherit; color:inherit}
+button:focus-visible,input:focus-visible,summary:focus-visible{outline:2px solid var(--accent); outline-offset:2px}
+
+.eyebrow{font-size:.8rem; color:var(--accent); font-weight:600; letter-spacing:.02em}
+h1{font-size:clamp(1.7rem,6vw,2.2rem); line-height:1.2; margin:4px 0 10px; letter-spacing:-.02em; text-wrap:balance}
+.lede{margin:0 0 10px; color:var(--muted)}
+.levels{margin:0 0 20px; font-size:.88rem; color:var(--muted)}
+.levels a{color:var(--accent); text-underline-offset:3px}
+.levels b{color:var(--ink); font-weight:600}
+.notice{margin:0 0 16px; padding:12px 14px; border-radius:10px; background:var(--mid-bg); color:var(--mid); font-size:.9rem}
+
+.panel{background:var(--surface); border:1px solid var(--line); border-radius:12px; padding:20px; display:flex; flex-direction:column; gap:18px}
+.field{display:flex; flex-direction:column; gap:8px}
+.label{font-size:.85rem; color:var(--muted)}
+.field input.text{width:100%; min-height:44px; padding:0 12px; background:var(--surface); border:1px solid var(--line); border-radius:8px}
+.field input.text[aria-invalid="true"]{border-color:var(--no)}
+.hint{margin:0; font-size:.82rem; color:var(--muted)}
+.hint.err{color:var(--no)}
+.seg{display:flex; flex-wrap:wrap; gap:8px}
+.seg button{min-height:42px; padding:0 14px; background:transparent; border:1px solid var(--line); border-radius:8px; cursor:pointer}
+.seg button[aria-pressed="true"]{background:var(--accent); border-color:var(--accent); color:var(--surface); font-weight:600}
+.info{margin:0; font-size:.88rem; color:var(--muted); font-variant-numeric:tabular-nums}
+.primary{width:100%; min-height:52px; padding:0 18px; border:0; border-radius:10px; background:var(--ink); color:var(--bg); font-weight:700; cursor:pointer}
+.primary:disabled{opacity:.35; cursor:default}
+.ghost{min-height:46px; padding:0 16px; border:1px solid var(--line); border-radius:10px; background:var(--surface); cursor:pointer}
+.ghost:disabled{opacity:.4; cursor:default}
+details.more{font-size:.88rem; color:var(--muted)}
+details.more summary{cursor:pointer; color:var(--ink); font-weight:600}
+details.more ul{margin:8px 0 0; padding-left:18px} details.more li{margin:3px 0}
+.mlist{list-style:none; margin:10px 0 0; padding:0; display:flex; flex-direction:column; gap:6px}
+.mlist button{width:100%; text-align:left; padding:10px 12px; border:1px solid var(--line); border-radius:8px; background:var(--surface); cursor:pointer; display:flex; justify-content:space-between; gap:10px}
+.mlist button:hover{border-color:var(--accent)}
+.mlist .j{font-size:.8rem; color:var(--muted); white-space:nowrap}
+
+.top{display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:10px; font-family:var(--f-data); font-size:.82rem; color:var(--muted); font-variant-numeric:tabular-nums}
+.top .quit{font-family:var(--f-body); border:0; background:none; color:var(--muted); cursor:pointer; padding:6px 0; text-decoration:underline; text-underline-offset:3px}
+.track{height:4px; background:var(--line); border-radius:4px; overflow:hidden; margin-bottom:18px}
+.track i{display:block; height:100%; width:0; background:var(--accent); transition:width .25s}
+.meta{font-size:.82rem; color:var(--muted)}
+.mtitle{font-size:1.25rem; font-weight:700; margin:2px 0 6px}
+.scene{margin:0 0 16px; font-size:.95rem; color:var(--muted)}
+
+.bubble{background:var(--surface); border:1px solid var(--line); border-radius:4px 14px 14px 14px; padding:14px 16px; margin-bottom:14px}
+.bubble .who{font-size:.78rem; font-weight:600; color:var(--accent)}
+.bubble .line{font-family:var(--f-word); font-weight:600; font-size:clamp(1.2rem,5vw,1.5rem); line-height:1.35; margin:4px 0 2px}
+.bubble .line.masked{color:var(--muted); font-family:var(--f-body); font-weight:400; font-size:.95rem}
+.bubble .lko{font-size:.9rem; color:var(--muted); margin:2px 0 0}
+.row{display:flex; flex-wrap:wrap; gap:8px; margin-top:10px}
+.chip{display:inline-flex; align-items:center; gap:6px; min-height:38px; padding:0 13px; border:1px solid var(--line); border-radius:999px; background:var(--surface); cursor:pointer; font-size:.88rem}
+.chip svg{width:16px; height:16px}
+.chip:disabled{opacity:.4; cursor:default}
+
+.task{border-left:3px solid var(--accent); padding:4px 0 4px 12px; margin:0 0 14px}
+.task .k{font-size:.78rem; color:var(--muted); font-weight:600}
+.task p{margin:2px 0 8px}
+.checks{list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:4px; font-size:.92rem}
+.checks li{display:flex; gap:8px; align-items:baseline}
+.checks .mark{font-family:var(--f-data); width:1.2em; flex:none; color:var(--muted)}
+.checks li.ok .mark{color:var(--ok)} .checks li.no .mark{color:var(--no)}
+.checks .ex{font-family:var(--f-word); color:var(--note); font-size:.9rem}
+.checks .by{font-size:.82rem; color:var(--ok)}
+
+.mic{display:flex; align-items:center; justify-content:center; gap:10px; width:100%; min-height:64px; border:0; border-radius:14px; background:var(--accent); color:var(--surface); font-weight:700; font-size:1.05rem; cursor:pointer}
+.mic svg{width:22px; height:22px}
+.mic.on{background:var(--no)}
+.mic .clock{font-family:var(--f-data); font-weight:500}
+.mic:disabled{opacity:.4; cursor:default}
+.heard{margin:12px 0 0; padding:12px 14px; border-radius:10px; background:var(--surface); border:1px solid var(--line); min-height:52px}
+.heard .k{display:block; font-size:.78rem; color:var(--muted)}
+.heard .v{font-family:var(--f-word); font-size:1.05rem}
+.heard .v.interim{color:var(--muted)}
+.err{margin:10px 0 0; color:var(--no); font-size:.9rem}
+
+.verdict{display:flex; flex-wrap:wrap; align-items:center; gap:8px 14px; margin-top:14px}
+.score{font-family:var(--f-data); font-size:1.6rem; font-weight:500; font-variant-numeric:tabular-nums}
+.badge{display:inline-block; padding:2px 10px; border-radius:999px; font-size:.85rem; font-weight:600}
+.badge.ok{background:var(--ok-bg); color:var(--ok)} .badge.mid{background:var(--mid-bg); color:var(--mid)} .badge.no{background:var(--no-bg); color:var(--no)}
+.tries{font-size:.84rem; color:var(--muted)}
+.parts{display:grid; grid-template-columns:auto 1fr auto; gap:4px 10px; align-items:center; margin:12px 0 0; padding:12px 14px; border:1px solid var(--line); border-radius:10px; background:var(--surface)}
+.parts .pn{font-size:.86rem; font-weight:600}
+.parts .pb{height:6px; border-radius:6px; background:var(--line); overflow:hidden}
+.parts .pb i{display:block; height:100%; border-radius:6px; background:var(--accent)}
+.parts .pb i.lo{background:var(--no)} .parts .pb i.md{background:var(--mid)}
+.parts .pv{font-family:var(--f-data); font-size:.9rem; font-variant-numeric:tabular-nums; text-align:right; min-width:2.6em}
+.parts .pd{grid-column:1/-1; font-size:.8rem; color:var(--muted); margin:-2px 0 6px}
+.parts .cap{grid-column:1/-1; font-size:.82rem; color:var(--no); margin:2px 0 0}
+
+.models{margin:16px 0 0}
+.models h2{font-size:.95rem; margin:0 0 8px}
+.model{padding:10px 0; border-top:1px solid var(--line)}
+.model .en{font-family:var(--f-word); font-weight:600; font-size:1.05rem; line-height:1.4}
+.model .en span.ok{color:var(--ok)} .model .en span.no{color:var(--no); text-decoration:underline wavy; text-underline-offset:4px}
+.model .res{font-size:.84rem; color:var(--muted); margin-top:4px; font-variant-numeric:tabular-nums}
+.actions{display:grid; grid-template-columns:1fr 1.4fr; gap:10px; margin-top:18px}
+.keys{font-size:.78rem; color:var(--muted); text-align:center; margin:10px 0 0}
+@media (hover:none){ .keys{display:none} }
+
+.big{font-family:var(--f-data); font-weight:500; font-size:clamp(2.6rem,11vw,3.6rem); line-height:1.1; letter-spacing:-.03em; margin-top:10px; font-variant-numeric:tabular-nums}
+.sub{margin:6px 0 2px; color:var(--muted); white-space:pre-line}
+.send{margin:14px 0 0; font-size:.88rem; color:var(--muted)}
+.send.ok{color:var(--ok)} .send.no{color:var(--no)}
+.btns{display:flex; flex-direction:column; gap:10px; margin:20px 0 8px}
+h2.sec{font-size:1.05rem; margin:28px 0 6px; padding-bottom:6px; border-bottom:2px solid var(--ink)}
+.chips{display:flex; flex-wrap:wrap; gap:6px; margin:8px 0 0; padding:0; list-style:none}
+.chips li{padding:3px 10px; border-radius:999px; background:var(--no-bg); color:var(--no); font-size:.9rem}
+.review{list-style:none; margin:0; padding:0}
+.review li{padding:12px 0; border-bottom:1px solid var(--line); display:flex; flex-direction:column; gap:3px}
+.review .r1{display:flex; justify-content:space-between; gap:10px; align-items:baseline}
+.review .t{font-weight:600}
+.review .pts{font-family:var(--f-data); font-size:.9rem; white-space:nowrap}
+.review .c{font-family:var(--f-word); font-size:.95rem}
+.review .a{font-family:var(--f-word); font-size:.95rem; color:var(--accent)}
+.review .h{font-size:.82rem; color:var(--muted); font-variant-numeric:tabular-nums}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <section id="start">
+    <div class="eyebrow">캐나다 현장 영어 · 상황 회화</div>
+    <h1>상황 회화 미션</h1>
+    <p class="lede">손님이 영어로 말을 걸면, 상황에 맞게 내 말로 자유롭게 대답합니다. 정해진 답은 없어요. 꼭 들어가야 할 내용을 말했는지, 얼마나 충분하고 자연스럽게 말했는지를 봅니다.</p>
+    <nav class="levels" aria-label="다른 연습">단어 퀴즈 <a href="../english-500-quiz/">기초</a> · <a href="../english-intermediate-quiz/">중급</a> · <a href="../english-advanced-quiz/">고급</a> · <a href="../english-pronunciation/">발음 연습</a> · <b aria-current="page">상황 회화</b></nav>
+    <p class="notice" id="noSR" hidden>이 브라우저는 음성 인식을 지원하지 않아 듣기와 녹음만 됩니다. Chrome, Edge, Safari에서 열면 대답을 평가해 줍니다.</p>
+
+    <div class="panel">
+      <div class="field" id="nameField">
+        <label class="label" for="studentName">이름</label>
+        <input class="text" id="studentName" type="text" maxlength="20" autocomplete="name" placeholder="이름을 입력하세요" aria-describedby="nameHint">
+        <p class="hint" id="nameHint">미션을 마치면 이름과 함께 내가 한 말과 점수가 선생님께 전송됩니다.</p>
+      </div>
+      <div class="field">
+        <span class="label" id="l-job">직종</span>
+        <div class="seg" role="group" aria-labelledby="l-job" data-key="job">
+          <button type="button" data-val="all" aria-pressed="true">전체</button>
+          <button type="button" data-val="m" aria-pressed="false">마트 캐셔</button>
+          <button type="button" data-val="s" aria-pressed="false">웨이터(서버)</button>
+          <button type="button" data-val="c" aria-pressed="false">옷 가게 점원</button>
+        </div>
+      </div>
+      <div class="field">
+        <span class="label" id="l-count">미션 수</span>
+        <div class="seg" role="group" aria-labelledby="l-count" data-key="count">
+          <button type="button" data-val="1" aria-pressed="false">1</button>
+          <button type="button" data-val="3" aria-pressed="true">3</button>
+          <button type="button" data-val="5" aria-pressed="false">5</button>
+        </div>
+      </div>
+      <div class="field">
+        <span class="label" id="l-text">손님 말 글자</span>
+        <div class="seg" role="group" aria-labelledby="l-text" data-key="text">
+          <button type="button" data-val="hide" aria-pressed="true">듣고 나서 보기</button>
+          <button type="button" data-val="show" aria-pressed="false">처음부터 보기</button>
+        </div>
+        <p class="hint">듣기 실력도 키우려면 글자를 가리고 소리만 듣고 대답해 보세요.</p>
+      </div>
+      <p class="info" id="poolInfo"></p>
+      <button type="button" class="primary" id="startBtn">무작위 미션 시작</button>
+      <details class="more" id="pickWrap">
+        <summary>미션 목록에서 골라서 하기</summary>
+        <ul class="mlist" id="mList"></ul>
+      </details>
+      <details class="more">
+        <summary>평가 기준</summary>
+        <ul>
+          <li><b>내용 40%</b> · 할 일에 적힌 내용(예: 사과하기, 영수증 묻기)을 말했는지 봅니다. 표현은 달라도 됩니다.</li>
+          <li><b>말한 양 20%</b> · 모범 답안 길이의 80% 이상 말하면 만점입니다. 한두 단어로 끝내면 감점입니다.</li>
+          <li><b>유창성 20%</b> · 실제로 말한 시간으로 속도(초당 음절)를 재고, 1.5초 넘게 멈추면 감점합니다.</li>
+          <li><b>명료도 20%</b> · 음성 인식기가 얼마나 확신하고 알아들었는지를 봅니다.</li>
+          <li>할 일 내용을 빠뜨리면 점수에 상한이 있습니다(하나도 못 말하면 최대 40점). <b>70점 이상</b>이 통과입니다.</li>
+          <li>대답한 뒤에는 모범 답안을 듣고 따라 말하며 발음 점수를 받을 수 있어요.</li>
+        </ul>
+      </details>
+      <p class="hint">대답하기를 누르면 마이크를 씁니다. Chrome에서는 알아듣기 위해 음성이 Google 서버로 전송되어 처리됩니다. 녹음 파일은 선생님께 보내지 않고, 글자로 바뀐 말만 보냅니다.</p>
+    </div>
+  </section>
+
+  <section id="play" hidden>
+    <div class="top">
+      <span id="pNum"></span>
+      <span id="pAvg"></span>
+      <button type="button" class="quit" id="quitBtn">그만하기</button>
+    </div>
+    <div class="track" aria-hidden="true"><i id="bar"></i></div>
+
+    <div class="meta" id="pMeta"></div>
+    <div class="mtitle" id="pTitle"></div>
+    <p class="scene" id="pScene"></p>
+
+    <div class="bubble">
+      <div class="who">손님</div>
+      <p class="line" id="pLine" lang="en"></p>
+      <p class="lko" id="pLineKo" hidden></p>
+      <div class="row">
+        <button type="button" class="chip" id="playBtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 5 6 9H3v6h3l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/></svg>다시 듣기</button>
+        <button type="button" class="chip" id="slowBtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2 2"/><path d="M10 2h4"/></svg>천천히</button>
+        <button type="button" class="chip" id="revealBtn">글자·뜻 보기</button>
+      </div>
+    </div>
+
+    <div class="task">
+      <div class="k">할 일</div>
+      <p id="pTask"></p>
+      <ul class="checks" id="pChecks"></ul>
+      <div class="row"><button type="button" class="chip" id="hintBtn">힌트 단어 보기</button></div>
+    </div>
+
+    <button type="button" class="mic" id="micBtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 11a7 7 0 0 0 14 0"/><path d="M12 18v4"/></svg><span id="micLabel">대답하기</span><span class="clock" id="micClock"></span></button>
+    <div class="heard" aria-live="polite">
+      <span class="k" id="heardK">내가 한 말</span>
+      <span class="v" id="heardV" lang="en"></span>
+    </div>
+    <p class="err" id="pErr" role="alert" hidden></p>
+
+    <div id="resultBox" hidden>
+      <div class="verdict">
+        <span class="score" id="vScore"></span>
+        <span class="badge" id="vBadge"></span>
+        <span class="tries" id="vTries"></span>
+      </div>
+      <div class="parts" id="vParts"></div>
+      <div class="row"><button type="button" class="chip" id="mineBtn" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 3l14 9-14 9z"/></svg>내 대답 다시 듣기</button></div>
+      <div class="models">
+        <h2>이렇게 말할 수도 있어요 · 듣고 따라 말해 보세요</h2>
+        <div id="pModels"></div>
+      </div>
+    </div>
+
+    <div class="actions">
+      <button type="button" class="ghost" id="skipBtn">건너뛰기</button>
+      <button type="button" class="primary" id="nextBtn">다음</button>
+    </div>
+    <p class="keys">키보드: 스페이스 대답 시작·끝 · L 손님 말 다시 듣기 · Enter 다음</p>
+  </section>
+
+  <section id="result" hidden>
+    <div class="eyebrow">결과</div>
+    <div class="big" id="rAvg"></div>
+    <p class="sub" id="rSub"></p>
+    <p class="send" id="sendStatus" role="status" aria-live="polite" hidden></p>
+    <div class="btns">
+      <button type="button" class="ghost" id="resend" hidden>결과 다시 보내기</button>
+      <button type="button" class="primary" id="againBtn">새 미션 하기</button>
+      <button type="button" class="ghost" id="homeBtn">처음으로</button>
+    </div>
+    <div id="missWrap">
+      <h2 class="sec">빠뜨린 내용</h2>
+      <ul class="chips" id="missList"></ul>
+    </div>
+    <h2 class="sec">대화별 결과</h2>
+    <ul class="review" id="rList"></ul>
+  </section>
+
+</div>
+
+<script>
+/* 발음 채점 (엄격 모드)
+   총점 = 정확도 60% + 유창성 20% + 명료도 20%  (측정 못 한 항목은 빼고 나머지 비율로 다시 나눔)
+   - 정확도: 목표 문장과 인식 결과를 단어 단위로 맞춰(편집 거리) 바뀐 단어·빠진 단어·덧붙은 단어를 모두 감점한다.
+             축약형(I'm ↔ I am), 숫자(fifteen ↔ 15), %·$ 같은 표기 차이만 같은 말로 본다.
+   - 유창성: 마이크 소리로 실제 말한 구간을 재서 말하기 속도(음절/초)와 중간 멈춤을 본다.
+   - 명료도: 음성 인식기가 들려준 확신도(confidence)를 점수로 바꾼다.
+   - 한 단어라도 틀리거나 빠지면 총점은 최대 85점(통과 불가). */
+var PronScore = (function () {
+  'use strict';
+  var CONTRACTIONS = {
+    "i'm": 'i am', "i've": 'i have', "i'll": 'i will', "i'd": 'i would',
+    "you're": 'you are', "you've": 'you have', "you'll": 'you will', "you'd": 'you would',
+    "we're": 'we are', "we've": 'we have', "we'll": 'we will', "we'd": 'we would',
+    "they're": 'they are', "they've": 'they have', "they'll": 'they will', "they'd": 'they would',
+    "he's": 'he is', "she's": 'she is', "it's": 'it is', "that's": 'that is', "what's": 'what is',
+    "there's": 'there is', "here's": 'here is', "where's": 'where is', "who's": 'who is', "how's": 'how is',
+    "let's": 'let us', "that'll": 'that will', "it'll": 'it will', "that'd": 'that would',
+    "isn't": 'is not', "aren't": 'are not', "wasn't": 'was not', "weren't": 'were not',
+    "don't": 'do not', "doesn't": 'does not', "didn't": 'did not', "won't": 'will not',
+    "can't": 'can not', "cannot": 'can not', "couldn't": 'could not', "shouldn't": 'should not',
+    "wouldn't": 'would not', "haven't": 'have not', "hasn't": 'has not', "hadn't": 'had not',
+    "one's": 'one is', "burger's": 'burger is', "plate's": 'plate is',
+    'ok': 'okay', 'alright': 'all right'
+  };
+  var UNITS = { zero: 0, one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9,
+    ten: 10, eleven: 11, twelve: 12, thirteen: 13, fourteen: 14, fifteen: 15, sixteen: 16, seventeen: 17,
+    eighteen: 18, nineteen: 19 };
+  var TENS = { twenty: 20, thirty: 30, forty: 40, fifty: 50, sixty: 60, seventy: 70, eighty: 80, ninety: 90 };
+
+  var W = { acc: 0.6, flu: 0.2, cla: 0.2 };
+  var CAP_IF_WRONG = 85;
+
+  function clamp(x, a, b) { return x < a ? a : x > b ? b : x; }
+
+  function wordTokens(word) {
+    var w = String(word).toLowerCase().replace(/[‘’ʼ`]/g, "'").replace(/%/g, ' percent ').replace(/\$/g, ' ');
+    w = w.replace(/[^a-z0-9'.\s-]/g, ' ').replace(/(\d)\.(\d)/g, '$1 $2').replace(/[.\-]/g, ' ');
+    var out = [];
+    w.split(/\s+/).forEach(function (p) {
+      p = p.replace(/^'+|'+$/g, '');
+      if (!p) return;
+      var exp = CONTRACTIONS[p];
+      (exp ? exp.split(' ') : [p.replace(/'s$/, '')]).forEach(function (q) {
+        if (!q) return;
+        if (q in UNITS) q = String(UNITS[q]);
+        else if (q in TENS) q = 'T' + TENS[q];
+        out.push(q);
+      });
+    });
+    return out;
+  }
+
+  /* 문장을 [{t: 비교용 토큰, w: 원래 단어 번호}] 로. 십의 자리+일의 자리(forty two)는 한 숫자로 합친다. */
+  function tokenize(text) {
+    var words = String(text || '').trim().split(/\s+/).filter(Boolean);
+    var toks = [];
+    words.forEach(function (word, i) { wordTokens(word).forEach(function (t) { toks.push({ t: t, w: [i] }); }); });
+    var merged = [];
+    for (var k = 0; k < toks.length; k++) {
+      var a = toks[k];
+      if (a.t.charAt(0) === 'T') {
+        var tens = Number(a.t.slice(1)), b = toks[k + 1];
+        if (b && /^[1-9]$/.test(b.t)) { merged.push({ t: String(tens + Number(b.t)), w: a.w.concat(b.w) }); k++; continue; }
+        merged.push({ t: String(tens), w: a.w });
+      } else merged.push(a);
+    }
+    return { words: words, toks: merged };
+  }
+
+  /* 편집 거리 정렬. ops: {op:'ok'|'sub'|'del'|'ins', i: 목표 토큰 번호, j: 들린 토큰 번호} */
+  function align(a, b) {
+    var n = a.length, m = b.length, i, j, d = [];
+    for (i = 0; i <= n; i++) { d.push(new Array(m + 1)); d[i][0] = i; }
+    for (j = 0; j <= m; j++) d[0][j] = j;
+    for (i = 1; i <= n; i++) for (j = 1; j <= m; j++)
+      d[i][j] = Math.min(d[i - 1][j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1), d[i - 1][j] + 1, d[i][j - 1] + 1);
+    var ops = [];
+    i = n; j = m;
+    while (i > 0 || j > 0) {
+      if (i > 0 && j > 0 && d[i][j] === d[i - 1][j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1)) {
+        ops.push({ op: a[i - 1] === b[j - 1] ? 'ok' : 'sub', i: i - 1, j: j - 1 }); i--; j--;
+      } else if (i > 0 && d[i][j] === d[i - 1][j] + 1) { ops.push({ op: 'del', i: i - 1 }); i--; }
+      else { ops.push({ op: 'ins', j: j - 1 }); j--; }
+    }
+    return ops.reverse();
+  }
+
+  function clean(w) { return String(w).replace(/^[^A-Za-z0-9$']+|[^A-Za-z0-9%']+$/g, ''); }
+
+  /* 단어 정확도 */
+  function words(target, heard) {
+    var T = tokenize(target), H = tokenize(heard);
+    var ops = align(T.toks.map(function (x) { return x.t; }), H.toks.map(function (x) { return x.t; }));
+    var tokOk = T.toks.map(function () { return false; }), tokHeard = T.toks.map(function () { return null; });
+    var S = 0, D = 0, I = 0, inserted = [];
+    ops.forEach(function (o) {
+      if (o.op === 'ok') tokOk[o.i] = true;
+      else if (o.op === 'sub') { S++; tokHeard[o.i] = clean(H.words[H.toks[o.j].w[0]]); }
+      else if (o.op === 'del') D++;
+      else { I++; inserted.push(clean(H.words[H.toks[o.j].w[0]])); }
+    });
+    var wordOk = T.words.map(function () { return null; }), wordHeard = T.words.map(function () { return []; });
+    T.toks.forEach(function (tok, k) {
+      tok.w.forEach(function (wi) {
+        wordOk[wi] = (wordOk[wi] === null ? true : wordOk[wi]) && tokOk[k];
+        if (tokHeard[k] && wordHeard[wi].indexOf(tokHeard[k]) < 0) wordHeard[wi].push(tokHeard[k]);
+      });
+    });
+    var list = T.words.map(function (w, i) {
+      return { text: w, ok: wordOk[i] === null ? true : wordOk[i], heard: wordHeard[i].join(' ') };
+    });
+    var missed = [], diff = [];
+    list.forEach(function (x) {
+      if (x.ok) return;
+      var c = clean(x.text); if (!c) return;
+      missed.push(c);
+      diff.push(c + ' → ' + (x.heard || '(빠짐)'));
+    });
+    inserted.filter(Boolean).forEach(function (w) { diff.push('+ ' + w); });
+    var N = T.toks.length, hit = tokOk.filter(Boolean).length;
+    return {
+      words: list, missed: missed, diff: diff, inserted: inserted.filter(Boolean),
+      total: N, matched: hit, subs: S, dels: D, ins: I,
+      acc: N ? Math.round(clamp(1 - (S + D + I) / N, 0, 1) * 100) : 0,
+      complete: N ? Math.round(hit / N * 100) : 0
+    };
+  }
+
+  /* 음절 수 어림 (영어 철자 규칙 기반) */
+  function syllables(text) {
+    var n = 0;
+    String(text).split(/\s+/).forEach(function (raw) {
+      var bare = raw.replace(/[^A-Za-z0-9%]/g, '');
+      if (/^[A-Z]{2,4}$/.test(bare)) { n += bare.length; return; }   /* ID, TV 같은 약어는 글자마다 */
+      if (/%/.test(bare)) n += 2;                                      /* percent */
+      var w = raw.toLowerCase().replace(/[^a-z0-9]/g, '');
+      if (!w) return;
+      if (/^\d+$/.test(w)) { n += w.length; return; }
+      if (w.length <= 3) { n += 1; return; }
+      w = w.replace(/(?:[^laeiouy]es|[^laeiouy]e|ed)$/, function (m) { return /[td]ed$/.test(m) ? m : m.charAt(0); });
+      w = w.replace(/^y/, '');
+      var g = w.match(/[aeiouy]+/g);
+      n += Math.max(1, g ? g.length : 1);
+    });
+    return n;
+  }
+
+  /* 마이크 소리 [{t: ms, rms}] 로 말한 구간·멈춤을 찾는다. */
+  function speechSpan(frames) {
+    if (!frames || frames.length < 10) return null;
+    var levels = frames.map(function (f) { return f.rms; }).slice().sort(function (a, b) { return a - b; });
+    /* 배경 소음: 가장 조용한 5% (거의 쉬지 않고 말해도 단어 사이 틈이 잡히도록) */
+    var floor = levels[Math.floor(levels.length * 0.05)];
+    var peak = levels[Math.floor(levels.length * 0.98)];
+    var thr = Math.max(0.006, floor + (peak - floor) * 0.12, Math.min(floor * 3, (floor + peak) / 2));
+    if (peak < thr) return null;
+    var runs = [], cur = null, step = frames.length > 1 ? (frames[frames.length - 1].t - frames[0].t) / (frames.length - 1) : 20;
+    frames.forEach(function (f) {
+      if (f.rms >= thr) { if (cur && f.t - cur.e <= 150) cur.e = f.t; else { cur = { s: f.t, e: f.t }; runs.push(cur); } }
+    });
+    runs = runs.filter(function (r) { return r.e - r.s + step >= 60; });
+    if (!runs.length) return null;
+    var start = runs[0].s, end = runs[runs.length - 1].e + step, gaps = [];
+    for (var k = 1; k < runs.length; k++) { var g = runs[k].s - runs[k - 1].e - step; if (g >= 400) gaps.push(g); }
+    var voiced = runs.reduce(function (t, r) { return t + (r.e - r.s + step); }, 0);
+    if (voiced < 200) return null;
+    return { start: start, end: end, sec: (end - start) / 1000, voicedSec: voiced / 1000, pauses: gaps };
+  }
+
+  /* 유창성: 속도 점수 - 멈춤 감점. 문장 안 쉼표·마침표 개수만큼은 1초 미만 멈춤을 봐준다. */
+  function fluency(target, frames) {
+    var sp = speechSpan(frames);
+    if (!sp || sp.sec <= 0.15) return null;
+    var syl = syllables(target), rate = syl / sp.sec;
+    if (rate > 8) return null;   /* 사람이 낼 수 없는 속도면 소리 측정이 잘못된 것: 유창성은 재지 않은 것으로 */
+    var rs = rate >= 3.5 ? 100 : rate >= 2 ? 55 + (rate - 2) / 1.5 * 45 : rate >= 1 ? (rate - 1) * 55 : 0;
+    if (syl < 5) rs = Math.max(rs, 70);
+    var free = (String(target).replace(/[.?!]+\s*$/, '').match(/[,.;:?!]\s/g) || []).length;
+    var pen = 0, counted = [];
+    sp.pauses.slice().sort(function (a, b) { return a - b; }).forEach(function (g) {
+      if (free > 0 && g < 1000) { free--; return; }
+      counted.push(g); pen += g >= 800 ? 18 : 8;
+    });
+    return {
+      score: Math.round(clamp(rs - pen, 0, 100)),
+      rate: Math.round(rate * 10) / 10, syllables: syl, sec: Math.round(sp.sec * 100) / 100,
+      pauses: counted.length, longestPause: counted.length ? Math.round(Math.max.apply(null, counted)) : 0
+    };
+  }
+
+  /* 명료도: 인식 확신도 0.45 이하 0점, 0.92 이상 100점 */
+  function clarity(conf) {
+    if (typeof conf !== 'number' || !(conf > 0) || conf > 1) return null;
+    return { score: Math.round(clamp((conf - 0.45) / (0.92 - 0.45), 0, 1) * 100), conf: Math.round(conf * 100) / 100 };
+  }
+
+  /* opts: {confidence: 0~1, frames: [{t, rms}]} */
+  function assess(target, heard, opts) {
+    opts = opts || {};
+    var wd = words(target, heard || '');
+    var fl = fluency(target, opts.frames), cl = clarity(opts.confidence);
+    var sum = wd.acc * W.acc, wt = W.acc;
+    if (fl) { sum += fl.score * W.flu; wt += W.flu; }
+    if (cl) { sum += cl.score * W.cla; wt += W.cla; }
+    var score = Math.round(sum / wt);
+    var allOk = wd.matched === wd.total && wd.ins === 0;
+    if (!allOk) score = Math.min(score, CAP_IF_WRONG);
+    if (!wd.matched) score = 0;
+    return {
+      score: score, allOk: allOk, heard: heard || '',
+      words: wd.words, missed: wd.missed, diff: wd.diff,
+      acc: wd.acc, complete: wd.complete, matched: wd.matched, total: wd.total, inserted: wd.ins,
+      flu: fl ? fl.score : null, fluency: fl,
+      cla: cl ? cl.score : null, clarity: cl
+    };
+  }
+
+  /* 예전 방식과 같은 이름(테스트용): 단어 정확도만 */
+  function compare(target, heard) { return assess(target, heard, {}); }
+
+  return { assess: assess, compare: compare, words: words, tokenize: tokenize, syllables: syllables,
+           speechSpan: speechSpan, fluency: fluency, clarity: clarity, align: align, CAP_IF_WRONG: CAP_IF_WRONG };
+})();
+if (typeof module !== 'undefined') module.exports = PronScore;
+
+</script>
+<script>
+/* 상황 미션 자유 발화 평가 (PronScore 필요)
+   총점 = 내용 40% + 말한 양 20% + 유창성 20% + 명료도 20%  (못 잰 항목은 빼고 나머지 비율로 다시 나눔)
+   - 내용: 꼭 들어가야 할 내용(핵심 표현 묶음) 중 몇 개를 말했는지
+   - 말한 양: 모범 답안 길이의 80%를 목표 단어 수로 본다
+   - 유창성: 실제 말한 시간 대비 속도(음절/초)와 1.5초 이상 멈춤
+   - 명료도: 음성 인식 확신도
+   - 내용을 빠뜨리면 상한: 40 + 내용 × 0.6 (내용 0이면 최대 40점) */
+var MissionScore = (function () {
+  'use strict';
+  var W = { content: 0.4, amount: 0.2, flu: 0.2, cla: 0.2 };
+  function clamp(x, a, b) { return x < a ? a : x > b ? b : x; }
+  function toks(text) { return PronScore.tokenize(text).toks.map(function (t) { return t.t.charAt(0) === 'T' ? t.t.slice(1) : t.t; }); }
+
+  /* 표현 하나를 [{eq:'단어'} | {pre:'접두'}] 로 */
+  var cache = {};
+  function pattern(p) {
+    if (cache[p]) return cache[p];
+    var out = [];
+    String(p).trim().split(/\s+/).forEach(function (piece) {
+      if (/\*$/.test(piece)) out.push({ pre: piece.slice(0, -1).toLowerCase() });
+      else toks(piece).forEach(function (t) { out.push({ eq: t }); });
+    });
+    return (cache[p] = out);
+  }
+  function has(heard, p) {
+    var pt = pattern(p); if (!pt.length) return false;
+    for (var i = 0; i + pt.length <= heard.length; i++) {
+      var ok = true;
+      for (var k = 0; k < pt.length && ok; k++) {
+        var h = heard[i + k], q = pt[k];
+        ok = q.eq !== undefined ? h === q.eq : h.indexOf(q.pre) === 0;
+      }
+      if (ok) return true;
+    }
+    return false;
+  }
+  function keys(turn, text) {
+    var heard = toks(text);
+    return turn.keys.map(function (k) {
+      var hit = null;
+      k.any.some(function (p) { if (has(heard, p)) { hit = p; return true; } return false; });
+      return { ko: k.ko, ok: !!hit, by: hit, hint: k.any[0] };
+    });
+  }
+  function words(text) { return String(text || '').split(/\s+/).filter(function (w) { return /[A-Za-z0-9]/.test(w); }).length; }
+  function target(turn) {
+    var n = Math.min.apply(null, turn.models.map(words));
+    return Math.max(5, Math.round(n * 0.8));
+  }
+
+  /* 자유 발화 유창성: 초당 3음절 이상 만점, 1.5초 이상 멈춤 감점 */
+  function fluency(text, frames) {
+    var sp = PronScore.speechSpan(frames);
+    if (!sp || sp.sec <= 0.3) return null;
+    var syl = PronScore.syllables(text), rate = syl / sp.sec;
+    if (rate > 7.5) return null;   /* 측정이 잘못된 경우 */
+    var rs = rate >= 3 ? 100 : rate >= 1.8 ? 60 + (rate - 1.8) / 1.2 * 40 : rate >= 1 ? (rate - 1) / 0.8 * 60 : 0;
+    var pen = 0, long = sp.pauses.filter(function (g) { return g >= 1500; });
+    long.forEach(function (g) { pen += g >= 3000 ? 20 : 10; });
+    return { score: Math.round(clamp(rs - pen, 0, 100)), rate: Math.round(rate * 10) / 10, sec: Math.round(sp.sec * 10) / 10,
+             pauses: long.length, longestPause: long.length ? Math.round(Math.max.apply(null, long)) : 0 };
+  }
+
+  function assess(turn, text, opts) {
+    opts = opts || {};
+    text = String(text || '').trim();
+    var ks = keys(turn, text), hit = ks.filter(function (k) { return k.ok; }).length;
+    var content = Math.round(hit / ks.length * 100);
+    var n = words(text), goal = target(turn), amount = Math.round(clamp(n / goal, 0, 1) * 100);
+    var fl = fluency(text, opts.frames), cl = PronScore.clarity(opts.confidence);
+    var sum = content * W.content + amount * W.amount, wt = W.content + W.amount;
+    if (fl) { sum += fl.score * W.flu; wt += W.flu; }
+    if (cl) { sum += cl.score * W.cla; wt += W.cla; }
+    var score = Math.round(sum / wt);
+    score = Math.min(score, Math.round(40 + content * 0.6));
+    if (!n) score = 0;
+    var uniq = {}; toks(text).forEach(function (t) { uniq[t] = 1; });
+    return { score: score, text: text, keys: ks, hit: hit, total: ks.length, content: content,
+             words: n, goal: goal, amount: amount, uniq: Object.keys(uniq).length,
+             flu: fl ? fl.score : null, fluency: fl, cla: cl ? cl.score : null, clarity: cl };
+  }
+
+  return { assess: assess, keys: keys, target: target, words: words, has: function (text, p) { return has(toks(text), p); } };
+})();
+if (typeof module !== 'undefined') module.exports = MissionScore;
+
+</script>
+<script>
+(function(){
+'use strict';
+var MISSIONS=[{"id":"m1","job":"m","title":"영수증 없는 환불","scene":"손님이 영수증 없이 믹서기를 환불하러 왔어요. 이 마트는 영수증이 없으면 환불은 안 되고 교환이나 매장 크레딧만 됩니다.","turns":[{"line":"Hi, I'd like to return this blender, but I lost the receipt.","lineKo":"안녕하세요, 이 믹서기 환불하고 싶은데 영수증을 잃어버렸어요.","task":"영수증이 없으면 환불이 안 된다고 설명하고, 교환이나 매장 크레딧을 대신 제안하세요.","keys":[{"ko":"영수증 이야기","any":["receipt"]},{"ko":"환불 안 된다는 설명","any":["refund*","money back"]},{"ko":"교환·크레딧 제안","any":["exchange*","store credit","credit","gift card"]}],"models":["I'm sorry, but we can't give a refund without a receipt. I can offer you an exchange or store credit instead.","Unfortunately, our policy requires a receipt for refunds. Would you like to exchange it, or I can give you store credit."]},{"line":"Store credit is fine, I guess. Do I need to show any ID for that?","lineKo":"매장 크레딧도 괜찮을 것 같아요. 신분증 보여 드려야 하나요?","task":"신분증이 필요하다고 말하고, 보여 달라고 요청하세요.","keys":[{"ko":"신분증이 필요하다","any":["id","identification","licence","license"]},{"ko":"보여 달라는 요청","any":["can i see","could i see","may i see","can you show","could you show","please show","need to see","show me"]}],"models":["Yes, I'll need to see a photo ID, like a driver's licence. Can I see it, please?","Yes, we need a piece of ID for store credit. Could you show me your ID?"]}]},{"id":"m2","job":"m","title":"가격이 다르게 찍힘","scene":"손님이 세일 중인 시리얼이 정상가로 찍혔다고 해요. 진열대를 확인해 보니 세일가 4.99달러가 맞습니다.","turns":[{"line":"Excuse me, this cereal was on sale for four ninety-nine, but it rang up at six forty-nine.","lineKo":"저기요, 이 시리얼 4.99달러 세일인데 6.49달러로 찍혔어요.","task":"사과하고, 가격을 확인해 보겠다고 말하세요.","keys":[{"ko":"사과","any":["sorry","apologize*","apologies","unfortunately","afraid"]},{"ko":"가격 확인하겠다","any":["check*","look into","look it up"]}],"models":["Oh, I'm sorry about that. Let me do a quick price check for you.","I apologize. I'll check the price on the shelf right away."]},{"line":"Thanks. It's the one in the yellow box, aisle five.","lineKo":"고마워요. 5번 통로에 있는 노란 상자예요.","task":"세일 가격이 맞다며 4.99달러로 고쳐 주겠다고 하고, 기다려 줘서 고맙다고 하세요.","keys":[{"ko":"가격을 고쳐 주겠다","any":["fix*","adjust*","correct*","change*","sale price","4.99"]},{"ko":"기다려 줘서 감사","any":["thank*","appreciate*"]}],"models":["You're right, it's on sale. I'll fix the price to four ninety-nine. Thanks for waiting.","I checked, and the sale price is correct. I've adjusted it for you. Thank you for your patience."]}]},{"id":"m3","job":"m","title":"봉투와 포인트 카드","scene":"손님이 계산대에 물건을 올려놓았어요. 봉투는 한 장에 10센트입니다.","turns":[{"line":"Hi there. Just these, please.","lineKo":"안녕하세요. 이것만 계산할게요.","task":"인사하고, 봉투가 필요한지 물어보세요. 봉투는 10센트라고 알려 주세요.","keys":[{"ko":"인사","any":["hi","hello","hey","welcome","good morning","good afternoon","good evening"]},{"ko":"봉투 필요한지","any":["bag*"]},{"ko":"봉투 가격","any":["cent*","10","fee","charge","cost*"]}],"models":["Hi! Do you need a bag today? They're ten cents each.","Hello, how are you? Would you like a bag? There's a ten-cent charge for bags."]},{"line":"No bag, thanks. I brought my own.","lineKo":"봉투는 괜찮아요. 가져왔어요.","task":"포인트 카드가 있는지 물어보고, 어떻게 결제할지 물어보세요.","keys":[{"ko":"포인트 카드","any":["points","point card","rewards","membership","member","loyalty"]},{"ko":"결제 방법","any":["cash","debit","credit","pay*","tap"]}],"models":["Great. Do you have a points card? And how would you like to pay, cash or debit?","No problem. Are you a rewards member? You can pay by tap whenever you're ready."]}]},{"id":"m4","job":"m","title":"술 계산과 신분증","scene":"손님이 와인을 계산하려고 해요. 캐나다에서는 술을 팔 때 신분증 확인이 필수입니다.","turns":[{"line":"And this bottle of wine too.","lineKo":"그리고 이 와인도요.","task":"신분증을 보여 달라고 정중하게 요청하세요.","keys":[{"ko":"신분증 요청","any":["id","identification","licence","license"]},{"ko":"정중한 부탁","any":["please","could i","can i","may i","would you mind"]}],"models":["Sure. Can I see your ID, please?","Of course. I'll just need to see some identification. Could I see your driver's licence?"]},{"line":"Oh, I left my wallet in the car. I'm thirty-two, I promise!","lineKo":"아, 지갑을 차에 두고 왔어요. 저 서른두 살이에요, 진짜로요!","task":"신분증 없이는 술을 팔 수 없다고 정중하게 설명하고, 지갑을 가져오면 계산해 주겠다고 하세요.","keys":[{"ko":"신분증 없이는 판매 불가","any":["can not sell","not able to sell","unable to sell","without id","without identification","need to see","need id","have to see","law","policy"]},{"ko":"가져오면 계산해 주겠다","any":["come back","bring","get your wallet","hold it","set it aside","keep it","put it aside","when you return"]}],"models":["I'm sorry, but I can't sell alcohol without ID. It's the law. I can set it aside for you if you want to get your wallet.","I understand, but I need to see ID for everyone. If you bring your wallet, I'll ring it through right away."]}]},{"id":"m5","job":"m","title":"계산대 마감","scene":"내 계산대는 마감했어요. 3번 계산대가 열려 있고, 셀프 계산대는 입구 왼쪽에 있습니다.","turns":[{"line":"Is this lane open?","lineKo":"이 계산대 열려 있나요?","task":"이 계산대는 마감했다고 말하고, 다른 계산대로 안내하세요.","keys":[{"ko":"마감했다","any":["closed","closing","not open"]},{"ko":"다른 계산대 안내","any":["lane","next","over there","self checkout","3","another","other","till"]}],"models":["Sorry, this lane is closed. Lane three is open, right over there.","I'm afraid I'm closing this till. You can go to the next lane or use the self-checkout."]},{"line":"Oh, okay. Where's the self-checkout?","lineKo":"아, 네. 셀프 계산대는 어디 있어요?","task":"셀프 계산대 위치를 설명하세요 (입구 쪽, 왼쪽).","keys":[{"ko":"위치 설명","any":["left","right","front","near","next to","beside","by the","behind","entrance","exit","door","straight"]}],"models":["It's just to the left, near the front entrance.","Go straight past customer service. The self-checkouts are on your left, next to the entrance."]}]},{"id":"m6","job":"m","title":"카드 결제 오류","scene":"손님이 카드를 찍었는데 단말기에 승인 거절이 떴어요. 총액은 32.50달러입니다.","turns":[{"line":"I'll just tap my card... Did it go through?","lineKo":"카드 찍을게요... 됐나요?","task":"결제가 안 됐다고 알리고, 다시 시도하거나 카드를 꽂아 달라고 하세요.","keys":[{"ko":"결제 안 됨","any":["declined","did not go through","not go through","not working","did not work","error","failed"]},{"ko":"다시 시도 요청","any":["try again","again","insert*","another card","chip"]}],"models":["Sorry, it says declined. Could you try inserting your card instead?","It didn't go through. Do you want to try again, or use another card?"]},{"line":"That's weird. Can I pay cash instead? I have a fifty.","lineKo":"이상하네요. 현금으로 해도 돼요? 50달러짜리 있어요.","task":"괜찮다고 하고, 총액(32.50달러)과 거스름돈(17.50달러)을 말해 주세요.","keys":[{"ko":"괜찮다","any":["sure","of course","no problem","absolutely","yes","definitely","certainly","go ahead","that is fine","that works","okay"]},{"ko":"총액","any":["32","total"]},{"ko":"거스름돈","any":["change","17"]}],"models":["Sure, no problem. Your total is thirty-two fifty, so your change is seventeen fifty.","Of course. That's $32.50 out of fifty. Here's your change, $17.50."]}]},{"id":"m7","job":"m","title":"상품 위치 문의","scene":"베이킹 소다는 7번 통로 밀가루 옆에 있어요. 달걀은 다 팔렸고 내일 아침에 들어옵니다.","turns":[{"line":"Sorry, do you know where I can find baking soda?","lineKo":"실례지만 베이킹 소다 어디 있는지 아세요?","task":"몇 번 통로에, 무엇 옆에 있는지 알려 주세요.","keys":[{"ko":"통로 번호","any":["aisle","7"]},{"ko":"위치 설명","any":["next to","beside","near","by the","shelf","flour","baking"]}],"models":["Sure, it's in aisle seven, next to the flour.","It should be in aisle seven with the baking supplies, on the bottom shelf."]},{"line":"Thanks. And are there any eggs left? The shelf looked empty.","lineKo":"고마워요. 달걀도 남아 있나요? 진열대가 비어 보이던데요.","task":"확인해 보겠다고 하고, 다 팔렸으면 내일 아침에 들어온다고 알려 주세요.","keys":[{"ko":"확인하겠다","any":["check*","look","ask"]},{"ko":"내일 입고","any":["tomorrow","morning","in stock","delivery","shipment","come in","back in"]}],"models":["Let me check in the back for you. If we're out, we get a delivery tomorrow morning.","I'll ask my manager. If they're sold out, new stock comes in tomorrow morning."]}]},{"id":"m8","job":"m","title":"가격 맞춤 요청","scene":"건너편 가게가 건전지를 8달러에 팔고 있대요. 이 마트는 전단지나 사진을 보면 가격을 맞춰 줍니다.","turns":[{"line":"Do you price match? The store across the street has these batteries for eight dollars.","lineKo":"가격 맞춰 주나요? 길 건너 가게에서 이 건전지를 8달러에 팔아요.","task":"가격을 맞춰 준다고 하고, 전단지나 사진을 보여 달라고 하세요.","keys":[{"ko":"가격 맞춤 가능","any":["price match","we do","match"]},{"ko":"증거 요청","any":["flyer","flier","ad","advertisement","picture","photo","show me","proof"]}],"models":["We do! Can you show me the flyer or a photo of the ad?","Yes, we price match. I just need to see the flyer or a picture on your phone."]},{"line":"Here, I have it on my phone.","lineKo":"여기요, 휴대폰에 있어요.","task":"확인했다고 하고, 8달러로 맞춰 주겠다고 하세요.","keys":[{"ko":"확인했다","any":["perfect","great","looks good","that works","okay","thank*","got it"]},{"ko":"8달러로 맞춤","any":["8","match","adjust*","change*"]}],"models":["Perfect, thanks. I'll match it to eight dollars for you.","That looks good. I've adjusted the price to eight dollars."]}]},{"id":"s1","job":"s","title":"자리 안내와 대기","scene":"4명 손님이 왔는데 자리가 다 찼어요. 대기 시간은 약 15분이고, 테라스는 오늘 닫았습니다.","turns":[{"line":"Hi, table for four, please.","lineKo":"안녕하세요, 네 명이요.","task":"인사하고, 지금 자리가 다 찼다며 대기 시간(15분)을 알려 주세요.","keys":[{"ko":"인사","any":["hi","hello","hey","welcome","good morning","good afternoon","good evening"]},{"ko":"자리가 없다","any":["full","no tables","busy","all our tables","not available","taken","no table"]},{"ko":"대기 시간","any":["wait*","15","minute*"]}],"models":["Hi, welcome! We're full right now, so it's about a fifteen-minute wait.","Good evening. I'm sorry, all our tables are taken at the moment. The wait is around fifteen minutes."]},{"line":"That's fine. Can we sit outside on the patio?","lineKo":"괜찮아요. 밖에 테라스에 앉을 수 있어요?","task":"테라스는 오늘 닫았다고 하고, 창가 자리나 안쪽 자리를 제안한 뒤 이름을 물어보세요.","keys":[{"ko":"테라스 닫음","any":["patio","closed","outside"]},{"ko":"다른 자리 제안","any":["window","booth","inside","instead"]},{"ko":"이름 묻기","any":["name"]}],"models":["Sorry, the patio is closed today. I can get you a window table instead. Can I get a name?","Unfortunately the patio isn't open today, but we have a nice booth inside. What name should I put down?"]}]},{"id":"s2","job":"s","title":"알레르기 문의","scene":"손님이 견과류 알레르기가 있다며 치킨 버거를 주문해요. 버거에는 감자튀김이나 샐러드가 같이 나옵니다.","turns":[{"line":"I'll have the chicken burger. Does it have any nuts in it? I have a nut allergy.","lineKo":"치킨 버거 주세요. 견과류 들어가나요? 견과류 알레르기가 있어서요.","task":"주방에 확인하겠다고 하고, 알레르기를 주방에 알리겠다고 하세요.","keys":[{"ko":"확인하겠다","any":["check*","ask*","find out"]},{"ko":"주방에 알림","any":["kitchen","chef","cook*"]},{"ko":"알레르기 언급","any":["allerg*","nut*"]}],"models":["Let me check with the kitchen. I'll let the chef know about your nut allergy.","Good question. I'll ask the cook and make sure the kitchen knows about your allergy."]},{"line":"Thanks. And what comes with the burger?","lineKo":"고마워요. 버거에 뭐가 같이 나와요?","task":"감자튀김이나 샐러드 중 고를 수 있다고 하고, 어느 걸로 할지 물어보세요.","keys":[{"ko":"사이드 설명","any":["fries","salad","soup","side"]},{"ko":"고르라고 묻기","any":["would you like","which","prefer","do you want","or"]}],"models":["It comes with fries or a salad. Which would you like?","You get a side. You can choose fries, a garden salad, or soup. What would you prefer?"]}]},{"id":"s3","job":"s","title":"메뉴 추천","scene":"처음 온 손님이 추천을 부탁해요. 인기 메뉴는 피시 앤 칩스입니다.","turns":[{"line":"What do you recommend? It's my first time here.","lineKo":"뭘 추천하세요? 여기 처음 와서요.","task":"메뉴 하나를 추천하고, 왜 좋은지 이유를 하나 말하세요.","keys":[{"ko":"추천","any":["recommend","popular","favourite","favorite","best","try","special"]},{"ko":"이유","any":["because","really","delicious","good","fresh","homemade","great","love"]}],"models":["I recommend the fish and chips. It's really popular because the fish is fresh every day.","Our fish and chips are my favourite. The fish is fresh, and the sauce is homemade."]},{"line":"Sounds good. Can I get it without onions?","lineKo":"좋네요. 양파 빼고 주실 수 있어요?","task":"물론 된다고 하고, 주문을 다시 한 번 말해 확인하세요.","keys":[{"ko":"가능하다","any":["sure","of course","no problem","absolutely","yes","definitely","certainly","go ahead"]},{"ko":"양파 빼기 확인","any":["onion*"]}],"models":["Of course. So that's one fish and chips with no onions.","Absolutely. One fish and chips without onions, coming right up."]}]},{"id":"s4","job":"s","title":"음식이 잘못 나옴","scene":"손님이 스테이크를 미디엄으로 시켰는데 웰던으로 나왔어요. 새로 굽는 데 10분 걸립니다.","turns":[{"line":"Excuse me, I ordered the steak medium, but this is well done.","lineKo":"저기요, 스테이크 미디엄으로 시켰는데 이건 웰던이에요.","task":"사과하고, 새로 만들어 오겠다고 하세요.","keys":[{"ko":"사과","any":["sorry","apologize*","apologies","unfortunately","afraid"]},{"ko":"새로 만들어 주겠다","any":["new one","another","remake","fix","replace","redo","right away","take it back","make you"]}],"models":["I'm so sorry about that. I'll have the kitchen make you a new one right away.","I apologize. Let me take it back and get you another steak cooked medium."]},{"line":"How long will that take? We're in a bit of a hurry.","lineKo":"얼마나 걸려요? 저희가 좀 급해서요.","task":"10분 정도 걸린다고 하고, 기다리는 동안 무료 음료나 디저트를 제안하세요.","keys":[{"ko":"걸리는 시간","any":["10","minute*"]},{"ko":"무료 제공","any":["free","on the house","complimentary","no charge","on us"]},{"ko":"음료·디저트","any":["drink*","dessert","coffee","soda","appetizer"]}],"models":["It should take about ten minutes. Can I get you a free drink while you wait?","About ten minutes. I'm sorry for the trouble, so dessert is on the house today."]}]},{"id":"s5","job":"s","title":"계산서 나누기","scene":"손님들이 계산서를 따로 내고 싶어 해요. 이 손님 몫은 23.50달러입니다.","turns":[{"line":"Can we get the bill? And can we split it?","lineKo":"계산서 주시겠어요? 나눠서 내도 돼요?","task":"된다고 하고, 어떻게 나눌지(반반 또는 각자 먹은 대로) 물어보세요.","keys":[{"ko":"가능하다","any":["sure","of course","no problem","absolutely","yes","definitely","certainly","go ahead"]},{"ko":"나누는 방법 묻기","any":["split","separate","half","evenly","each","how would you like"]}],"models":["Sure! How would you like to split it, evenly or by what you each ordered?","Of course. Do you want separate bills, or should I split it in half?"]},{"line":"Separate, please. I had the pasta and the iced tea.","lineKo":"따로요. 저는 파스타랑 아이스티 먹었어요.","task":"금액(23.50달러)을 말하고, 카드 단말기를 가져오겠다고 하세요.","keys":[{"ko":"금액","any":["23","total","comes to"]},{"ko":"단말기 가져오기","any":["machine","terminal","card reader","bring","be right back"]}],"models":["Okay, yours comes to twenty-three fifty. I'll bring the machine over.","Your total is $23.50. I'll be right back with the card reader."]}]},{"id":"s6","job":"s","title":"전화 예약","scene":"토요일 저녁 예약 전화가 왔어요. 7시 30분은 꽉 찼고 8시는 6명 자리가 있습니다.","turns":[{"line":"Hi, I'd like to make a reservation for Saturday night.","lineKo":"안녕하세요, 토요일 저녁에 예약하고 싶어요.","task":"몇 명인지, 몇 시를 원하는지 물어보세요.","keys":[{"ko":"인원 묻기","any":["how many","people","guests","party"]},{"ko":"시간 묻기","any":["what time","time","when"]}],"models":["Sure! How many people, and what time would you like?","Of course. How many guests will be in your party, and what time works for you?"]},{"line":"Six people at seven thirty.","lineKo":"여섯 명, 7시 30분이요.","task":"7시 30분은 꽉 찼다고 하고, 8시를 제안한 뒤 이름과 전화번호를 물어보세요.","keys":[{"ko":"그 시간 불가","any":["full","booked","not available","no tables","fully"]},{"ko":"다른 시간 제안","any":["8"]},{"ko":"이름·연락처","any":["name","phone","number"]}],"models":["Sorry, we're fully booked at seven thirty. Would eight o'clock work? Can I get your name and phone number?","Seven thirty is full, but I have a table for six at eight. What's the name and a phone number for the booking?"]}]},{"id":"s7","job":"s","title":"테이블 챙기기","scene":"식사 중인 테이블이 물을 더 달라고 해요. 오늘의 디저트는 수제 치즈케이크입니다.","turns":[{"line":"Hi, sorry, could we get some more water?","lineKo":"저기요, 죄송한데 물 좀 더 주실 수 있어요?","task":"물을 가져다 주겠다고 하고, 음식은 괜찮은지 물어보세요.","keys":[{"ko":"물 가져다 주기","any":["water","bring","get you","right away","be right back"]},{"ko":"음식 괜찮은지","any":["how is","how are","everything","enjoying","food","taste"]}],"models":["Of course, I'll bring some water right away. How is everything so far?","Sure thing. I'll be right back with water. Are you enjoying your food?"]},{"line":"Everything's great. Could we see the dessert menu too?","lineKo":"다 맛있어요. 디저트 메뉴도 볼 수 있을까요?","task":"디저트 메뉴를 가져오겠다고 하고, 오늘의 디저트(치즈케이크)를 소개하세요.","keys":[{"ko":"메뉴 가져오기","any":["menu","bring","get you"]},{"ko":"오늘의 디저트","any":["special","today","cheesecake","homemade","recommend"]}],"models":["Absolutely, I'll bring the dessert menu. Today's special is a homemade cheesecake.","Sure! I'll get you the menu. I really recommend the cheesecake today."]}]},{"id":"s8","job":"s","title":"주방 마감 직전","scene":"주방이 10분 뒤에 닫아요. 지금 주문하면 아직 받을 수 있습니다.","turns":[{"line":"Is the kitchen still open? We'd love to order some appetizers.","lineKo":"주방 아직 열려 있어요? 애피타이저 좀 시키고 싶은데요.","task":"주방이 10분 뒤에 닫는다고 알리고, 지금 바로 주문하면 된다고 하세요.","keys":[{"ko":"곧 닫는다","any":["close*","closing"]},{"ko":"10분","any":["10","minute*"]},{"ko":"지금 주문 가능","any":["now","order","last call"]}],"models":["Yes, but the kitchen closes in ten minutes, so you can order now.","The kitchen is closing in ten minutes, so it's last call. What can I get you? I can put the order in now."]},{"line":"Great. We'll take the nachos and the wings.","lineKo":"좋아요. 나초랑 윙 주세요.","task":"주문을 다시 말해 확인하고, 음료도 필요한지 물어보세요.","keys":[{"ko":"주문 확인","any":["nachos","wings"]},{"ko":"음료 묻기","any":["drink*","beverage*","beer","water"]}],"models":["Perfect, one nachos and one order of wings. Can I get you anything to drink?","Got it, the nachos and the wings. Would you like any drinks with that?"]}]},{"id":"c1","job":"c","title":"사이즈 찾기","scene":"손님이 셔츠 미디엄을 찾는데 매장에는 없어요. 다른 매장에서 3~5일 안에 가져오거나 온라인 주문(무료 배송)이 됩니다.","turns":[{"line":"Do you have this shirt in a medium?","lineKo":"이 셔츠 미디엄 있어요?","task":"확인해 보겠다고 하고, 미디엄이 없다고 알려 주세요.","keys":[{"ko":"확인하겠다","any":["check*","look","let me see"]},{"ko":"재고 없음","any":["sold out","out of","do not have","no medium","none","not in stock","only have"]}],"models":["Let me check for you. Sorry, it looks like we're out of mediums.","I'll take a look in the back. Unfortunately, we don't have a medium in this colour."]},{"line":"Oh no. Is there any way I can still get one?","lineKo":"아, 그래도 구할 방법이 있을까요?","task":"다른 매장에서 가져오거나 온라인으로 주문할 수 있다고 제안하고, 며칠 걸리는지나 받는 방법도 알려 주세요.","keys":[{"ko":"다른 매장·온라인 제안","any":["other store","another store","another location","other location","transfer","online","website","order"]},{"ko":"받는 방법·기간","any":["ship*","deliver*","day*","week*","pick it up","pick up","free"]}],"models":["I can order one from another store for you. It usually takes three to five days, and you can pick it up here.","You can order it online. Shipping is free, and it takes about a week."]}]},{"id":"c2","job":"c","title":"피팅룸 안내","scene":"손님이 옷을 입어 보고 싶어 해요. 한 번에 6벌까지 들어갈 수 있고, 3번 방이 비어 있습니다.","turns":[{"line":"Can I try these on?","lineKo":"이거 입어 봐도 돼요?","task":"된다고 하고, 몇 벌인지 물어보면서 6벌까지라고 알려 주세요.","keys":[{"ko":"가능","any":["sure","of course","no problem","absolutely","yes","definitely","certainly","go ahead"]},{"ko":"몇 벌인지","any":["how many","items","pieces"]},{"ko":"최대 개수","any":["6","limit","maximum","up to"]}],"models":["Of course! How many items do you have? The limit is six.","Sure. You can bring up to six pieces. How many do you have?"]},{"line":"Just these four.","lineKo":"이 네 개만요.","task":"3번 방을 쓰라고 하고, 다른 사이즈가 필요하면 부르라고 하세요.","keys":[{"ko":"방 번호","any":["room","3","number"]},{"ko":"도움 요청 안내","any":["let me know","call me","if you need","ask","another size","different size"]}],"models":["Great, you're in room three. Let me know if you need another size.","Here's number three. If you need a different size, just call me."]}]},{"id":"c3","job":"c","title":"청바지 교환","scene":"손님이 지난주에 산 청바지가 작다며 교환하러 왔어요. 영수증과 택이 있으면 교환됩니다.","turns":[{"line":"I bought these jeans last week, but they're too small. Can I exchange them?","lineKo":"지난주에 이 청바지 샀는데 너무 작아요. 교환할 수 있어요?","task":"된다고 하고, 영수증과 택이 있는지 물어보세요.","keys":[{"ko":"가능","any":["sure","of course","no problem","absolutely","yes","definitely","certainly","go ahead"]},{"ko":"영수증","any":["receipt"]},{"ko":"택","any":["tag*"]}],"models":["Of course. Do you have the receipt, and are the tags still on?","No problem. Can I see your receipt? And the tags need to be attached."]},{"line":"Yes, here's the receipt, and the tags are still on.","lineKo":"네, 영수증 여기 있고 택도 그대로 있어요.","task":"고맙다고 하고, 원하는 사이즈를 고르라고 하거나 가져다 주겠다고 하세요.","keys":[{"ko":"감사","any":["thank*","great","perfect"]},{"ko":"사이즈 고르기","any":["size","bigger","larger","grab","bring","get you"]}],"models":["Perfect, thank you. What size would you like? I can grab it for you.","Great, thanks. Feel free to pick a bigger size, and I'll do the exchange here."]}]},{"id":"c4","job":"c","title":"세일 제외 상품","scene":"손님이 30% 세일 표시를 보고 재킷도 세일인지 물어요. 이 재킷은 신상품이라 세일에서 빠집니다.","turns":[{"line":"Is this jacket on sale too? The sign says thirty percent off.","lineKo":"이 재킷도 세일이에요? 30% 할인이라고 써 있던데요.","task":"이 재킷은 세일에서 빠진다고 정중하게 설명하세요.","keys":[{"ko":"아쉬움 표현","any":["sorry","apologize*","apologies","unfortunately","afraid"]},{"ko":"세일 제외 설명","any":["not on sale","not included","excluded","full price","regular price","does not apply","new arrival*","not part"]}],"models":["Sorry, this jacket is a new arrival, so it's not included in the sale.","Unfortunately, the sale doesn't apply to jackets. This one is regular price."]},{"line":"Oh. Do you know when it might go on sale?","lineKo":"아, 언제 세일할지 아세요?","task":"정확히는 모르지만, 뉴스레터(이메일)에 가입하면 세일 소식을 받을 수 있다고 안내하세요.","keys":[{"ko":"모른다","any":["not sure","do not know","no idea","can not say","hard to say"]},{"ko":"뉴스레터·알림","any":["newsletter","email","sign up","app","notification*","list"]}],"models":["I'm not sure, but if you sign up for our newsletter, you'll get an email about sales.","I don't know yet. You can join our email list to hear about it first."]}]},{"id":"c5","job":"c","title":"결혼식 옷 추천","scene":"손님이 결혼식에 입을 옷을 찾아요. 매장에 네이비색 원피스와 정장이 있습니다.","turns":[{"line":"I'm looking for something to wear to a wedding.","lineKo":"결혼식에 입을 옷을 찾고 있어요.","task":"원피스나 정장을 추천하고, 어떤 색을 좋아하는지 물어보세요.","keys":[{"ko":"추천","any":["dress*","suit*","blazer","recommend","how about"]},{"ko":"색 묻기","any":["colour*","color*"]}],"models":["How about one of these dresses? What colour do you like?","I'd recommend a suit or a blazer. Do you have a colour in mind?"]},{"line":"Something blue, maybe. Not too bright.","lineKo":"파란색 계열이요. 너무 밝지 않은 걸로요.","task":"네이비색 옷을 보여 주고, 입어 보라고 권하세요.","keys":[{"ko":"네이비 제안","any":["navy","dark blue"]},{"ko":"입어 보기 권유","any":["try","fitting room","change room"]}],"models":["This navy one would look great. Would you like to try it on?","We have it in dark blue. The fitting room is right there if you want to try it."]}]},{"id":"c6","job":"c","title":"계산과 반품 규정","scene":"손님이 셔츠 두 장을 사요. 총액은 59.98달러이고, 영수증이 있으면 30일 안에 반품됩니다.","turns":[{"line":"I'll take these two shirts.","lineKo":"이 셔츠 두 장 살게요.","task":"총액(59.98달러)을 말하고, 회원(멤버십)인지 물어보세요.","keys":[{"ko":"총액","any":["59","total","comes to"]},{"ko":"멤버십","any":["member*","rewards","points","loyalty","account"]}],"models":["Great choice. Your total is fifty-nine ninety-eight. Are you a member with us?","That comes to $59.98. Do you have a rewards account?"]},{"line":"No. Can I return them if they don't fit?","lineKo":"아니요. 안 맞으면 반품할 수 있어요?","task":"영수증이 있으면 30일 안에 반품할 수 있다고 안내하세요.","keys":[{"ko":"반품 가능","any":["return*","sure","of course","no problem","absolutely","yes","definitely","certainly","go ahead"]},{"ko":"30일","any":["30","days"]},{"ko":"영수증","any":["receipt"]}],"models":["Yes, you can return them within thirty days with the receipt.","Of course. Just keep your receipt, and returns are accepted for thirty days."]}]},{"id":"c7","job":"c","title":"불량 상품","scene":"손님이 스웨터에 구멍이 났다고 해요. 그 사이즈는 마지막 하나였습니다. 15% 할인이나 다른 매장 확인을 해 줄 수 있어요.","turns":[{"line":"I just noticed this sweater has a hole in it.","lineKo":"이 스웨터에 구멍이 있는 걸 방금 봤어요.","task":"사과하고, 새것으로 가져오겠다고 하세요.","keys":[{"ko":"사과","any":["sorry","apologize*","apologies","unfortunately","afraid"]},{"ko":"새것 제공","any":["new one","another","replace","grab","get you","bring"]}],"models":["Oh, I'm so sorry! Let me get you a new one.","I apologize for that. I'll grab another one from the back."]},{"line":"That was the last one in my size.","lineKo":"그게 제 사이즈 마지막 하나였어요.","task":"15% 할인을 해 주거나 다른 매장 재고를 확인해 주겠다고 하고, 어느 쪽이 좋은지 물어보세요.","keys":[{"ko":"할인·다른 매장 제안","any":["discount","15","percent","off","other store","another store","another location","check"]},{"ko":"선택권 주기","any":["would you like","do you want","if you want","prefer","or"]}],"models":["I can give you fifteen percent off, or I can check another store. Which would you prefer?","If you want, I can take fifteen percent off. Or I can check if another location has your size."]}]},{"id":"c8","job":"c","title":"손님 맞이와 길 안내","scene":"손님이 매장에 들어왔어요. 오늘은 이 진열대 30% 세일이고, 여성 신발은 2층 계산대 뒤에 있습니다.","turns":[{"line":"Oh, hi. I'm just looking, thanks.","lineKo":"아, 안녕하세요. 그냥 둘러보는 중이에요.","task":"인사하고, 필요한 게 있으면 부르라고 한 뒤 오늘 세일을 알려 주세요.","keys":[{"ko":"인사","any":["hi","hello","hey","welcome","good morning","good afternoon","good evening"]},{"ko":"도움 제안","any":["let me know","if you need","call me","ask","help"]},{"ko":"세일 안내","any":["sale","off","percent","deal","promotion"]}],"models":["Welcome in! Let me know if you need anything. Everything on this rack is thirty percent off today.","Hi there! If you need help, just ask. We have a sale on sweaters today."]},{"line":"Actually, where are the women's shoes?","lineKo":"아, 여성 신발은 어디 있어요?","task":"신발 코너 위치(2층, 계산대 뒤)를 설명하세요.","keys":[{"ko":"층","any":["upstairs","second floor","floor","downstairs"]},{"ko":"위치 설명","any":["behind","next to","near","beside","back","left","right","by the","cash"]}],"models":["They're upstairs on the second floor, behind the cash desk.","Go up to the second floor. Women's shoes are at the back, on the left."]}]}];
+var API_URL='https://english-quiz-teacher.vercel.app/api/submit';
+var CAN_SEND=/^https:\/\//.test(API_URL);
+var NAME_KEY='englishQuizName';      /* 단어 퀴즈·발음 연습과 같은 이름 칸 */
+var PASS=70, LIMIT=60;               /* 통과 점수, 한 번 대답할 때 최대 초 */
+var JOBS={m:'마트 캐셔',s:'웨이터(서버)',c:'옷 가게 점원'};
+
+var SR=window.SpeechRecognition||window.webkitSpeechRecognition||null;
+var synth=('speechSynthesis' in window)?window.speechSynthesis:null;
+var canRecord=!!(navigator.mediaDevices&&navigator.mediaDevices.getUserMedia&&window.MediaRecorder);
+
+function $(s){ return document.querySelector(s); }
+function el(tag,cls,text){ var e=document.createElement(tag); if(cls) e.className=cls; if(text!=null) e.textContent=text; return e; }
+function shuffle(a){ a=a.slice(); for(var i=a.length-1;i>0;i--){ var j=Math.floor(Math.random()*(i+1)); var t=a[i]; a[i]=a[j]; a[j]=t; } return a; }
+function show(name){ ['start','play','result'].forEach(function(id){ $('#'+id).hidden=(id!==name); }); window.scrollTo(0,0); }
+function mean(xs){ xs=xs.filter(function(v){ return v!=null; }); return xs.length?Math.round(xs.reduce(function(a,b){return a+b;},0)/xs.length):null; }
+
+/* 상태: steps = 미션의 대화 한 턴씩 펼친 목록 */
+var S={job:'all',count:'3',text:'hide',name:'',kind:'new',steps:[],idx:0,startedAt:null,payload:null,
+       mode:null,rec:null,stream:null,recorder:null,chunks:[],audioUrl:null,recordOk:canRecord,
+       actx:null,analyser:null,meter:null,frames:[],timer:null,deadline:0};
+
+/* ---------- 시작 화면 ---------- */
+function pool(){ return MISSIONS.filter(function(m){ return S.job==='all'||m.job===S.job; }); }
+function updateInfo(){
+  var p=pool(), n=Math.min(Number(S.count),p.length);
+  $('#poolInfo').textContent='선택한 직종 미션 '+p.length+'개 중 '+n+'개(대화 '+(n*2)+'번)를 무작위로 합니다.';
+  var ul=$('#mList'); ul.textContent='';
+  p.forEach(function(m){
+    var li=el('li'), b=el('button'); b.type='button';
+    b.appendChild(el('span',null,m.title)); b.appendChild(el('span','j',JOBS[m.job]));
+    b.addEventListener('click',function(){ if(checkName()) begin([m],'pick'); });
+    li.appendChild(b); ul.appendChild(li);
+  });
+}
+[].forEach.call(document.querySelectorAll('.seg'),function(seg){
+  seg.addEventListener('click',function(e){
+    var b=e.target.closest('button'); if(!b) return;
+    [].forEach.call(seg.querySelectorAll('button'),function(x){ x.setAttribute('aria-pressed',x===b?'true':'false'); });
+    S[seg.dataset.key]=b.dataset.val; updateInfo();
+  });
+});
+function checkName(){
+  if(!CAN_SEND) return true;
+  var input=$('#studentName'), v=input.value.replace(/\s+/g,' ').trim(), hint=$('#nameHint');
+  if(!v){ input.setAttribute('aria-invalid','true'); hint.className='hint err'; hint.textContent='이름을 입력해야 시작할 수 있어요.'; input.focus(); return false; }
+  input.removeAttribute('aria-invalid'); hint.className='hint'; hint.textContent='미션을 마치면 이름과 함께 내가 한 말과 점수가 선생님께 전송됩니다.';
+  S.name=v; try{ localStorage.setItem(NAME_KEY,v); }catch(e){}
+  return true;
+}
+function begin(missions,kind){
+  S.steps=[];
+  missions.forEach(function(m,mi){ m.turns.forEach(function(t,ti){ S.steps.push({m:m,mi:mi,mn:missions.length,t:t,ti:ti,
+    tries:0,best:null,first:null,skipped:false,hint:false,shadow:null}); }); });
+  S.kind=kind; S.idx=0; S.startedAt=new Date(); S.payload=null;
+  show('play'); showStep(true);
+}
+function startRandom(){ if(!checkName()) return; var p=pool(); begin(shuffle(p).slice(0,Math.min(Number(S.count),p.length)),'new'); }
+
+/* ---------- 소리 ---------- */
+var voice=null;
+function pickVoice(){
+  if(!synth) return;
+  var vs=synth.getVoices()||[];
+  function find(re){ for(var i=0;i<vs.length;i++){ if(re.test(vs[i].lang)) return vs[i]; } return null; }
+  voice=find(/^en[-_]CA/i)||find(/^en[-_]US/i)||find(/^en[-_]GB/i)||find(/^en/i);
+}
+if(synth){ pickVoice(); if('onvoiceschanged' in synth) synth.onvoiceschanged=pickVoice; }
+function say(text,rate){
+  if(!synth||S.mode) return;
+  try{ var u=new SpeechSynthesisUtterance(text); u.lang=voice?voice.lang:'en-CA'; if(voice) u.voice=voice; u.rate=rate||0.95; synth.cancel(); synth.speak(u); }catch(e){}
+}
+
+/* ---------- 마이크: 녹음·소리 크기(유창성용) ---------- */
+function ensureStream(){
+  if(!S.recordOk) return Promise.resolve(null);
+  if(S.stream) return Promise.resolve(S.stream);
+  return navigator.mediaDevices.getUserMedia({audio:true}).then(function(st){ S.stream=st; return st; }).catch(function(){ S.recordOk=false; return null; });
+}
+function startRecording(st){
+  if(!st) return;
+  try{
+    S.chunks=[]; S.recorder=new MediaRecorder(st);
+    S.recorder.ondataavailable=function(e){ if(e.data&&e.data.size) S.chunks.push(e.data); };
+    S.recorder.onstop=function(){
+      if(!S.chunks.length||S.recTarget!=='answer') return;
+      if(S.audioUrl) URL.revokeObjectURL(S.audioUrl);
+      S.audioUrl=URL.createObjectURL(new Blob(S.chunks,{type:S.recorder.mimeType||'audio/webm'}));
+      $('#mineBtn').hidden=false;
+    };
+    S.recorder.start();
+  }catch(e){ S.recorder=null; }
+}
+function stopRecording(){ try{ if(S.recorder&&S.recorder.state!=='inactive') S.recorder.stop(); }catch(e){} }
+/* 말하는 동안 마이크 소리 크기만 20ms마다 기록한다. 소리 자체는 저장하거나 보내지 않는다. */
+function startMeter(st){
+  S.frames=[]; stopMeter();
+  if(!st) return;
+  try{
+    if(!S.actx){
+      var AC=window.AudioContext||window.webkitAudioContext; if(!AC) return;
+      S.actx=new AC(); var src=S.actx.createMediaStreamSource(st);
+      S.analyser=S.actx.createAnalyser(); S.analyser.fftSize=1024;
+      var mute=S.actx.createGain(); mute.gain.value=0;
+      src.connect(S.analyser); S.analyser.connect(mute); mute.connect(S.actx.destination);
+    }
+    if(S.actx.state==='suspended') S.actx.resume();
+    var buf=new Float32Array(S.analyser.fftSize), t0=performance.now();
+    S.meter=setInterval(function(){
+      S.analyser.getFloatTimeDomainData(buf);
+      var sum=0; for(var i=0;i<buf.length;i++) sum+=buf[i]*buf[i];
+      S.frames.push({t:Math.round(performance.now()-t0), rms:Math.sqrt(sum/buf.length)});
+    },20);
+  }catch(e){ S.analyser=null; }
+}
+function stopMeter(){ if(S.meter){ clearInterval(S.meter); S.meter=null; } }
+function setErr(msg){ var e=$('#pErr'); e.textContent=msg||''; e.hidden=!msg; }
+var ERRS={'not-allowed':'마이크 사용이 막혀 있어요. 주소창 옆 권한 설정에서 마이크를 허용해 주세요.','service-not-allowed':'이 브라우저에서 음성 인식을 쓸 수 없어요.','audio-capture':'마이크를 찾지 못했어요.','network':'음성 인식 서버에 연결하지 못했어요. 인터넷 연결을 확인해 주세요.'};
+
+/* ---------- 대답 (자유 발화, 최대 LIMIT초) ---------- */
+function micUI(){
+  var on=S.mode==='answer', b=$('#micBtn'), st=S.steps[S.idx];
+  b.classList.toggle('on',on);
+  $('#micLabel').textContent=on?(SR?'말하는 중… 다 말했으면 눌러서 끝내기':'녹음 중… 눌러서 끝내기'):(st&&st.tries?'다시 대답하기':'대답하기');
+  $('#micClock').textContent=on?(' '+Math.max(0,Math.ceil((S.deadline-Date.now())/1000))+'초'):'';
+  b.disabled=S.mode==='shadow';
+  [].forEach.call(document.querySelectorAll('.shadowBtn'),function(x){ x.disabled=!!S.mode; });
+}
+function startAnswer(){
+  if(S.mode==='answer'){ finishAnswer(); return; }
+  if(S.mode) return;
+  if(synth) synth.cancel();
+  setErr('');
+  ensureStream().then(function(st){
+    if(!SR&&!st){ setErr('마이크를 쓸 수 없어요. 브라우저의 마이크 권한을 확인해 주세요.'); return; }
+    S.mode='answer'; S.recTarget='answer'; S.finals=[]; S.interim=''; S.userStop=false; S.restarts=0; S.failed=null;
+    S.deadline=Date.now()+LIMIT*1000;
+    $('#heardV').textContent='…'; $('#heardV').className='v interim';
+    startRecording(st); startMeter(st);
+    S.timer=setInterval(function(){ if(Date.now()>=S.deadline) finishAnswer(); else micUI(); },250);
+    micUI();
+    if(SR) openRec();
+  });
+}
+function openRec(){
+  var rec=new SR(); S.rec=rec;
+  rec.lang='en-CA'; rec.interimResults=true; rec.maxAlternatives=1; rec.continuous=true;
+  var base=S.finals.length;
+  rec.onresult=function(e){
+    var fin=[], interim='';
+    for(var i=0;i<e.results.length;i++){ var r=e.results[i]; if(r.isFinal) fin.push({text:r[0].transcript,conf:r[0].confidence}); else interim+=r[0].transcript; }
+    S.finals=S.finals.slice(0,base).concat(fin); S.interim=interim;
+    var shown=S.finals.map(function(a){ return a.text.trim(); }).join(' ')+(interim?' '+interim:'');
+    var v=$('#heardV'); v.textContent=shown.trim()||'…'; v.className='v'+(interim?' interim':'');
+  };
+  rec.onerror=function(e){ if(e.error!=='no-speech'&&e.error!=='aborted') S.failed=e.error; };
+  rec.onend=function(){
+    S.rec=null;
+    if(S.mode!=='answer') return;
+    /* 크롬은 잠깐 조용하면 인식을 끝낸다. 시간이 남았으면 이어서 다시 듣는다. */
+    if(!S.userStop&&!S.failed&&Date.now()<S.deadline-500&&S.restarts<20){ S.restarts++; if(S.interim){ S.finals.push({text:S.interim,conf:null}); S.interim=''; } try{ openRec(); return; }catch(err){} }
+    endAnswer();
+  };
+  try{ rec.start(); }catch(e){ S.failed='start'; endAnswer(); }
+}
+function finishAnswer(){
+  if(S.mode!=='answer') return;
+  S.userStop=true; clearInterval(S.timer);
+  if(S.rec){ try{ S.rec.stop(); }catch(e){ endAnswer(); } }
+  else endAnswer();
+}
+function endAnswer(){
+  if(S.mode!=='answer') return;
+  clearInterval(S.timer); stopRecording(); stopMeter();
+  S.mode=null; micUI();
+  if(S.interim){ S.finals.push({text:S.interim,conf:null}); S.interim=''; }
+  if(!SR){ $('#heardV').textContent='녹음했어요. 내 대답 다시 듣기로 들어 보고 모범 답안과 비교해 보세요.'; $('#heardV').className='v'; showModels(); $('#resultBox').hidden=false; return; }
+  var text=S.finals.map(function(a){ return a.text.trim(); }).join(' ').replace(/\s+/g,' ').trim();
+  if(!text){
+    $('#heardV').textContent=''; setErr(S.failed&&ERRS[S.failed]||'아무 말도 들리지 않았어요. 마이크 가까이에서 다시 말해 주세요.');
+    return;
+  }
+  var cw=0, cs=0; S.finals.forEach(function(a){ var L=a.text.length||1; if(typeof a.conf==='number'&&a.conf>0){ cw+=L; cs+=a.conf*L; } });
+  grade(text, cw?cs/cw:null, S.frames.slice());
+}
+
+/* ---------- 평가 표시 ---------- */
+function band(s){ return s>=85?['ok','훌륭해요']:s>=PASS?['mid','통과']:['no','다시 해 보세요']; }
+function lvl(v){ return v>=85?'':v>=PASS?'md':'lo'; }
+function grade(text,conf,frames){
+  var st=S.steps[S.idx], r=MissionScore.assess(st.t,text,{confidence:conf,frames:frames});
+  st.tries++; st.skipped=false;
+  if(!st.first) st.first=r;
+  if(!st.best||r.score>=st.best.score) st.best=r;
+  $('#heardV').textContent=r.text; $('#heardV').className='v';
+  var b=band(r.score);
+  $('#vScore').textContent=r.score+'점';
+  $('#vBadge').className='badge '+b[0]; $('#vBadge').textContent=b[1];
+  $('#vTries').textContent='시도 '+st.tries+'회 · 최고 '+st.best.score+'점'+(st.tries>1?' · 첫 시도 '+st.first.score+'점':'');
+  paintChecks(r.keys); paintParts(r); revealLine(); showModels();
+  $('#resultBox').hidden=false; updateTop();
+}
+function paintParts(r){
+  var f=r.fluency, c=r.clarity, box=$('#vParts'); box.textContent='';
+  [['내용',r.content,'할 일 '+r.total+'가지 중 '+r.hit+'가지 말함'],
+   ['말한 양',r.amount,r.words+'단어 (목표 '+r.goal+'단어 이상) · 서로 다른 단어 '+r.uniq+'개'],
+   ['유창성',r.flu,f?('속도 '+f.rate+'음절/초 (목표 3 이상) · 말한 시간 '+f.sec+'초'+(f.pauses?' · 1.5초 넘게 멈춤 '+f.pauses+'회':' · 긴 멈춤 없음')):'측정 못 함 (이 기기에서는 녹음과 인식을 함께 쓸 수 없어요)'],
+   ['명료도',r.cla,c?('인식 확신도 '+c.conf.toFixed(2)+' (0.92 이상이면 만점)'):'측정 못 함 (이 브라우저는 확신도를 알려 주지 않아요)']].forEach(function(x){
+    var b=el('span','pb'), i=el('i'); if(x[1]!=null){ i.style.width=x[1]+'%'; i.className=lvl(x[1]); } b.appendChild(i);
+    box.appendChild(el('span','pn',x[0])); box.appendChild(b); box.appendChild(el('span','pv',x[1]==null?'-':String(x[1]))); box.appendChild(el('span','pd',x[2]));
+  });
+  if(r.hit<r.total) box.appendChild(el('span','cap','할 일을 빠뜨리면 최대 '+Math.round(40+r.content*0.6)+'점이에요. 빠진 내용을 넣어 다시 대답해 보세요.'));
+}
+function paintChecks(res){
+  var st=S.steps[S.idx], ul=$('#pChecks'); ul.textContent='';
+  st.t.keys.forEach(function(k,i){
+    var r=res&&res[i], li=el('li',r?(r.ok?'ok':'no'):null);
+    li.appendChild(el('span','mark',r?(r.ok?'✓':'✗'):'○'));
+    var body=el('span'); body.appendChild(document.createTextNode(k.ko));
+    if(r&&r.ok){ body.appendChild(document.createTextNode(' ')); body.appendChild(el('span','by','“'+r.by.replace(/\*/g,'…')+'”')); }
+    else if(st.hint||r){ body.appendChild(document.createTextNode(' · ')); var ex=el('span','ex',k.any.slice(0,2).map(function(p){ return p.replace(/\*/g,'…'); }).join(', ')); ex.lang='en'; body.appendChild(ex); }
+    li.appendChild(body); ul.appendChild(li);
+  });
+}
+function revealLine(){ var st=S.steps[S.idx]; $('#pLine').textContent=st.t.line; $('#pLine').className='line'; $('#pLineKo').textContent=st.t.lineKo; $('#pLineKo').hidden=false; $('#revealBtn').hidden=true; }
+
+/* ---------- 모범 답안 따라 말하기 (발음 연습과 같은 엄격 채점) ---------- */
+function paintWords(p,words){ p.textContent=''; words.forEach(function(w,i){ if(i) p.appendChild(document.createTextNode(' ')); var s=el('span',w.ok==null?null:(w.ok?'ok':'no'),w.text); p.appendChild(s); }); }
+function showModels(){
+  var st=S.steps[S.idx], box=$('#pModels'); box.textContent='';
+  st.t.models.forEach(function(md,mi){
+    var d=el('div','model'), p=el('p','en'); p.lang='en'; p.style.margin='0';
+    paintWords(p,md.split(/\s+/).map(function(t){ return {text:t,ok:null}; }));
+    var row=el('div','row');
+    var l=el('button','chip','듣기'); l.type='button'; l.addEventListener('click',function(){ say(md,0.95); });
+    var sl=el('button','chip','천천히'); sl.type='button'; sl.addEventListener('click',function(){ say(md,0.65); });
+    var sh=el('button','chip shadowBtn','따라 말하기'); sh.type='button';
+    var res=el('div','res');
+    sh.addEventListener('click',function(){ shadow(md,p,res,sh); });
+    row.appendChild(l); row.appendChild(sl); if(SR) row.appendChild(sh);
+    d.appendChild(p); d.appendChild(row); d.appendChild(res); box.appendChild(d);
+  });
+}
+function shadow(md,p,res,btn){
+  if(S.mode) return;
+  if(synth) synth.cancel();
+  ensureStream().then(function(st){
+    S.mode='shadow'; S.recTarget='shadow'; micUI(); btn.textContent='듣는 중…';
+    res.textContent='문장을 끝까지 말하면 자동으로 채점해요.';
+    var rec=new SR(); S.rec=rec; rec.lang='en-CA'; rec.interimResults=false; rec.maxAlternatives=1; rec.continuous=false;
+    var got=null, err=null;
+    rec.onresult=function(e){ var t=[], cw=0, cs=0; for(var i=0;i<e.results.length;i++){ var a=e.results[i][0]; t.push(a.transcript); if(a.confidence>0){ cw+=a.transcript.length; cs+=a.confidence*a.transcript.length; } } got={text:t.join(' '),conf:cw?cs/cw:null}; };
+    rec.onerror=function(e){ err=e.error; };
+    rec.onend=function(){
+      S.rec=null; stopRecording(); stopMeter(); S.mode=null; btn.textContent='다시 따라 말하기'; micUI();
+      if(!got){ res.textContent=err&&ERRS[err]||'잘 안 들렸어요. 다시 눌러 말해 주세요.'; return; }
+      var r=PronScore.assess(md,got.text,{confidence:got.conf,frames:S.frames.slice()});
+      paintWords(p,r.words);
+      var stp=S.steps[S.idx]; if(stp.shadow==null||r.score>stp.shadow) stp.shadow=r.score;
+      res.textContent='발음 '+r.score+'점'+(r.score>=90?' · 통과':'')+' · 정확 '+r.acc+' · 유창 '+(r.flu==null?'-':r.flu)+' · 명료 '+(r.cla==null?'-':r.cla)+(r.diff.length?' · '+r.diff.join(', '):'');
+    };
+    try{ rec.start(); startRecording(st); startMeter(st); }catch(e){ S.mode=null; micUI(); btn.textContent='따라 말하기'; res.textContent='음성 인식을 시작하지 못했어요. 잠시 뒤 다시 눌러 주세요.'; }
+  });
+}
+
+/* ---------- 화면 진행 ---------- */
+function updateTop(){
+  var st=S.steps[S.idx];
+  $('#pNum').textContent='미션 '+(st.mi+1)+'/'+st.mn+' · 대화 '+(st.ti+1)+'/'+st.m.turns.length;
+  var a=mean(S.steps.filter(function(x){ return x.best; }).map(function(x){ return x.best.score; }));
+  $('#pAvg').textContent=SR?('평균 '+(a==null?'-':a+'점')):'';
+  $('#bar').style.width=(S.idx/S.steps.length*100)+'%';
+}
+function showStep(first){
+  var st=S.steps[S.idx];
+  if(synth) synth.cancel();
+  $('#pMeta').textContent='나는 '+JOBS[st.m.job];
+  $('#pTitle').textContent=st.m.title;
+  $('#pScene').textContent=st.m.scene;
+  if(S.text==='show'){ revealLine(); }
+  else { $('#pLine').textContent='손님 말을 잘 듣고 대답해 보세요. 안 들리면 다시 듣기나 천천히를 누르세요.'; $('#pLine').className='line masked'; $('#pLineKo').hidden=true; $('#revealBtn').hidden=false; }
+  $('#pTask').textContent=st.t.task;
+  paintChecks(null); $('#hintBtn').hidden=false;
+  $('#heardK').textContent=SR?'내가 한 말':'녹음';
+  $('#heardV').className='v interim'; $('#heardV').textContent=SR?'대답하기를 누르고 영어로 말하세요. 최대 '+LIMIT+'초까지 말할 수 있어요.':'대답하기를 눌러 녹음하고, 모범 답안과 비교해 보세요.';
+  $('#resultBox').hidden=true; setErr('');
+  if(S.audioUrl){ URL.revokeObjectURL(S.audioUrl); S.audioUrl=null; } $('#mineBtn').hidden=true;
+  $('#nextBtn').textContent=(S.idx+1>=S.steps.length)?'결과 보기':(st.ti+1>=st.m.turns.length?'다음 미션':'다음 대화');
+  $('#playBtn').disabled=!synth; $('#slowBtn').disabled=!synth;
+  micUI(); updateTop();
+  if(synth) setTimeout(function(){ say(st.t.line,0.95); },first?250:150);
+}
+function stopAll(){
+  if(S.mode==='answer'){ S.userStop=true; clearInterval(S.timer); if(S.rec){ try{ S.rec.abort(); }catch(e){} } S.rec=null; stopRecording(); stopMeter(); S.mode=null; }
+  if(S.mode==='shadow'){ if(S.rec){ try{ S.rec.abort(); }catch(e){} } S.rec=null; stopRecording(); stopMeter(); S.mode=null; }
+  if(synth) synth.cancel();
+}
+function next(skip){
+  stopAll();
+  var st=S.steps[S.idx]; if(!st.best) st.skipped=true;
+  S.idx++;
+  if(S.idx>=S.steps.length) showResult(); else showStep(false);
+}
+
+/* ---------- 결과 ---------- */
+function showResult(){
+  stopAll();
+  var done=S.steps.slice(0,S.idx), tried=done.filter(function(x){ return x.best; });
+  var avg=mean(tried.map(function(x){ return x.best.score; }));
+  var passed=tried.filter(function(x){ return x.best.score>=PASS; }).length;
+  function v(n){ return n==null?'-':n; }
+  function av(k){ return mean(tried.map(function(x){ return x.best[k]; })); }
+  $('#rAvg').textContent=SR?(avg==null?'-':avg+'점'):(done.length+'번 대답');
+  $('#rSub').textContent=SR?('평균 점수 · 통과 '+passed+' / '+done.length+'번 대화'+(done.length>tried.length?' · 건너뜀 '+(done.length-tried.length):'')
+    +(tried.length?'\n내용 '+v(av('content'))+' · 말한 양 '+v(av('amount'))+' · 유창성 '+v(av('flu'))+' · 명료도 '+v(av('cla'))+' · 첫 시도 평균 '+v(mean(tried.map(function(x){ return x.first.score; })))+'점':'')):'이 브라우저에서는 점수 없이 듣기와 녹음만 했어요.';
+  var miss={}; tried.forEach(function(x){ x.best.keys.forEach(function(k){ if(!k.ok) miss[k.ko]=(miss[k.ko]||0)+1; }); });
+  var ml=$('#missList'); ml.textContent='';
+  Object.keys(miss).sort(function(a,b){ return miss[b]-miss[a]; }).slice(0,15).forEach(function(k){ ml.appendChild(el('li',null,k+(miss[k]>1?' ×'+miss[k]:''))); });
+  $('#missWrap').hidden=!ml.children.length;
+  var list=$('#rList'); list.textContent='';
+  done.forEach(function(x){
+    var li=el('li'), r1=el('div','r1');
+    r1.appendChild(el('span','t',x.m.title+' · 대화 '+(x.ti+1)));
+    r1.appendChild(el('span','pts',x.best?x.best.score+'점':(SR?'건너뜀':'')));
+    li.appendChild(r1);
+    var c=el('span','c','손님: '+x.t.line); c.lang='en'; li.appendChild(c);
+    if(x.best){
+      var a=el('span','a','나: '+x.best.text); a.lang='en'; li.appendChild(a);
+      li.appendChild(el('span','h','내용 '+x.best.content+' · 말한 양 '+x.best.amount+' · 유창 '+v(x.best.flu)+' · 명료 '+v(x.best.cla)
+        +(x.tries>1?' · 첫 시도 '+x.first.score+'점 · '+x.tries+'회':'')+(x.shadow!=null?' · 따라 말하기 '+x.shadow+'점':'')
+        +(x.best.hit<x.best.total?' · 빠뜨림: '+x.best.keys.filter(function(k){ return !k.ok; }).map(function(k){ return k.ko; }).join(', '):'')));
+    }
+    list.appendChild(li);
+  });
+  show('result');
+  if(CAN_SEND&&SR&&tried.length){ S.payload=buildPayload(done); sendResult(); }
+  else { $('#sendStatus').hidden=!(CAN_SEND&&!SR); $('#sendStatus').className='send'; $('#sendStatus').textContent='이 브라우저에서는 점수가 없어서 결과를 보내지 않았어요.'; $('#resend').hidden=true; }
+}
+function buildPayload(done){
+  var end=new Date(), ms={};
+  done.forEach(function(x){ ms[x.m.id]=1; });
+  return {
+    name:S.name, level:'회화', topic:(S.job==='all'?'전체 직종':JOBS[S.job])+' · 미션 '+Object.keys(ms).length+'개',
+    mode:'mission', kind:S.kind==='pick'?'new':S.kind, planned:S.steps.length, completed:S.idx>=S.steps.length,
+    startedAt:S.startedAt.toISOString(), finishedAt:end.toISOString(),
+    durationSec:Math.round((end-S.startedAt)/1000), page:String(location.href).slice(0,200),
+    answers:done.map(function(x){
+      var b=x.best, f=x.first;
+      return {w:x.t.line, ko:x.t.task, picked:b?b.text:'', ok:!!(b&&b.score>=PASS), cat:JOBS[x.m.job]+' · '+x.m.title+' · 대화 '+(x.ti+1),
+              score:b?b.score:0, tries:x.tries, skipped:!b, first:f?f.score:null,
+              content:b?b.content:null, amount:b?b.amount:null, flu:b?b.flu:null, cla:b?b.cla:null,
+              words:b?b.words:null, goal:b?b.goal:null, rate:b&&b.fluency?b.fluency.rate:null, pauses:b&&b.fluency?b.fluency.pauses:null,
+              conf:b&&b.clarity?b.clarity.conf:null,
+              hit:b?b.keys.filter(function(k){ return k.ok; }).map(function(k){ return k.ko; }):[],
+              miss:b?b.keys.filter(function(k){ return !k.ok; }).map(function(k){ return k.ko; }):x.t.keys.map(function(k){ return k.ko; }),
+              hint:x.hint, shadow:x.shadow};
+    })
+  };
+}
+function sendResult(){
+  var st=$('#sendStatus'), btn=$('#resend');
+  if(!S.payload) return;
+  btn.hidden=true; st.hidden=false; st.className='send'; st.textContent='선생님께 결과를 보내는 중…';
+  var p=S.payload;
+  fetch(API_URL,{method:'POST',headers:{'Content-Type':'text/plain;charset=UTF-8'},body:JSON.stringify(p)})
+    .then(function(r){ if(!r.ok) throw new Error('HTTP '+r.status); return r.json(); })
+    .then(function(){ if(S.payload!==p) return; st.className='send ok'; st.textContent=p.name+' 님의 결과를 선생님께 보냈습니다.'; })
+    .catch(function(){ if(S.payload!==p) return; st.className='send no'; st.textContent='결과를 보내지 못했습니다. 인터넷 연결을 확인하고 다시 보내 주세요.'; btn.hidden=false; });
+}
+
+/* ---------- 연결 ---------- */
+$('#startBtn').addEventListener('click',startRandom);
+$('#studentName').addEventListener('keydown',function(e){ if(e.key==='Enter'){ e.preventDefault(); startRandom(); } });
+$('#playBtn').addEventListener('click',function(){ say(S.steps[S.idx].t.line,0.95); });
+$('#slowBtn').addEventListener('click',function(){ say(S.steps[S.idx].t.line,0.65); });
+$('#revealBtn').addEventListener('click',revealLine);
+$('#hintBtn').addEventListener('click',function(){ var st=S.steps[S.idx]; st.hint=true; this.hidden=true; paintChecks(st.best?st.best.keys:null); });
+$('#micBtn').addEventListener('click',startAnswer);
+$('#mineBtn').addEventListener('click',function(){ if(S.audioUrl&&!S.mode){ if(synth) synth.cancel(); new Audio(S.audioUrl).play().catch(function(){}); } });
+$('#nextBtn').addEventListener('click',function(){ next(false); });
+$('#skipBtn').addEventListener('click',function(){ next(true); });
+$('#quitBtn').addEventListener('click',function(){
+  stopAll();
+  var any=S.steps.slice(0,S.idx+1).some(function(x){ return x.best; });
+  if(any){ if(S.steps[S.idx].best) S.idx++; showResult(); } else show('start');
+});
+$('#resend').addEventListener('click',sendResult);
+$('#againBtn').addEventListener('click',startRandom);
+$('#homeBtn').addEventListener('click',function(){ show('start'); });
+document.addEventListener('keydown',function(e){
+  if($('#play').hidden||e.metaKey||e.ctrlKey||e.altKey) return;
+  var tag=(document.activeElement&&document.activeElement.tagName)||'';
+  if(tag==='BUTTON'||tag==='INPUT'||tag==='SUMMARY') return;
+  if(e.key===' '){ e.preventDefault(); startAnswer(); }
+  else if(e.key==='l'||e.key==='L'){ say(S.steps[S.idx].t.line,0.95); }
+  else if(e.key==='Enter'){ e.preventDefault(); next(false); }
+});
+
+if(!SR) $('#noSR').hidden=false;
+if(CAN_SEND){ try{ $('#studentName').value=localStorage.getItem(NAME_KEY)||''; }catch(e){} } else $('#nameField').hidden=true;
+updateInfo();
+})();
+</script>
+</body>
+</html>

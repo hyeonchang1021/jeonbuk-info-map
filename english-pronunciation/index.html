@@ -131,7 +131,7 @@ h2{font-size:1.05rem; margin:28px 0 6px; padding-bottom:6px; border-bottom:2px s
     <div class="eyebrow">캐나다 현장 영어 · 발음 연습</div>
     <h1>현장 영어 발음 연습</h1>
     <p class="lede">마트 캐셔, 식당 서버, 옷 가게 점원이 실제로 주고받는 문장을 듣고 따라 말합니다. 말한 문장을 기계가 어떻게 알아들었는지 단어마다 보여 주고 점수를 매깁니다.</p>
-    <nav class="levels" aria-label="다른 연습">단어 퀴즈 <a href="../english-500-quiz/">기초</a> · <a href="../english-intermediate-quiz/">중급</a> · <a href="../english-advanced-quiz/">고급</a> · <b aria-current="page">발음 연습</b></nav>
+    <nav class="levels" aria-label="다른 연습">단어 퀴즈 <a href="../english-500-quiz/">기초</a> · <a href="../english-intermediate-quiz/">중급</a> · <a href="../english-advanced-quiz/">고급</a> · <b aria-current="page">발음 연습</b> · <a href="../english-speaking-mission/">상황 회화</a></nav>
     <p class="notice" id="noSR" hidden>이 브라우저는 음성 인식을 지원하지 않아 듣기와 녹음만 됩니다. Chrome, Edge, Safari에서 열면 말한 문장을 채점해 줍니다.</p>
 
     <div class="panel">
@@ -396,9 +396,10 @@ var PronScore = (function () {
   function speechSpan(frames) {
     if (!frames || frames.length < 10) return null;
     var levels = frames.map(function (f) { return f.rms; }).slice().sort(function (a, b) { return a - b; });
-    var floor = levels[Math.floor(levels.length * 0.2)];
+    /* 배경 소음: 가장 조용한 5% (거의 쉬지 않고 말해도 단어 사이 틈이 잡히도록) */
+    var floor = levels[Math.floor(levels.length * 0.05)];
     var peak = levels[Math.floor(levels.length * 0.98)];
-    var thr = Math.max(floor * 3, 0.006, floor + (peak - floor) * 0.12);
+    var thr = Math.max(0.006, floor + (peak - floor) * 0.12, Math.min(floor * 3, (floor + peak) / 2));
     if (peak < thr) return null;
     var runs = [], cur = null, step = frames.length > 1 ? (frames[frames.length - 1].t - frames[0].t) / (frames.length - 1) : 20;
     frames.forEach(function (f) {
@@ -418,6 +419,7 @@ var PronScore = (function () {
     var sp = speechSpan(frames);
     if (!sp || sp.sec <= 0.15) return null;
     var syl = syllables(target), rate = syl / sp.sec;
+    if (rate > 8) return null;   /* 사람이 낼 수 없는 속도면 소리 측정이 잘못된 것: 유창성은 재지 않은 것으로 */
     var rs = rate >= 3.5 ? 100 : rate >= 2 ? 55 + (rate - 2) / 1.5 * 45 : rate >= 1 ? (rate - 1) * 55 : 0;
     if (syl < 5) rs = Math.max(rs, 70);
     var free = (String(target).replace(/[.?!]+\s*$/, '').match(/[,.;:?!]\s/g) || []).length;
