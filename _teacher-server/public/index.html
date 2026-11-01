@@ -471,7 +471,7 @@ function talkList(a){
     var li=el('li'), r1=el('div','r1');
     r1.appendChild(el('span','w',x.cat||'')); r1.appendChild(el('span','pts',x.skipped?'건너뜀':(x.score+'점'+(x.tries>1?' · '+x.tries+'회':''))));
     li.appendChild(r1);
-    var c=el('span','cust','손님: '+x.w); c.lang='en'; li.appendChild(c);
+    var c=el('span','cust',(/^나는 손님/.test(x.cat||'')?'직원':'손님')+': '+x.w); c.lang='en'; li.appendChild(c);
     li.appendChild(el('span','heard','할 일: '+(x.ko||'')));
     if(!x.skipped){
       var said=el('span','said','학생: '+(x.picked||'(없음)')); said.lang='en'; li.appendChild(said);
