@@ -111,6 +111,16 @@
   .fchip.track { box-shadow: 0 0 0 2px var(--bg), 0 0 0 3px var(--ink); }
   .firing p { margin: 5px 0 0; font-size: 8px; letter-spacing: .08em; color: var(--mute); }
 
+  .matlegend { position: absolute; left: 28px; top: 110px; width: 262px; max-height: calc(100vh - 140px); overflow-y: auto; }
+  .mrow { display: grid; grid-template-columns: 14px 1fr auto; gap: 8px; align-items: center; width: 100%; text-align: left; font: inherit; color: var(--ink);
+    background: none; border: 1px solid transparent; padding: 4px 3px; cursor: pointer; }
+  .mrow:hover { border-color: var(--line); }
+  .mrow[aria-pressed="true"] { border-color: var(--red); }
+  .mrow i { width: 12px; height: 12px; border: 1px solid rgba(0,0,0,.25); }
+  .mrow b { display: block; font-size: 10.5px; font-weight: 800; }
+  .mrow small { display: block; font-size: 8px; color: var(--mute); letter-spacing: .03em; }
+  .mrow em { font-style: normal; font-size: 10px; font-weight: 800; font-variant-numeric: tabular-nums; }
+  @media (max-width: 720px) { .matlegend { left: 10px; right: 10px; width: auto; top: 70px; max-height: 30vh; } }
   .ptstatus { position: absolute; left: 50%; top: 52px; transform: translateX(-50%); pointer-events: none; padding: 5px 11px;
     font-size: 9.5px; font-weight: 750; letter-spacing: .06em; color: var(--ink); background: var(--card); border: 1px solid var(--line); white-space: nowrap; }
 
@@ -232,6 +242,7 @@
   </div>
 
   <div id="ptStatus" class="ptstatus" role="status" hidden></div>
+  <div id="matLegend" class="card matlegend" hidden></div>
 </div>
 
 <script type="module">
@@ -634,7 +645,9 @@ const rainMat = new THREE.MeshStandardMaterial({ color: '#300', emissive: '#ff10
 const car = new THREE.Group();
 scene.add(car);
 const add = (mesh, parent = car) => { mesh.castShadow = true; mesh.receiveShadow = true; parent.add(mesh); return mesh; };
-const body = (mesh) => { mesh.userData.body = true; return mesh; };   // enclosing bodywork (glass / section cutaways)
+const body = (mesh) => { mesh.userData.body = true; return mesh; };
+const tag = (mesh, cls) => { mesh.userData.cls = cls; return mesh; };   // engineering material class (Materials view)
+   // enclosing bodywork (glass / section cutaways)
 const smooth = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
 
 // Livery palette (sRGB bytes for the painted textures)
@@ -806,7 +819,7 @@ for (const side of [1, -1]) {
     // floor stay (thin titanium rod from chassis to floor edge)
     add(strut([1.02, 0.30, s * 0.24], [0.84, 0.062, s * 0.70], 0.008, 0.008, titanium));
   }
-  const plank = new THREE.Mesh(new THREE.BoxGeometry(2.6, 0.01, 0.30), new THREE.MeshStandardMaterial({ color: '#8f7752', roughness: 0.8 }));
+  const plank = tag(new THREE.Mesh(new THREE.BoxGeometry(2.6, 0.01, 0.30), new THREE.MeshStandardMaterial({ color: '#8f7752', roughness: 0.8 })), 'other');
   plank.position.set(-0.1, 0.04, 0); add(plank);
 }
 
@@ -925,12 +938,12 @@ for (const side of [1, -1]) {
     [-0.32, 0.585, -0.250], [-0.20, 0.755, -0.255], [0.05, 0.800, -0.235], [0.30, 0.795, -0.170], [0.455, 0.780, -0.06],
     [0.475, 0.778, 0], [0.455, 0.780, 0.06], [0.30, 0.795, 0.170], [0.05, 0.800, 0.235], [-0.20, 0.755, 0.255], [-0.32, 0.585, 0.250],
   ].map((p) => new THREE.Vector3(...p)), false, 'centripetal');
-  add(new THREE.Mesh(new THREE.TubeGeometry(loop, q(720), 0.024, q(48), false), navyPaint));
+  tag(add(new THREE.Mesh(new THREE.TubeGeometry(loop, q(720), 0.024, q(48), false), navyPaint)), 'titanium');
   const pillar = new THREE.CatmullRomCurve3([[0.47, 0.785, 0], [0.55, 0.70, 0], [0.64, 0.585, 0]].map((p) => new THREE.Vector3(...p)));
-  const pm = add(new THREE.Mesh(new THREE.TubeGeometry(pillar, q(120), 0.028, q(40), false), navyPaint));
+  const pm = tag(add(new THREE.Mesh(new THREE.TubeGeometry(pillar, q(120), 0.028, q(40), false), navyPaint)), 'titanium');
   pm.scale.z = 0.7;
   for (const s of [1, -1]) {   // rear mounting feet
-    const foot = add(new THREE.Mesh(new RoundedBoxGeometry(0.09, 0.03, 0.06, 3, 0.012), navyPaint));
+    const foot = tag(add(new THREE.Mesh(new RoundedBoxGeometry(0.09, 0.03, 0.06, 3, 0.012), navyPaint)), 'titanium');
     foot.position.set(-0.31, 0.585, s * 0.25);
   }
 }
@@ -1122,30 +1135,61 @@ function tyreTexture(t) {
 }
 const tyreMat = new THREE.MeshPhysicalMaterial({ roughness: 1, metalness: 0, normalScale: new THREE.Vector2(1, 1), sheen: 0.25, sheenRoughness: 0.8, sheenColor: '#222' });
 const nutPaint = paint({ color: '#cfdc00' });
+// forged magnesium rim (black-painted) with a machined bead lip
+const magRim = new THREE.MeshStandardMaterial({ color: '#232428', metalness: 0.75, roughness: 0.42, side: THREE.DoubleSide });
+const magLip = new THREE.MeshStandardMaterial({ color: '#9a9ca2', metalness: 1, roughness: 0.28 });
+// carbon-carbon brake disc: faces with a felted fibre look, edge with rows of ventilation holes
+const ccFace = canvasTex(512, 512, (ctx, w, h) => {
+  ctx.fillStyle = '#2e2e30'; ctx.fillRect(0, 0, w, h);
+  const r = rng(5);
+  for (let i = 0; i < 14000; i++) { const a = rand2(); ctx.fillStyle = `rgba(${a > .5 ? 255 : 0},${a > .5 ? 255 : 0},${a > .5 ? 255 : 0},${0.03 + r() * 0.05})`; ctx.fillRect(r() * w, r() * h, 1 + r() * 6, 1); }
+  function rand2() { return r(); }
+});
+const ccEdge = canvasTex(1024, 64, (ctx, w, h) => {
+  ctx.fillStyle = '#323234'; ctx.fillRect(0, 0, w, h);
+  ctx.fillStyle = '#060607';
+  for (let row = 0; row < 4; row++) for (let i = 0; i < 128; i++) { ctx.beginPath(); ctx.arc((i + (row % 2) * 0.5) * (w / 128), 9 + row * 15, 2.6, 0, Math.PI * 2); ctx.fill(); }
+}, { repeat: [1, 1] });
+ccEdge.wrapS = THREE.RepeatWrapping;
+const ccFaceMat = new THREE.MeshStandardMaterial({ map: ccFace, roughness: 0.85, metalness: 0.05, side: THREE.DoubleSide });
+const ccEdgeMat = new THREE.MeshStandardMaterial({ map: ccEdge, roughness: 0.8, metalness: 0.05, emissive: '#ff4a10', emissiveIntensity: 0 });
+const caliperMat = new THREE.MeshStandardMaterial({ color: '#3a3d44', metalness: 0.8, roughness: 0.38 });
+function brake(front) {
+  const g = new THREE.Group(), ro = front ? 0.139 : 0.133, ri = 0.088, t = 0.032;
+  const edge = tag(new THREE.Mesh(new THREE.CylinderGeometry(ro, ro, t, q(160), 1, true), ccEdgeMat), 'cc');
+  edge.rotation.x = Math.PI / 2; g.add(edge);
+  for (const zz of [t / 2, -t / 2]) { const f = tag(new THREE.Mesh(new THREE.RingGeometry(ri, ro, q(160), 1), ccFaceMat), 'cc'); f.position.z = zz; g.add(f); }
+  const bell = tag(new THREE.Mesh(new THREE.CylinderGeometry(ri, ri * 0.8, 0.05, 48, 1, true), magLip), 'titanium'); bell.rotation.x = Math.PI / 2; bell.position.z = 0.03; g.add(bell);
+  const cal = tag(new THREE.Mesh(new THREE.TorusGeometry(ro - 0.01, 0.024, 16, 48, 1.05), caliperMat), 'aluminium');
+  cal.scale.z = 1.9; cal.rotation.z = front ? 1.9 : 0.25; g.add(cal);
+  g.traverse((o) => { if (o.isMesh) o.castShadow = true; });
+  return g;
+}
 const coverMat = new THREE.MeshPhysicalMaterial({ ...CF.unit, color: '#5a5a5a', normalScale: new THREE.Vector2(0.35, 0.35), anisotropy: 0.4, roughness: 0.4, metalness: 0.05, clearcoat: 0.8, clearcoatRoughness: 0.08, envMapIntensity: 0.45 });
 function makeWheel(width, front) {
   const g = new THREE.Group();
   const tg = new THREE.LatheGeometry(tyreProfile(width), q(420));
   tg.rotateX(Math.PI / 2);
   const tyre = new THREE.Mesh(tg, tyreMat); tyre.castShadow = tyre.receiveShadow = true; g.add(tyre);
-  const barrel = new THREE.Mesh(new THREE.CylinderGeometry(RIM, RIM, width - 0.03, q(160), 1, true), darkMetal);
-  barrel.rotation.x = Math.PI / 2; barrel.material.side = THREE.DoubleSide; g.add(barrel);
+  const barrel = tag(new THREE.Mesh(new THREE.CylinderGeometry(RIM, RIM, width - 0.03, q(160), 1, true), magRim), 'magnesium');
+  barrel.rotation.x = Math.PI / 2; g.add(barrel);
+  const disc = brake(front); disc.position.z = -width / 2 + 0.055; g.add(disc);
   // outer wheel cover: shallow carbon dish
   const dish = [];
   for (let i = 0; i <= 28; i++) { const r = (i / 28) * RIM; dish.push(new THREE.Vector2(r, -0.016 * (1 - (r / RIM) ** 2))); }
   const cg = new THREE.LatheGeometry(dish, q(240)); cg.rotateX(-Math.PI / 2);
   { const pp = cg.attributes.position, uv = cg.attributes.uv; for (let i = 0; i < pp.count; i++) uv.setXY(i, pp.getX(i) / (2 * RIM) + 0.5, pp.getY(i) / (2 * RIM) + 0.5); }
   const cover = new THREE.Mesh(cg, coverMat); cover.position.z = width / 2 - 0.02; cover.receiveShadow = true; g.add(cover);
-  const lipRing = new THREE.Mesh(new THREE.TorusGeometry(RIM - 0.006, 0.007, 16, q(240)), titanium); lipRing.position.z = width / 2 - 0.02; g.add(lipRing);
+  const lipRing = tag(new THREE.Mesh(new THREE.TorusGeometry(RIM - 0.006, 0.007, 16, q(240)), magLip), 'magnesium'); lipRing.position.z = width / 2 - 0.02; g.add(lipRing);
   const ring2 = new THREE.Mesh(new THREE.TorusGeometry(0.075, 0.004, 8, 64), yellowPaint); ring2.position.z = width / 2 - 0.03; g.add(ring2);
   const nut = new THREE.Mesh(new THREE.CylinderGeometry(0.038, 0.044, 0.05, 12), nutPaint);
   nut.rotation.x = Math.PI / 2; nut.position.z = width / 2 - 0.02; nut.castShadow = true; g.add(nut);
-  const pin = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.03, 16), titanium);
+  const pin = tag(new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.03, 16), titanium), 'titanium');
   pin.rotation.x = Math.PI / 2; pin.position.z = width / 2 + 0.01; g.add(pin);
   // inner side: brake duct drum with cooling slots
-  const drum = new THREE.Mesh(new THREE.CylinderGeometry(0.205, 0.215, 0.13, 64), carbonUV);
+  const drum = body(new THREE.Mesh(new THREE.CylinderGeometry(0.205, 0.215, 0.13, 64), carbonUV));
   drum.rotation.x = Math.PI / 2; drum.position.z = -width / 2 - 0.02; drum.castShadow = true; g.add(drum);
-  const inner = new THREE.Mesh(new THREE.CircleGeometry(RIM, 72), darkMetal); inner.position.z = -width / 2 + 0.02; inner.rotation.y = Math.PI; g.add(inner);
+  const inner = tag(new THREE.Mesh(new THREE.RingGeometry(0.15, RIM, 72), magRim), 'magnesium'); inner.position.z = -width / 2 + 0.02; inner.rotation.y = Math.PI; g.add(inner);
   if (front) {
     const wl = new THREE.Mesh(new THREE.TorusGeometry(R + 0.035, 0.008, 8, 64, 1.1), carbon);
     wl.rotation.z = Math.PI / 2 - 0.2; wl.scale.set(1, 1, 3); wl.position.z = -width / 2 - 0.03; wl.castShadow = true; g.add(wl);
@@ -1165,24 +1209,33 @@ for (const W of WHEELS) for (const s of [1, -1]) {
 
 // ---- Suspension
 {
-  const m = carbon;
+  const m = carbon, ends = [];
+  const strutT = strut;
+  const strut2 = (a, b, c, t, mat) => { ends.push(a, b); return strutT(a, b, c, t, mat); };
   const f = (s) => [
-    strut([1.56, 0.42, s * 0.15], [1.80, 0.50, s * 0.68], 0.05, 0.014, m),
-    strut([2.06, 0.40, s * 0.11], [1.80, 0.50, s * 0.68], 0.05, 0.014, m),
-    strut([1.50, 0.22, s * 0.16], [1.82, 0.20, s * 0.70], 0.05, 0.014, m),
-    strut([2.06, 0.21, s * 0.11], [1.82, 0.20, s * 0.70], 0.05, 0.014, m),
-    strut([1.82, 0.22, s * 0.66], [1.66, 0.43, s * 0.15], 0.035, 0.014, m),
-    strut([1.97, 0.38, s * 0.12], [1.95, 0.45, s * 0.67], 0.03, 0.012, m),
+    strut2([1.56, 0.42, s * 0.15], [1.80, 0.50, s * 0.68], 0.05, 0.014, m),
+    strut2([2.06, 0.40, s * 0.11], [1.80, 0.50, s * 0.68], 0.05, 0.014, m),
+    strut2([1.50, 0.22, s * 0.16], [1.82, 0.20, s * 0.70], 0.05, 0.014, m),
+    strut2([2.06, 0.21, s * 0.11], [1.82, 0.20, s * 0.70], 0.05, 0.014, m),
+    strut2([1.82, 0.22, s * 0.66], [1.66, 0.43, s * 0.15], 0.035, 0.014, m),
+    strut2([1.97, 0.38, s * 0.12], [1.95, 0.45, s * 0.67], 0.03, 0.012, m),
   ];
   const r = (s) => [
-    strut([-1.58, 0.44, s * 0.17], [-1.80, 0.52, s * 0.60], 0.05, 0.014, m),
-    strut([-2.02, 0.44, s * 0.11], [-1.80, 0.52, s * 0.60], 0.05, 0.014, m),
-    strut([-1.55, 0.18, s * 0.25], [-1.80, 0.18, s * 0.62], 0.05, 0.014, m),
-    strut([-2.05, 0.20, s * 0.12], [-1.80, 0.18, s * 0.62], 0.05, 0.014, m),
-    strut([-1.84, 0.50, s * 0.58], [-1.70, 0.22, s * 0.16], 0.035, 0.014, m),
-    strut([-1.80, 0.36, s * 0.08], [-1.80, 0.36, s * 0.58], 0.05, 0.05, darkMetal),
+    strut2([-1.58, 0.44, s * 0.17], [-1.80, 0.52, s * 0.60], 0.05, 0.014, m),
+    strut2([-2.02, 0.44, s * 0.11], [-1.80, 0.52, s * 0.60], 0.05, 0.014, m),
+    strut2([-1.55, 0.18, s * 0.25], [-1.80, 0.18, s * 0.62], 0.05, 0.014, m),
+    strut2([-2.05, 0.20, s * 0.12], [-1.80, 0.18, s * 0.62], 0.05, 0.014, m),
+    strut2([-1.84, 0.50, s * 0.58], [-1.70, 0.22, s * 0.16], 0.035, 0.014, m),
+    strut2([-1.80, 0.36, s * 0.08], [-1.80, 0.36, s * 0.58], 0.05, 0.05, darkMetal),
   ];
   for (const s of [1, -1]) [...f(s), ...r(s)].forEach((o) => add(o));
+  // titanium spherical joints at every pick-up point, titanium uprights carrying the hubs
+  const joint = new THREE.SphereGeometry(0.013, 20, 14);
+  for (const e of ends) { const j = tag(add(new THREE.Mesh(joint, titanium)), 'titanium'); j.position.set(...e); }
+  for (const [x, z] of [[1.80, 0.62], [-1.80, 0.56]]) for (const s of [1, -1]) {
+    const up = tag(add(new THREE.Mesh(new RoundedBoxGeometry(0.07, 0.36, 0.05, 4, 0.016), titanium)), 'titanium');
+    up.position.set(x, 0.35, s * z);
+  }
 }
 
 // ---- Decals projected onto the curved bodywork
@@ -1250,6 +1303,7 @@ const M = {
   alu: new THREE.MeshStandardMaterial({ color: '#a7adb5', metalness: 0.9, roughness: 0.32 }),
   aluDark: new THREE.MeshStandardMaterial({ color: '#40454e', metalness: 0.85, roughness: 0.42 }),
   steel: new THREE.MeshStandardMaterial({ color: '#c9ccd2', metalness: 1, roughness: 0.22 }),
+  ti: new THREE.MeshStandardMaterial({ color: '#8d8a86', metalness: 1, roughness: 0.3 }),
   red: new THREE.MeshStandardMaterial({ color: '#c8001c', metalness: 0.55, roughness: 0.32 }),
   copper: new THREE.MeshStandardMaterial({ color: '#b8743a', metalness: 1, roughness: 0.3 }),
   hv: new THREE.MeshStandardMaterial({ color: '#ff7a00', roughness: 0.5 }),
@@ -1311,7 +1365,7 @@ for (let c = 0; c < 6; c++) {
   const rings = pa(alignY(new THREE.Mesh(new THREE.CylinderGeometry(ENG.bore * 0.985, ENG.bore * 0.985, 0.004, 48), M.steel), axis));
   const charge = new THREE.Mesh(new THREE.CylinderGeometry(ENG.bore * 0.96, ENG.bore * 0.96, 1, 40), new THREE.MeshStandardMaterial({ color: '#000', emissive: '#3d8bff', emissiveIntensity: 1, transparent: true, opacity: 0.55, depthWrite: false }));
   alignY(charge, axis); pu.add(charge);
-  const rod = pa(new THREE.Mesh(new RoundedBoxGeometry(0.012, 1, 0.02, 2, 0.004), M.steel));
+  const rod = tag(pa(new THREE.Mesh(new RoundedBoxGeometry(0.012, 1, 0.02, 2, 0.004), M.ti)), 'titanium');
   const pin = pa(alignY(new THREE.Mesh(new THREE.CylinderGeometry(0.011, 0.011, 0.03, 24), M.steel), new THREE.Vector3(1, 0, 0)));
   const web = pa(new THREE.Mesh(new RoundedBoxGeometry(0.012, 1, 0.05, 2, 0.006), M.aluDark));
   // valves: 2 intake (V side) + 2 exhaust (outer side), springs move with the cam profile
@@ -1329,7 +1383,7 @@ const cams = [];
 for (const bank of [0, 1]) {
   const c0 = cyls[bank * 3], sign = c0.sign, axis = c0.axis, lat = c0.lat;
   const xm = (ENG.xs[0] + ENG.xs[2]) / 2 - (bank ? ENG.off : 0);
-  const head = pa(new THREE.Mesh(new RoundedBoxGeometry(0.36, 0.05, 0.12, 4, 0.01), M.glassDark));
+  const head = tag(pa(new THREE.Mesh(new RoundedBoxGeometry(0.36, 0.05, 0.12, 4, 0.01), M.glassDark)), 'aluminium');
   head.position.copy(new THREE.Vector3(xm, ENG.cy, 0).addScaledVector(axis, 0.19));
   head.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(new THREE.Vector3(1, 0, 0), axis, new THREE.Vector3().crossVectors(new THREE.Vector3(1, 0, 0), axis)));
   const cover = pa(new THREE.Mesh(new RoundedBoxGeometry(0.37, 0.02, 0.11, 4, 0.008), M.red));
@@ -1353,7 +1407,7 @@ for (const bank of [0, 1]) {
   }
 }
 // block (glass) + sump + crankshaft + front timing gear + red flywheel
-const block = pa(new THREE.Mesh(new RoundedBoxGeometry(0.36, 0.13, 0.2, 4, 0.02), M.glassDark));
+const block = tag(pa(new THREE.Mesh(new RoundedBoxGeometry(0.36, 0.13, 0.2, 4, 0.02), M.glassDark)), 'aluminium');
 block.position.set(-0.976, ENG.cy - 0.005, 0);
 const sump = pa(new THREE.Mesh(new RoundedBoxGeometry(0.34, 0.06, 0.16, 4, 0.02), M.aluDark));
 sump.position.set(-0.976, ENG.cy - 0.09, 0);
@@ -1439,7 +1493,7 @@ const gearbox = new THREE.Group(); pu.add(gearbox);
   const g = new THREE.BoxGeometry(0.85, 0.2, 0.2, 8, 2, 2), p = g.attributes.position;
   for (let i = 0; i < p.count; i++) { const t = (p.getX(i) + 0.425) / 0.85; p.setY(i, p.getY(i) * (1 - 0.25 * t)); p.setZ(i, p.getZ(i) * (1 - 0.45 * t)); }
   g.computeVertexNormals();
-  const casing = new THREE.Mesh(g, M.glassDark); casing.position.set(-1.80, 0.32, 0); gearbox.add(casing);
+  const casing = tag(new THREE.Mesh(g, M.glassDark), 'magnesium'); casing.position.set(-1.80, 0.32, 0); gearbox.add(casing);
   for (let i = 0; i < 8; i++) {
     const r1 = 0.028 + (i % 4) * 0.006, x = -1.45 - i * 0.06;
     const ga = new THREE.Mesh(gearGeo(r1, 18 + i * 2, 0.012), M.steel); ga.position.set(x, 0.36, 0.0); gearbox.add(ga);
@@ -2120,7 +2174,64 @@ renderer.localClippingEnabled = true;
 const sectionPlane = new THREE.Plane(new THREE.Vector3(0, 0, -1), 0);   // removes the +z half
 const bodies = carMeshes.filter((o) => o.userData.body);
 const decals = carMeshes.filter((o) => o.userData.isDecal);
-const capMat = new THREE.MeshBasicMaterial({ color: '#c8001c', side: THREE.BackSide, clippingPlanes: [sectionPlane] });
+const capMat = new THREE.MeshStandardMaterial({ map: CF.metre.map, normalMap: CF.metre.normalMap, color: '#8a8a8a', roughness: 0.55, side: THREE.BackSide, clippingPlanes: [sectionPlane] });
+// Cut faces along the centre plane: sandwich laminate drawn across the wall thickness
+function laminateTex(core, liner) {
+  return canvasTex(512, 128, (ctx, w, h) => {
+    const sk = 10;
+    ctx.fillStyle = '#121316'; ctx.fillRect(0, 0, w, h);                 // CFRP skins
+    for (let x = 0; x < w; x += 6) { ctx.fillStyle = x % 12 ? '#1d1f24' : '#26282e'; ctx.fillRect(x, 0, 3, sk); ctx.fillRect(x, h - sk - (liner ? 22 : 0), 3, sk); }
+    if (core) {                                                            // honeycomb core (aluminium / aramid)
+      const top = sk, bot = h - sk - (liner ? 22 : 0);
+      ctx.fillStyle = core === 'al' ? '#5e636b' : '#9a7a2c'; ctx.fillRect(0, top, w, bot - top);
+      ctx.strokeStyle = core === 'al' ? '#d6dae0' : '#f1cf6a'; ctx.lineWidth = 2;
+      const c = 9, hh = c * Math.sqrt(3);
+      ctx.save(); ctx.beginPath(); ctx.rect(0, top, w, bot - top); ctx.clip();
+      for (let row = -1; row < (bot - top) / hh + 1; row++) for (let col = -1; col < w / (c * 3) + 1; col++) {
+        for (const off of [0, 1]) {
+          const cx = col * c * 3 + off * c * 1.5, cy = top + row * hh + off * hh / 2;
+          ctx.beginPath();
+          for (let k = 0; k <= 6; k++) { const a = k * Math.PI / 3; ctx[k ? 'lineTo' : 'moveTo'](cx + c * Math.cos(a), cy + c * Math.sin(a)); }
+          ctx.stroke();
+        }
+      }
+      ctx.restore();
+    }
+    if (liner) {                                                           // Zylon / Kevlar anti-intrusion liner (woven aramid)
+      for (let y = h - 22; y < h; y += 4) for (let x = 0; x < w; x += 4) { ctx.fillStyle = ((x + y) / 4) % 2 ? '#d9a521' : '#b98a14'; ctx.fillRect(x, y, 4, 4); }
+    }
+  }, { repeat: [1, 1] });
+}
+const LAM = { cell: laminateTex('al', true), nose: laminateTex('al', false), skin: laminateTex(null, false) };
+Object.values(LAM).forEach((t) => (t.wrapS = THREE.RepeatWrapping));
+const cutGroup = new THREE.Group(); cutGroup.visible = false; car.add(cutGroup);
+function cutStrip(side, x0, x1, thick, tex, cls) {          // side: +1 top centre line, -1 bottom
+  const N = 260, pos = [], uv = [], idx = [];
+  let len = 0, prev = null;
+  for (let i = 0; i <= N; i++) {
+    const xx = x0 + (x1 - x0) * (i / N);
+    let k = 0; while (k < FUS.length - 2 && FUS[k + 1].x > xx) k++;
+    const f = Math.min(FUS.length - 1.0001, k + Math.max(0, Math.min(1, (FUS[k].x - xx) / (FUS[k].x - FUS[k + 1].x))));
+    const st = sampleStations(FUS, f);
+    const [, y] = sectionPoint(st, side * Math.PI / 2);
+    const P = new THREE.Vector2(st.x, y);
+    if (prev) len += P.distanceTo(prev); prev = P;
+    const inward = side > 0 ? -1 : 1;
+    pos.push(st.x, y, 0.0008, st.x, y + inward * thick, 0.0008);
+    uv.push(len / 0.12, 0, len / 0.12, 1);
+    if (i) { const a = (i - 1) * 2; idx.push(a, a + 2, a + 1, a + 1, a + 2, a + 3); }
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
+  g.setIndex(idx); g.computeVertexNormals();
+  const m = tag(new THREE.Mesh(g, new THREE.MeshStandardMaterial({ map: tex, roughness: 0.7, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -2 })), cls);
+  cutGroup.add(m);
+}
+// survival cell (with Zylon liner), nose crash structure, thin engine cover skin
+cutStrip(1, -0.30, 0.75, 0.04, LAM.cell, 'honeycomb'); cutStrip(1, 0.75, 2.80, 0.028, LAM.nose, 'honeycomb');
+cutStrip(1, -2.38, -0.30, 0.006, LAM.skin, 'cfrp');
+cutStrip(-1, -0.75, 0.75, 0.04, LAM.cell, 'honeycomb'); cutStrip(-1, 0.75, 2.6, 0.028, LAM.nose, 'honeycomb');
+cutStrip(-1, -2.38, -0.75, 0.006, LAM.skin, 'cfrp');
 function fresnelGlass(orig) {
   const m = new THREE.MeshPhysicalMaterial({
     map: orig.map || null, color: orig.map ? '#ffffff' : (orig.color ? orig.color.clone() : '#ccd6e6'),
@@ -2145,19 +2256,110 @@ for (const o of bodies) {
 const puTransparent = []; pu.traverse((o) => { if (o.isMesh && o.material.transparent) puTransparent.push(o); });
 depthHidden = () => [fx, flow, arrows, ...(cutaway !== 'solid' ? bodies : []), ...puTransparent];
 let cutaway = 'solid', isolate = false;
+// ---- Materials view: every part coloured by what it is made of, with a legend and surface-area shares
+const MATS = {
+  cfrp:      { n: 'CFRP 탄소섬유 복합재', e: 'Monocoque, bodywork, wings, floor, wishbones', c: '#3b4150' },
+  honeycomb: { n: '허니콤 코어 (알루미늄)', e: 'Sandwich core inside the survival cell', c: '#9aa2ad' },
+  zylon:     { n: '자일론·케블라 (아라미드)', e: 'Cockpit anti-intrusion liner, fuel cell bladder', c: '#d9a521' },
+  titanium:  { n: '티타늄 합금', e: 'Halo, uprights, joints, conrods, skid', c: '#7fa7c9' },
+  aluminium: { n: '알루미늄 합금', e: 'Engine block, heads, pistons, calipers', c: '#d7dbe1' },
+  magnesium: { n: '마그네슘 합금', e: 'Wheel rims, gearbox case', c: '#b9a77a' },
+  inconel:   { n: '인코넬 (니켈 초합금)', e: 'Exhaust, turbine housing', c: '#b0672f' },
+  cc:        { n: '카본-카본', e: 'Brake discs and pads', c: '#56585e' },
+  steel:     { n: '강철', e: 'Crankshaft, gears, springs, valves', c: '#9aa0a8' },
+  copper:    { n: '구리', e: 'MGU windings', c: '#c47a3a' },
+  rubber:    { n: '고무', e: 'Tyres', c: '#1b1b1d' },
+  other:     { n: '기타', e: 'Plank, helmet, glazing, electronics', c: '#6f6a64' },
+};
+const metalCls = new Set(['titanium', 'aluminium', 'magnesium', 'inconel', 'steel', 'copper']);
+function classify(o) {
+  if (o.userData.cls) return o.userData.cls;
+  const m = o.userData.orig;
+  if (m === tyreMat) return 'rubber';
+  if (m === titanium || m === M.ti) return 'titanium';
+  if (m === M.alu || m === M.aluDark || m === darkMetal) return 'aluminium';
+  if (m === M.steel || m === M.spring || m === mirrorMat) return m === mirrorMat ? 'other' : 'steel';
+  if (m === M.heat) return 'inconel';
+  if (m === M.copper) return 'copper';
+  if (m === M.fin || m === M.glass || m === M.glassDark || m === M.coolant) return 'aluminium';
+  if (m === M.fuel) return 'zylon';
+  if (m === M.intakeGlass) return 'cfrp';
+  if (paintMats.includes(m) || m === carbon || m === carbonFloor || m === carbonUV || m === coverMat || m === satinBlack || m === matteBlack || m === fusMat || m === podMat) return 'cfrp';
+  return 'other';
+}
+for (const o of carMeshes) { o.userData.cls = classify(o); if (!MATS[o.userData.cls]) o.userData.cls = 'other'; }
+const clsMatCache = {};
+function clsMat(cls, mode) {
+  const key = cls + '|' + mode;
+  if (clsMatCache[key]) return clsMatCache[key];
+  const d = MATS[cls] || MATS.other, metal = metalCls.has(cls);
+  const m = new THREE.MeshPhysicalMaterial({
+    color: d.c, metalness: metal ? 0.9 : 0.05, roughness: metal ? 0.3 : cls === 'rubber' ? 0.9 : 0.45,
+    clearcoat: cls === 'cfrp' ? 0.6 : 0, clearcoatRoughness: 0.15, side: THREE.DoubleSide,
+  });
+  if (cls === 'cfrp') { m.map = CF.metre.map; m.normalMap = CF.metre.normalMap; m.normalScale = new THREE.Vector2(0.5, 0.5); m.color.set('#8d93a0'); }
+  if (mode === 'section') { m.clippingPlanes = [sectionPlane]; m.clipShadows = true; }
+  if (mode === 'glass') { m.transparent = true; m.opacity = 0.16; m.depthWrite = false; }
+  if (mode === 'dim') { m.transparent = true; m.opacity = 0.07; m.depthWrite = false; }
+  return (clsMatCache[key] = m);
+}
+let matView = false, matFocus = null;
 function applyCutaway() {
-  for (const o of bodies) {
-    const m = cutaway === 'glass' ? o.userData.glass : cutaway === 'section' ? o.userData.section : o.userData.orig;
+  for (const o of carMeshes) {
+    const isBody = !!o.userData.body;
+    let m;
+    if (matView) {
+      const mode = matFocus && o.userData.cls !== matFocus ? 'dim' : isBody && cutaway !== 'solid' ? cutaway : 'solid';
+      m = clsMat(o.userData.cls, mode);
+    } else if (isBody) m = cutaway === 'glass' ? o.userData.glass : cutaway === 'section' ? o.userData.section : o.userData.orig;
+    else m = o.userData.orig;
     o.material = m; o.userData.live = m;
-    o.castShadow = cutaway === 'solid';
-    o.userData.cap.visible = cutaway === 'section';
+    if (isBody) { o.castShadow = cutaway === 'solid'; o.userData.cap.visible = cutaway === 'section' && !matView; }
   }
-  for (const o of car.children) if (o !== pu && o !== flow && o !== arrows) o.visible = !isolate;
-  decals.forEach((d) => (d.visible = !isolate && cutaway === 'solid'));
+  for (const o of car.children) if (o !== pu && o !== flow && o !== arrows && o !== cutGroup) o.visible = !isolate;
+  cutGroup.visible = cutaway === 'section' && !isolate;
+  decals.forEach((d) => (d.visible = !isolate && cutaway === 'solid' && !matView));
   pu.visible = cutaway !== 'solid' || isolate;
+  ccEdgeMat.emissiveIntensity = 0;
   csDirty = true;
   if (ptOn) setPT(false);
+  updateLegend();
   syncChips();
+}
+// surface-area share per material (proxy, not mass)
+let areaShare = null;
+function computeAreas() {
+  const A = {}, a = new THREE.Vector3(), b = new THREE.Vector3(), c = new THREE.Vector3();
+  car.updateMatrixWorld(true);
+  for (const o of carMeshes) {
+    if (o.userData.isDecal) continue;
+    const g = o.geometry, p = g.attributes.position, ix = g.index, n = ix ? ix.count : p.count;
+    const step = Math.max(3, Math.floor(n / 3 / 4000) * 3);   // sample large meshes
+    let sum = 0;
+    for (let k = 0; k + 2 < n; k += step) {
+      const i0 = ix ? ix.getX(k) : k, i1 = ix ? ix.getX(k + 1) : k + 1, i2 = ix ? ix.getX(k + 2) : k + 2;
+      a.fromBufferAttribute(p, i0).applyMatrix4(o.matrixWorld); b.fromBufferAttribute(p, i1).applyMatrix4(o.matrixWorld); c.fromBufferAttribute(p, i2).applyMatrix4(o.matrixWorld);
+      sum += b.sub(a).cross(c.sub(a)).length() / 2;
+    }
+    A[o.userData.cls] = (A[o.userData.cls] || 0) + sum * (step / 3);
+  }
+  const tot = Object.values(A).reduce((x, y) => x + y, 0);
+  areaShare = Object.fromEntries(Object.entries(A).map(([k, v]) => [k, v / tot]));
+}
+function updateLegend() {
+  const box = $('matLegend');
+  box.hidden = !matView;
+  if (!matView) return;
+  if (!areaShare) computeAreas();
+  if (!box.dataset.built) {
+    box.dataset.built = '1';
+    const rows = Object.entries(MATS).filter(([k]) => k in areaShare || k === 'honeycomb');
+    box.innerHTML = '<h3>MATERIALS <span>표면적 비중</span></h3>' + rows.map(([k, d]) =>
+      `<button class="mrow" data-k="${k}"><i style="background:${d.c}"></i><span><b>${d.n}</b><small>${d.e}</small></span><em>${k in areaShare ? (areaShare[k] * 100).toFixed(1) + '%' : '단면'}</em></button>`).join('') +
+      '<p class="foot">비중은 모델 표면적 기준(질량 아님). 항목을 누르면 그 재질만 강조합니다. 허니콤·자일론은 SECTION 절단면에서 보입니다.</p>';
+    box.querySelectorAll('.mrow').forEach((b) => b.addEventListener('click', () => { matFocus = matFocus === b.dataset.k ? null : b.dataset.k; applyCutaway(); }));
+  }
+  box.querySelectorAll('.mrow').forEach((b) => b.setAttribute('aria-pressed', b.dataset.k === matFocus));
 }
 
 // =====================================================================
@@ -2177,6 +2379,7 @@ const CALLOUTS = [
   { p: [0.2, 0.06, 0.74], t: 'Floor', s: 'Venturi tunnels', k: 'ext' },
   { p: [-2.25, 0.22, 0.42], t: 'Diffuser', s: 'Underfloor expansion', k: 'ext' },
   { p: [-2.62, 1.0, 0.48], t: 'Rear wing · DRS', s: 'Flap opens on straights', k: 'ext' },
+  { p: [1.80, 0.36, 0.71], t: 'Brake disc', s: 'Carbon-carbon · 1,000 °C+', k: 'int' },
 ];
 const NSs = 'http://www.w3.org/2000/svg';
 const leaders = $('leaders'), coBox = $('callouts');
@@ -2401,6 +2604,7 @@ reg(chip('ovChips', 'Airflow', () => { showFlow = !showFlow; if (ptOn) setPT(fal
 reg(chip('ovChips', 'Arrows', () => { showArrows = !showArrows; if (ptOn) setPT(false); syncChips(); }, 'ov'), () => showArrows);
 reg(chip('ovChips', 'Isolate', () => { isolate = !isolate; applyCutaway(); if (isolate) goCam(5); }, 'ov'), () => isolate);
 reg(chip('ovChips', 'Charts', () => { showCharts = !showCharts; syncChips(); }, 'ov'), () => showCharts);
+reg(chip('ovChips', 'Materials', () => { matView = !matView; matFocus = null; applyCutaway(); }, 'ov'), () => matView);
 Object.entries(PRESETS).forEach(([k, p]) => reg(chip('lookChips', p.tag, () => applyPreset(k)), () => currentPreset === k));
 reg(chip('renderChips', 'Raster', () => { setPT(false); setView('render'); }), () => !ptOn && wipeTarget === 1);
 reg(chip('renderChips', 'Path trace', () => setPT(!ptOn)), () => ptOn);
