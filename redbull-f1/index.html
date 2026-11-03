@@ -2,755 +2,1184 @@
 <html lang="ko">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>레드불 F1 머신</title>
-<meta name="description" content="레드불 레이싱 컬러의 F1 머신을 SVG로 그린 인터랙티브 페이지. 시동, 가속, DRS, 타이어 교체를 직접 조작할 수 있다.">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>레드불 F1 머신 3D</title>
+<meta name="description" content="레드불 레이싱 컬러의 F1 머신을 Three.js로 직접 모델링한 3D 뷰어. 물리 기반 재질, 환경 반사, 실시간 그림자, 앰비언트 오클루전을 적용했다.">
 <style>
   :root {
-    --navy-900: #070b18;
-    --navy-800: #0d1430;
-    --navy-700: #16224a;
-    --navy-500: #2b3d6b;
+    --text: #eef1f8;
+    --muted: #9aa4bf;
+    --glass: rgba(12, 15, 26, .62);
+    --line: rgba(255, 255, 255, .10);
+    --accent: #ffc906;
     --red: #e3001b;
-    --red-hi: #ff2a3a;
-    --yellow: #ffc906;
-    --text: #e9edf7;
-    --muted: #93a0bf;
-    --panel: rgba(18, 26, 56, .78);
-    --line: rgba(255, 255, 255, .1);
   }
   * { box-sizing: border-box; }
-  html, body { margin: 0; }
-  body {
-    background: radial-gradient(1200px 600px at 50% -10%, #1c2a5c 0%, var(--navy-900) 60%) fixed, var(--navy-900);
-    color: var(--text);
-    font-family: system-ui, -apple-system, "Segoe UI", "Apple SD Gothic Neo", "Malgun Gothic", "Noto Sans KR", sans-serif;
-    line-height: 1.5;
-    min-height: 100vh;
-  }
-  .wrap { max-width: 1180px; margin: 0 auto; padding: 20px 16px 48px; }
+  html, body { margin: 0; height: 100%; background: #0b0d12; color: var(--text); overflow: hidden;
+    font-family: system-ui, -apple-system, "Segoe UI", "Apple SD Gothic Neo", "Malgun Gothic", "Noto Sans KR", sans-serif; }
+  canvas#view { position: fixed; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
 
-  header { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-bottom: 14px; }
-  .brand { display: flex; align-items: center; gap: 14px; }
-  .sun { width: 42px; height: 42px; border-radius: 50%; background: radial-gradient(circle at 35% 35%, #ffe066, var(--yellow) 60%, #e0a800); box-shadow: 0 0 24px rgba(255, 201, 6, .45); flex: none; }
-  h1 { margin: 0; font-size: clamp(22px, 3.4vw, 34px); letter-spacing: -.02em; font-weight: 900; font-style: italic; }
-  h1 span { color: var(--red-hi); }
-  .sub { margin: 2px 0 0; color: var(--muted); font-size: 14px; }
-  .keys { color: var(--muted); font-size: 12.5px; }
-  kbd { background: #1d2754; border: 1px solid #34437c; border-bottom-width: 2px; border-radius: 4px; padding: 0 5px; font-size: 11.5px; color: var(--text); font-family: inherit; }
+  .ui { position: fixed; inset: 0; pointer-events: none; }
+  .ui > * { pointer-events: auto; }
 
-  .stage {
-    position: relative;
-    border-radius: 18px;
-    overflow: hidden;
-    border: 1px solid var(--line);
-    box-shadow: 0 30px 80px rgba(0, 0, 0, .55), inset 0 0 0 1px rgba(255, 255, 255, .03);
-    background: #05070f;
-  }
-  .stage svg { display: block; width: 100%; height: auto; }
+  .title { position: absolute; left: 20px; top: 18px; max-width: min(460px, calc(100% - 40px)); pointer-events: none; }
+  .title h1 { margin: 0; font-size: clamp(20px, 2.6vw, 30px); font-weight: 900; font-style: italic; letter-spacing: -.02em; line-height: 1.05;
+    text-shadow: 0 2px 18px rgba(0,0,0,.5); }
+  .title h1 span { color: #ff2a3a; }
+  .title p { margin: 6px 0 0; font-size: 13px; color: var(--muted); text-shadow: 0 1px 8px rgba(0,0,0,.6); }
 
-  /* HUD (steering-wheel style display) */
-  .hud {
-    position: absolute; left: 14px; top: 14px;
-    display: grid; grid-template-columns: auto auto; gap: 2px 14px; align-items: end;
-    padding: 10px 14px 12px; border-radius: 12px;
-    background: rgba(5, 8, 20, .72); border: 1px solid rgba(255, 255, 255, .08);
-    backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
-    font-variant-numeric: tabular-nums;
-    min-width: 230px;
+  .panel {
+    position: absolute; left: 50%; bottom: max(16px, env(safe-area-inset-bottom)); transform: translateX(-50%);
+    width: min(1040px, calc(100% - 24px));
+    display: flex; flex-wrap: wrap; gap: 10px 18px; align-items: flex-start; justify-content: center;
+    padding: 12px 16px; border-radius: 16px;
+    background: var(--glass); border: 1px solid var(--line);
+    backdrop-filter: blur(14px) saturate(1.2); -webkit-backdrop-filter: blur(14px) saturate(1.2);
+    box-shadow: 0 20px 60px rgba(0,0,0,.45);
   }
-  .leds { grid-column: 1 / -1; display: flex; gap: 3px; margin-bottom: 6px; }
-  .led { width: 11px; height: 11px; border-radius: 50%; background: #1a1f33; box-shadow: inset 0 0 0 1px rgba(255,255,255,.06); transition: background .05s; }
-  .led.on.g { background: #19e05a; box-shadow: 0 0 8px #19e05a; }
-  .led.on.r { background: #ff2a3a; box-shadow: 0 0 8px #ff2a3a; }
-  .led.on.b { background: #3b8bff; box-shadow: 0 0 8px #3b8bff; }
-  .led.flash { background: #3b8bff !important; box-shadow: 0 0 10px #3b8bff !important; }
-  .spd { font-size: 44px; font-weight: 900; line-height: 1; letter-spacing: -.02em; }
-  .spd small { font-size: 13px; color: var(--muted); font-weight: 600; margin-left: 4px; letter-spacing: 0; }
-  .gear { font-size: 44px; font-weight: 900; line-height: 1; color: var(--yellow); text-align: right; min-width: 34px; }
-  .meta { grid-column: 1 / -1; display: flex; gap: 10px; font-size: 12px; color: var(--muted); margin-top: 6px; flex-wrap: wrap; }
-  .meta b { color: var(--text); font-weight: 700; }
-  .pill { display: inline-block; padding: 0 7px; border-radius: 999px; background: #222a48; color: var(--muted); font-weight: 800; letter-spacing: .04em; }
-  .pill.on { background: #19e05a; color: #04210e; }
-
-  /* Controls */
-  .controls {
-    display: grid; grid-template-columns: 1.3fr 1fr; gap: 14px; margin-top: 14px;
-  }
-  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 14px 16px; }
-  .card h2 { margin: 0 0 10px; font-size: 13px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); font-weight: 800; }
-  .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  .group { display: flex; flex-direction: column; gap: 6px; }
+  .group h2 { margin: 0; font-size: 10.5px; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); font-weight: 800; }
+  .seg { display: flex; flex-wrap: wrap; gap: 4px; }
   button {
-    font: inherit; font-weight: 800; font-size: 14px; color: var(--text);
-    background: #1d2754; border: 1px solid #34437c; border-radius: 10px;
-    padding: 9px 14px; cursor: pointer; transition: transform .08s, background .15s, border-color .15s;
+    font: inherit; font-size: 13px; font-weight: 700; color: var(--text);
+    background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.10); border-radius: 9px;
+    padding: 7px 11px; cursor: pointer; transition: background .15s, border-color .15s; white-space: nowrap;
   }
-  button:hover { background: #26336b; }
-  button:active { transform: translateY(1px); }
-  button:focus-visible { outline: 2px solid var(--yellow); outline-offset: 2px; }
-  button.primary { background: linear-gradient(180deg, var(--red-hi), var(--red)); border-color: #ff5a66; }
-  button.primary[aria-pressed="true"] { background: linear-gradient(180deg, #2a3566, #1d2754); border-color: #34437c; }
-  button[aria-pressed="true"]:not(.primary) { background: #2b3b7d; border-color: var(--yellow); }
-  .tyre { display: inline-flex; align-items: center; gap: 7px; padding: 7px 11px; }
-  .tyre i { width: 14px; height: 14px; border-radius: 50%; border: 3px solid var(--c); background: #111; display: inline-block; }
-  .slider { display: flex; align-items: center; gap: 12px; margin-top: 12px; }
-  .slider label { font-size: 13px; color: var(--muted); white-space: nowrap; }
-  .slider output { min-width: 82px; text-align: right; font-weight: 800; font-variant-numeric: tabular-nums; }
-  input[type=range] { flex: 1; accent-color: var(--red-hi); height: 28px; min-width: 0; }
-  .hint { font-size: 12.5px; color: var(--muted); margin: 10px 0 0; }
+  button:hover { background: rgba(255,255,255,.12); }
+  button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  button[aria-pressed="true"] { background: rgba(255, 201, 6, .16); border-color: rgba(255, 201, 6, .75); color: #fff; }
+  .dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; border: 2.5px solid var(--c); margin-right: 6px; vertical-align: -1px; background: #111; }
 
-  .specs { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 10px; margin-top: 14px; }
-  .spec { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; }
-  .spec dt { font-size: 12px; color: var(--muted); }
-  .spec dd { margin: 2px 0 0; font-size: 17px; font-weight: 800; }
-  .spec dd small { display: block; font-size: 12px; color: var(--muted); font-weight: 500; }
+  .hint { position: absolute; right: 20px; top: 20px; font-size: 12px; color: var(--muted); text-align: right; pointer-events: none; text-shadow: 0 1px 8px rgba(0,0,0,.7); }
+  .credit { position: absolute; right: 20px; top: 40px; font-size: 11px; color: #6b7390; text-align: right; max-width: 300px; pointer-events: none; }
 
-  footer { margin-top: 18px; font-size: 12px; color: #6f7a99; }
+  #loading { position: fixed; inset: 0; display: grid; place-items: center; background: #0b0d12; z-index: 10; transition: opacity .6s; }
+  #loading.done { opacity: 0; pointer-events: none; }
+  #loading .box { text-align: center; color: var(--muted); font-size: 14px; }
+  #loading .sun { width: 46px; height: 46px; border-radius: 50%; margin: 0 auto 14px;
+    background: radial-gradient(circle at 35% 35%, #ffe680, #ffc906 60%, #d99a00); box-shadow: 0 0 40px rgba(255,201,6,.5);
+    animation: pulse 1.2s ease-in-out infinite alternate; }
+  @keyframes pulse { from { transform: scale(.9); opacity: .7 } to { transform: scale(1.05); opacity: 1 } }
 
-  #labels { transition: opacity .35s; }
-  #labels.hidden { opacity: 0; pointer-events: none; }
-  #drsFlap { transform-box: fill-box; transform-origin: 96% 50%; transition: transform .25s cubic-bezier(.3,1.4,.5,1); }
-  #drsFlap.open { transform: rotate(16deg); }
-
-  @media (max-width: 760px) {
-    .controls { grid-template-columns: 1fr; }
-    .hud { position: static; border-radius: 0; border-width: 0 0 1px; min-width: 0; grid-template-columns: 1fr auto; }
-    .spd, .gear { font-size: 34px; }
-    .led { width: 9px; height: 9px; }
-    .stage { display: flex; flex-direction: column; }
-    .stage svg { order: 2; }
-  }
-  @media (prefers-reduced-motion: reduce) {
-    #drsFlap { transition: none; }
+  @media (max-width: 720px) {
+    .hint, .credit { display: none; }
+    .panel { gap: 8px 12px; padding: 10px; max-height: 44vh; overflow-y: auto; }
+    button { padding: 6px 9px; font-size: 12px; }
   }
 </style>
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"
+  }
+}
+</script>
 </head>
 <body>
-<div class="wrap">
-  <header>
-    <div class="brand">
-      <div class="sun" aria-hidden="true"></div>
-      <div>
-        <h1>RED BULL <span>F1</span> MACHINE</h1>
-        <p class="sub">레드불 레이싱 컬러의 F1 머신 — 시동을 걸고 직접 달려 보세요.</p>
-      </div>
-    </div>
-    <div class="keys">
-      <kbd>E</kbd> 시동 · <kbd>↑</kbd><kbd>↓</kbd> 속도 · <kbd>Space</kbd> 브레이크 · <kbd>D</kbd> DRS · <kbd>L</kbd> 부품 이름
-    </div>
-  </header>
+<canvas id="view" aria-label="레드불 컬러 F1 머신 3D 모델. 드래그로 회전할 수 있다."></canvas>
 
-  <div class="stage">
-    <div class="hud" aria-live="off">
-      <div class="leds" id="leds"></div>
-      <div class="spd"><span id="spd">0</span><small>km/h</small></div>
-      <div class="gear" id="gear">–</div>
-      <div class="meta">
-        <span>RPM <b id="rpm">0</b></span>
-        <span class="pill" id="drsPill">DRS</span>
-        <span>타이어 <b id="tyreName">소프트</b></span>
-      </div>
-    </div>
+<div id="loading"><div class="box"><div class="sun"></div><div id="loadMsg">3D 모델을 만드는 중…</div></div></div>
 
-    <svg id="scene" viewBox="0 0 1100 440" role="img" aria-labelledby="sceneTitle">
-      <title id="sceneTitle">레드불 컬러의 F1 머신 측면 일러스트. 짙은 남색 차체에 빨간색과 노란색 포인트가 들어가 있다.</title>
-      <defs>
-        <!-- Sky / environment -->
-        <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0" stop-color="#05070f"/>
-          <stop offset=".55" stop-color="#121a3a"/>
-          <stop offset="1" stop-color="#2a2350"/>
-        </linearGradient>
-        <radialGradient id="glow" cx=".5" cy="1" r=".8">
-          <stop offset="0" stop-color="#ff9a3c" stop-opacity=".25"/>
-          <stop offset="1" stop-color="#ff9a3c" stop-opacity="0"/>
-        </radialGradient>
-        <linearGradient id="asphalt" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0" stop-color="#2b2e36"/>
-          <stop offset="1" stop-color="#15171c"/>
-        </linearGradient>
-
-        <!-- Parallax patterns (patternTransform is animated from JS) -->
-        <pattern id="standsPat" width="240" height="90" patternUnits="userSpaceOnUse">
-          <rect width="240" height="90" fill="#0b1026"/>
-          <path d="M0 30 L120 18 L240 30 V90 H0Z" fill="#111836"/>
-          <g fill="#ffe7a8" opacity=".55">
-            <circle cx="12" cy="40" r="1.3"/><circle cx="30" cy="48" r="1.3"/><circle cx="48" cy="38" r="1.3"/>
-            <circle cx="70" cy="52" r="1.3"/><circle cx="92" cy="42" r="1.3"/><circle cx="118" cy="56" r="1.3"/>
-            <circle cx="140" cy="44" r="1.3"/><circle cx="162" cy="50" r="1.3"/><circle cx="186" cy="40" r="1.3"/>
-            <circle cx="208" cy="54" r="1.3"/><circle cx="228" cy="46" r="1.3"/>
-          </g>
-          <g fill="#7fa6ff" opacity=".35">
-            <circle cx="22" cy="62" r="1.2"/><circle cx="60" cy="66" r="1.2"/><circle cx="104" cy="70" r="1.2"/>
-            <circle cx="150" cy="64" r="1.2"/><circle cx="196" cy="72" r="1.2"/>
-          </g>
-          <!-- floodlight tower -->
-          <rect x="176" y="0" width="3" height="40" fill="#1c2448"/>
-          <rect x="166" y="0" width="23" height="7" rx="2" fill="#fff6d8"/>
-        </pattern>
-        <pattern id="wallPat" width="260" height="34" patternUnits="userSpaceOnUse">
-          <rect width="260" height="34" fill="#0f1530"/>
-          <rect x="4" y="4" width="120" height="26" rx="3" fill="#16224a"/>
-          <circle cx="24" cy="17" r="8" fill="#ffc906"/>
-          <text x="38" y="22" font-size="13" font-weight="900" font-style="italic" fill="#e3001b" font-family="system-ui, sans-serif">RACING</text>
-          <rect x="132" y="4" width="124" height="26" rx="3" fill="#e9edf7"/>
-          <text x="143" y="22" font-size="13" font-weight="900" font-style="italic" fill="#16224a" font-family="system-ui, sans-serif">FORMULA ONE</text>
-        </pattern>
-        <pattern id="kerbPat" width="60" height="12" patternUnits="userSpaceOnUse">
-          <rect width="30" height="12" fill="#e3001b"/>
-          <rect x="30" width="30" height="12" fill="#f2f2f2"/>
-        </pattern>
-        <pattern id="lanePat" width="160" height="4" patternUnits="userSpaceOnUse">
-          <rect width="80" height="4" fill="#d9dce4" opacity=".55"/>
-        </pattern>
-        <pattern id="grainPat" width="140" height="60" patternUnits="userSpaceOnUse">
-          <g fill="#ffffff" opacity=".05">
-            <rect x="8" y="6" width="14" height="1"/><rect x="40" y="22" width="22" height="1"/>
-            <rect x="90" y="12" width="10" height="1"/><rect x="118" y="40" width="16" height="1"/>
-            <rect x="62" y="50" width="12" height="1"/><rect x="20" y="36" width="8" height="1"/>
-          </g>
-        </pattern>
-
-        <!-- Car materials -->
-        <linearGradient id="body" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0" stop-color="#34497f"/>
-          <stop offset=".35" stop-color="#1c2a5a"/>
-          <stop offset="1" stop-color="#0c1430"/>
-        </linearGradient>
-        <linearGradient id="bodyDark" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0" stop-color="#1e2c5c"/>
-          <stop offset="1" stop-color="#0a1128"/>
-        </linearGradient>
-        <linearGradient id="red" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0" stop-color="#ff3647"/>
-          <stop offset="1" stop-color="#b80016"/>
-        </linearGradient>
-        <linearGradient id="yellow" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0" stop-color="#ffe066"/>
-          <stop offset="1" stop-color="#e5a800"/>
-        </linearGradient>
-        <linearGradient id="shine" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0" stop-color="#fff" stop-opacity=".28"/>
-          <stop offset="1" stop-color="#fff" stop-opacity="0"/>
-        </linearGradient>
-        <pattern id="carbon" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
-          <rect width="6" height="6" fill="#121318"/>
-          <rect width="3" height="6" fill="#1b1d24"/>
-        </pattern>
-        <radialGradient id="tyre" cx=".5" cy=".5" r=".5">
-          <stop offset=".7" stop-color="#1a1b20"/>
-          <stop offset=".93" stop-color="#0d0e11"/>
-          <stop offset="1" stop-color="#050506"/>
-        </radialGradient>
-        <radialGradient id="rim" cx=".4" cy=".35" r=".7">
-          <stop offset="0" stop-color="#3a4262"/>
-          <stop offset="1" stop-color="#141827"/>
-        </radialGradient>
-        <radialGradient id="blurDisc" cx=".5" cy=".5" r=".5">
-          <stop offset=".55" stop-color="#2a2f40" stop-opacity=".95"/>
-          <stop offset=".8" stop-color="#1b1d24" stop-opacity=".7"/>
-          <stop offset="1" stop-color="#1b1d24" stop-opacity="0"/>
-        </radialGradient>
-        <radialGradient id="heat" cx=".5" cy=".5" r=".5">
-          <stop offset="0" stop-color="#ffb347" stop-opacity=".9"/>
-          <stop offset=".5" stop-color="#ff5a1f" stop-opacity=".35"/>
-          <stop offset="1" stop-color="#ff5a1f" stop-opacity="0"/>
-        </radialGradient>
-        <path id="tyreText" d="M -55,0 a 55,55 0 1,1 110,0 a 55,55 0 1,1 -110,0"/>
-        <filter id="soft" x="-20%" y="-200%" width="140%" height="500%">
-          <feGaussianBlur stdDeviation="6"/>
-        </filter>
-        <filter id="hblur" x="-5%" y="-5%" width="110%" height="110%">
-          <feGaussianBlur id="hblurStd" stdDeviation="0 0"/>
-        </filter>
-      </defs>
-
-      <!-- ===== Background ===== -->
-      <rect width="1100" height="300" fill="url(#sky)"/>
-      <rect y="120" width="1100" height="180" fill="url(#glow)"/>
-      <g id="bg" filter="url(#hblur)">
-        <rect y="206" width="1100" height="90" fill="url(#standsPat)" id="stands"/>
-        <rect y="296" width="1100" height="34" fill="url(#wallPat)" id="wall"/>
-        <rect y="330" width="1100" height="12" fill="url(#kerbPat)" id="kerb"/>
-      </g>
-      <rect y="342" width="1100" height="98" fill="url(#asphalt)"/>
-      <rect y="342" width="1100" height="98" fill="url(#grainPat)" id="grain"/>
-      <rect y="418" width="1100" height="4" fill="url(#lanePat)" id="lane"/>
-      <g id="streaks" stroke="#fff" stroke-linecap="round" opacity="0"></g>
-
-      <!-- ===== Car ===== -->
-      <ellipse cx="560" cy="374" rx="480" ry="9" fill="#000" opacity=".7" filter="url(#soft)"/>
-      <g id="car">
-        <!-- Rear wing (behind wheels) -->
-        <g id="rearWing">
-          <path d="M926,166 L1010,160 L1014,300 L944,302 Z" fill="url(#bodyDark)"/>
-          <path d="M926,166 L1010,160 L1011,174 L928,180 Z" fill="url(#red)"/>
-          <path d="M1010,160 L1014,300 L1008,300 L1004,162 Z" fill="#05070f" opacity=".5"/>
-          <text x="970" y="240" text-anchor="middle" font-size="15" font-weight="900" font-style="italic" fill="#ffc906" font-family="system-ui, sans-serif" transform="rotate(-2 970 240)">RB</text>
-          <!-- swan-neck pylon -->
-          <path d="M946,206 L958,206 L956,292 L944,292 Z" fill="#0b0f1d"/>
-          <!-- main plane -->
-          <path d="M914,210 C940,199 988,195 1018,201 L1018,209 C986,209 942,213 914,216 Z" fill="#0a0d18" stroke="#2b3d6b" stroke-width="1"/>
-          <!-- DRS flap -->
-          <path id="drsFlap" d="M920,190 C946,180 990,176 1016,180 L1016,188 C988,188 950,192 920,195 Z" fill="url(#red)" stroke="#ff6672" stroke-width=".8"/>
-          <!-- beam wing -->
-          <path d="M944,286 C964,280 992,280 1006,284 L1006,290 C990,290 966,291 944,292 Z" fill="#0a0d18"/>
-          <!-- rain light -->
-          <rect id="rainLight" x="952" y="294" width="10" height="5" rx="1" fill="#4a0008"/>
-        </g>
-
-        <!-- Diffuser -->
-        <path d="M930,362 L992,328 L1004,332 L978,364 Z" fill="url(#carbon)"/>
-        <path d="M940,360 L992,334 M952,362 L996,340" stroke="#2b2f3b" stroke-width="1.5"/>
-
-        <!-- Floor & plank -->
-        <path d="M316,346 L866,346 L874,358 L862,362 L322,362 Z" fill="url(#carbon)"/>
-        <path d="M322,360 L862,360" stroke="#c79a3a" stroke-width="2" opacity=".55"/>
-        <path d="M330,346 C420,341 520,341 600,343" stroke="#3a3f4f" stroke-width="2" fill="none"/>
-
-        <!-- Suspension -->
-        <g stroke="#0a0d18" stroke-width="5" stroke-linecap="round">
-          <path d="M342,286 L262,300"/>
-          <path d="M342,318 L262,314"/>
-          <path d="M338,292 L268,324" stroke-width="3.5"/>
-          <path d="M840,296 L880,300"/>
-          <path d="M846,326 L880,318"/>
-        </g>
-
-        <!-- Main body -->
-        <path id="mainBody" d="M128,330 C150,318 232,292 334,274 L446,262 L560,260 C570,240 578,212 592,204 L632,202 C652,206 702,222 762,238 C824,254 884,268 958,282 L960,300 L900,312 L862,344 L340,344 L332,322 C250,326 180,332 132,337 Z" fill="url(#body)"/>
-        <!-- top highlight -->
-        <path d="M150,320 C200,302 260,288 334,276 L446,264 M596,206 L632,204 C652,208 702,224 762,240 C824,256 884,270 956,284" stroke="#9fb4ff" stroke-opacity=".35" stroke-width="2" fill="none" stroke-linecap="round"/>
-
-        <!-- Nose tip (red) -->
-        <path d="M128,330 C150,318 176,309 204,302 L208,331 C180,333 152,335 132,337 Z" fill="url(#red)"/>
-        <path d="M204,302 L208,331" stroke="#ffc906" stroke-width="3"/>
-
-        <!-- Chassis number -->
-        <text x="388" y="312" font-size="30" font-weight="900" font-style="italic" fill="#fff" font-family="system-ui, sans-serif">1</text>
-        <path d="M360,322 L440,316" stroke="url(#red)" stroke-width="4" stroke-linecap="round"/>
-
-        <!-- Shark fin -->
-        <path d="M652,207 L888,236 L888,268 C820,254 730,232 652,212 Z" fill="url(#bodyDark)" opacity=".95"/>
-        <path d="M652,207 L888,236" stroke="#e3001b" stroke-width="2"/>
-        <text x="790" y="250" font-size="20" font-weight="900" font-style="italic" fill="#fff" font-family="system-ui, sans-serif">1</text>
-
-        <!-- Sidepod -->
-        <path d="M468,288 L522,283 C604,282 706,292 822,318 L846,344 L470,344 Z" fill="url(#bodyDark)"/>
-        <path d="M468,288 L522,283 C604,282 706,292 822,318" stroke="#9fb4ff" stroke-opacity=".25" stroke-width="1.5" fill="none"/>
-        <!-- inlet -->
-        <path d="M464,288 L486,285 L492,330 L468,334 Z" fill="#04060c"/>
-        <path d="M486,285 L492,330" stroke="#2b3d6b" stroke-width="2"/>
-        <!-- livery swoosh -->
-        <path d="M490,334 C600,326 730,326 842,338 L846,344 L492,344 Z" fill="url(#red)"/>
-        <path d="M520,327 C620,319 720,320 812,328" stroke="#ffc906" stroke-width="2.5" fill="none" stroke-linecap="round"/>
-        <!-- sun disc + wordmark (generic fan livery, not the official logo) -->
-        <circle cx="560" cy="306" r="14" fill="url(#yellow)"/>
-        <text x="582" y="314" font-size="21" font-weight="900" font-style="italic" fill="#ff2a3a" font-family="system-ui, sans-serif" letter-spacing="-.5">RED BULL</text>
-        <!-- engine cover badge -->
-        <circle cx="706" cy="256" r="11" fill="url(#yellow)"/>
-        <text x="722" y="262" font-size="13" font-weight="900" font-style="italic" fill="#e9edf7" font-family="system-ui, sans-serif">RACING</text>
-
-        <!-- Airbox -->
-        <path d="M584,212 L600,206 L605,228 L590,232 Z" fill="#04060c"/>
-        <path d="M592,204 L632,202 L636,212 L598,214 Z" fill="url(#red)"/>
-
-        <!-- Cockpit & driver -->
-        <path d="M448,262 C470,250 540,248 562,258 L560,266 L450,266 Z" fill="#04060c"/>
-        <g id="driver">
-          <ellipse cx="514" cy="244" rx="20" ry="17" fill="#f2f2f2"/>
-          <path d="M494,244 C496,232 506,227 518,227 C528,227 534,232 534,240 L534,244 Z" fill="url(#red)"/>
-          <path d="M498,246 C504,242 520,241 532,244 L531,251 C518,249 506,250 499,253 Z" fill="#10172e"/>
-          <path d="M500,246 C508,243 520,243 530,245" stroke="#7fd7ff" stroke-opacity=".6" stroke-width="1.2" fill="none"/>
-          <path d="M496,256 C506,260 524,260 534,256" stroke="#ffc906" stroke-width="3" fill="none"/>
-          <rect x="534" y="246" width="20" height="14" rx="4" fill="#0b1026"/>
-        </g>
-
-        <!-- Halo -->
-        <path d="M452,262 C458,248 466,236 478,232 L556,232 C566,236 572,246 574,260" stroke="#141826" stroke-width="7" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
-        <path d="M456,258 C462,246 468,238 479,235 L555,235" stroke="#5a6690" stroke-width="1.6" fill="none" stroke-linecap="round" opacity=".7"/>
-
-        <!-- Mirror -->
-        <path d="M440,264 L432,250" stroke="#0a0d18" stroke-width="3"/>
-        <ellipse cx="428" cy="246" rx="13" ry="6" fill="url(#bodyDark)" stroke="#2b3d6b" stroke-width="1"/>
-
-        <!-- Front wing -->
-        <g id="frontWing">
-          <path d="M156,336 L160,346 M176,333 L180,344" stroke="#0a0d18" stroke-width="4"/>
-          <path d="M92,360 C120,354 172,352 232,356 L232,362 C172,362 120,364 92,366 Z" fill="#0a0d18"/>
-          <path d="M118,350 C150,342 192,340 236,344 L236,349 C192,348 150,350 118,354 Z" fill="url(#red)"/>
-          <path d="M146,340 C172,332 206,330 238,334 L238,339 C206,338 172,340 146,344 Z" fill="url(#bodyDark)"/>
-          <path d="M98,320 L150,316 L154,364 L100,367 Z" fill="url(#body)"/>
-          <path d="M98,320 L150,316 L151,326 L99,330 Z" fill="url(#yellow)"/>
-          <path d="M100,360 L154,357" stroke="#e3001b" stroke-width="3"/>
-        </g>
-
-        <!-- Exhaust heat -->
-        <ellipse id="heat" cx="972" cy="276" rx="18" ry="10" fill="url(#heat)" opacity="0"/>
-        <circle cx="962" cy="279" r="4" fill="#1a1c24" stroke="#555b6e" stroke-width="1"/>
-
-        <!-- Wheels -->
-        <g class="wheel" transform="translate(250 308)">
-          <circle r="64" fill="url(#tyre)"/>
-          <circle r="50" fill="none" class="band" stroke="#ff2d2d" stroke-width="3"/>
-          <g class="spin">
-            <text font-size="9" font-weight="800" letter-spacing="1.5" class="tyreLabel" fill="#ff2d2d" font-family="system-ui, sans-serif"><textPath href="#tyreText">SLICK · F1 · SLICK · F1 · SLICK · F1 ·</textPath></text>
-            <circle r="44" fill="url(#rim)"/>
-            <g stroke="#0d1122" stroke-width="3">
-              <path d="M0,-40 L0,40 M-34.6,-20 L34.6,20 M-34.6,20 L34.6,-20"/>
-            </g>
-            <circle r="44" fill="none" stroke="#e3001b" stroke-width="2" stroke-dasharray="10 13"/>
-            <circle cx="0" cy="-36" r="2.5" fill="#ffc906"/>
-          </g>
-          <circle r="62" class="blur" fill="url(#blurDisc)" opacity="0"/>
-          <circle r="11" fill="#0b0f1d" stroke="#3a4262" stroke-width="2"/>
-          <circle r="5" fill="#ffc906"/>
-        </g>
-        <g class="wheel" transform="translate(880 308)">
-          <circle r="64" fill="url(#tyre)"/>
-          <circle r="50" fill="none" class="band" stroke="#ff2d2d" stroke-width="3"/>
-          <g class="spin">
-            <text font-size="9" font-weight="800" letter-spacing="1.5" class="tyreLabel" fill="#ff2d2d" font-family="system-ui, sans-serif"><textPath href="#tyreText">SLICK · F1 · SLICK · F1 · SLICK · F1 ·</textPath></text>
-            <circle r="44" fill="url(#rim)"/>
-            <g stroke="#0d1122" stroke-width="3">
-              <path d="M0,-40 L0,40 M-34.6,-20 L34.6,20 M-34.6,20 L34.6,-20"/>
-            </g>
-            <circle r="44" fill="none" stroke="#e3001b" stroke-width="2" stroke-dasharray="10 13"/>
-            <circle cx="0" cy="-36" r="2.5" fill="#ffc906"/>
-          </g>
-          <circle r="62" class="blur" fill="url(#blurDisc)" opacity="0"/>
-          <circle r="11" fill="#0b0f1d" stroke="#3a4262" stroke-width="2"/>
-          <circle r="5" fill="#ffc906"/>
-        </g>
-      </g>
-
-      <!-- ===== Part labels ===== -->
-      <g id="labels" class="hidden" font-family="system-ui, sans-serif">
-        <g data-x="128" data-y="342" data-lx="64" data-ly="196" data-t="프론트 윙" data-e="Front wing"></g>
-        <g data-x="160" data-y="322" data-lx="176" data-ly="250" data-t="노즈 콘" data-e="Nose cone"></g>
-        <g data-x="250" data-y="308" data-lx="300" data-ly="140" data-t="타이어 18인치" data-e="Tyre"></g>
-        <g data-x="514" data-y="232" data-lx="440" data-ly="80" data-t="헤일로·조종석" data-e="Halo / cockpit"></g>
-        <g data-x="476" data-y="310" data-lx="560" data-ly="150" data-t="사이드포드 흡기구" data-e="Sidepod inlet"></g>
-        <g data-x="740" data-y="250" data-lx="700" data-ly="80" data-t="파워 유닛" data-e="1.6L V6 turbo hybrid"></g>
-        <g data-x="968" data-y="184" data-lx="900" data-ly="130" data-t="리어 윙 · DRS" data-e="Rear wing / DRS"></g>
-        <g data-x="975" data-y="346" data-lx="1000" data-ly="408" data-t="디퓨저" data-e="Diffuser"></g>
-      </g>
-    </svg>
+<div class="ui">
+  <div class="title">
+    <h1>RED BULL <span>F1</span> MACHINE</h1>
+    <p>차체 곡면부터 윙, 서스펜션, 타이어까지 직접 모델링한 실시간 3D 렌더링 · 물리 기반 재질 · 환경 반사 · 그림자 · 앰비언트 오클루전</p>
   </div>
+  <div class="hint">드래그: 회전 · 휠/핀치: 확대 · 우클릭 드래그: 이동</div>
+  <div class="credit">레드불 레이싱 팀 컬러를 바탕으로 한 팬 아트 모델입니다. 공식 로고·스폰서 그래픽은 재현하지 않았습니다.</div>
 
-  <div class="controls">
-    <section class="card" aria-label="주행 조작">
-      <h2>주행</h2>
-      <div class="row">
-        <button id="engineBtn" class="primary" aria-pressed="false">시동 걸기</button>
+  <div class="panel" role="toolbar" aria-label="뷰어 설정">
+    <div class="group">
+      <h2>카메라</h2>
+      <div class="seg" id="camBtns"></div>
+    </div>
+    <div class="group">
+      <h2>조명</h2>
+      <div class="seg" id="lightBtns"></div>
+    </div>
+    <div class="group">
+      <h2>도장</h2>
+      <div class="seg" id="finishBtns"></div>
+    </div>
+    <div class="group">
+      <h2>타이어</h2>
+      <div class="seg" id="tyreBtns"></div>
+    </div>
+    <div class="group">
+      <h2>기타</h2>
+      <div class="seg">
         <button id="drsBtn" aria-pressed="false">DRS 열기</button>
-        <button id="brakeBtn">브레이크</button>
-        <button id="soundBtn" aria-pressed="true">소리 켜짐</button>
-        <button id="labelsBtn" aria-pressed="false">부품 이름 보기</button>
+        <button id="spinBtn" aria-pressed="true">자동 회전</button>
+        <button id="hqBtn" aria-pressed="true">고화질</button>
       </div>
-      <div class="slider">
-        <label for="throttle">목표 속도</label>
-        <input id="throttle" type="range" min="0" max="330" step="5" value="0" disabled>
-        <output id="throttleOut" for="throttle">0 km/h</output>
-      </div>
-      <p class="hint" id="hint">시동을 먼저 걸어야 출발할 수 있어요.</p>
-    </section>
-    <section class="card" aria-label="타이어 선택">
-      <h2>타이어 컴파운드</h2>
-      <div class="row" id="tyres"></div>
-      <p class="hint">타이어 옆면의 띠 색깔로 종류를 구분해요. 맑은 날에는 슬릭(소프트·미디엄·하드), 비 오는 날에는 인터미디엇·웻을 써요.</p>
-    </section>
+    </div>
   </div>
-
-  <dl class="specs">
-    <div class="spec"><dt>파워 유닛</dt><dd>1.6L V6 터보 하이브리드<small>엔진 + 전기 모터(MGU-K)</small></dd></div>
-    <div class="spec"><dt>최고 출력</dt><dd>약 1,000마력 이상<small>내연기관과 전기 출력 합산</small></dd></div>
-    <div class="spec"><dt>최고 속도</dt><dd>약 350 km/h<small>DRS를 열면 직선에서 더 빨라짐</small></dd></div>
-    <div class="spec"><dt>변속기</dt><dd>8단 반자동<small>핸들 뒤 패들로 변속</small></dd></div>
-    <div class="spec"><dt>최소 중량</dt><dd>약 800 kg<small>드라이버 포함</small></dd></div>
-    <div class="spec"><dt>엔진 회전수 제한</dt><dd>15,000 rpm<small>규정상 최대값</small></dd></div>
-  </dl>
-
-  <footer>
-    레드불 레이싱 팀 컬러(남색·빨강·노랑)를 바탕으로 직접 그린 팬 아트 일러스트입니다. 팀의 공식 로고·스폰서 그래픽은 재현하지 않았으며, 수치는 현행 F1 머신의 일반적인 값입니다.
-  </footer>
 </div>
 
-<script>
-(() => {
-  const $ = (id) => document.getElementById(id);
-  const reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+import { GTAOPass } from 'three/addons/postprocessing/GTAOPass.js';
+import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+import { Reflector } from 'three/addons/objects/Reflector.js';
+import { DecalGeometry } from 'three/addons/geometries/DecalGeometry.js';
+import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
+import { HorizontalBlurShader } from 'three/addons/shaders/HorizontalBlurShader.js';
+import { VerticalBlurShader } from 'three/addons/shaders/VerticalBlurShader.js';
+import * as BGU from 'three/addons/utils/BufferGeometryUtils.js';
 
-  // ---------- Part labels ----------
-  const NS = 'http://www.w3.org/2000/svg';
-  document.querySelectorAll('#labels > g').forEach((g) => {
-    const x = +g.dataset.x, y = +g.dataset.y, lx = +g.dataset.lx, ly = +g.dataset.ly;
-    const line = document.createElementNS(NS, 'path');
-    line.setAttribute('d', `M${x},${y} L${lx},${ly}`);
-    line.setAttribute('stroke', '#ffc906'); line.setAttribute('stroke-width', '1.4'); line.setAttribute('stroke-dasharray', '3 3');
-    const dot = document.createElementNS(NS, 'circle');
-    dot.setAttribute('cx', x); dot.setAttribute('cy', y); dot.setAttribute('r', 4);
-    dot.setAttribute('fill', '#ffc906'); dot.setAttribute('stroke', '#070b18'); dot.setAttribute('stroke-width', 2);
-    const t1 = document.createElementNS(NS, 'text');
-    t1.textContent = g.dataset.t; t1.setAttribute('font-size', '14'); t1.setAttribute('font-weight', '800'); t1.setAttribute('fill', '#fff');
-    const t2 = document.createElementNS(NS, 'text');
-    t2.textContent = g.dataset.e; t2.setAttribute('font-size', '10.5'); t2.setAttribute('fill', '#93a0bf');
-    const box = document.createElementNS(NS, 'rect');
-    box.setAttribute('rx', 6); box.setAttribute('fill', 'rgba(7,11,24,.88)'); box.setAttribute('stroke', 'rgba(255,201,6,.6)');
-    g.append(line, dot, box, t1, t2);
-    // size the box after text is in the DOM
-    const w = Math.max(t1.getComputedTextLength(), t2.getComputedTextLength()) + 18;
-    let bx = Math.min(Math.max(lx - w / 2, 6), 1100 - w - 6);
-    const by = ly - 20;
-    box.setAttribute('x', bx); box.setAttribute('y', by); box.setAttribute('width', w); box.setAttribute('height', 38);
-    t1.setAttribute('x', bx + 9); t1.setAttribute('y', by + 17);
-    t2.setAttribute('x', bx + 9); t2.setAttribute('y', by + 31);
-  });
+const $ = (id) => document.getElementById(id);
+const isMobile = Math.min(innerWidth, innerHeight) < 600;
 
-  // ---------- Shift lights ----------
-  const leds = [];
-  for (let i = 0; i < 15; i++) {
-    const d = document.createElement('span');
-    d.className = 'led ' + (i < 5 ? 'g' : i < 10 ? 'r' : 'b');
-    $('leds').appendChild(d); leds.push(d);
+// =====================================================================
+// Renderer / scene / camera
+// =====================================================================
+const canvas = $('view');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
+renderer.setPixelRatio(Math.min(devicePixelRatio, isMobile ? 1.5 : 2));
+renderer.setSize(innerWidth, innerHeight, false);
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.0;
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+const MAX_ANISO = renderer.capabilities.getMaxAnisotropy();
+
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(30, innerWidth / innerHeight, 0.05, 120);
+// Portrait screens get a wider lens and a longer dolly so the whole car still fits.
+const lens = () => {
+  const a = innerWidth / innerHeight;
+  return a < 1 ? { fov: 40, k: Math.min(2.2, 1.2 / a) } : a < 1.3 ? { fov: 34, k: 1.3 } : { fov: 30, k: 1.1 };
+};
+const dolly = (p, t) => new THREE.Vector3(...p).sub(new THREE.Vector3(...t)).multiplyScalar(lens().k).add(new THREE.Vector3(...t));
+camera.fov = lens().fov;
+camera.position.copy(dolly([5.0, 1.55, 4.4], [0.15, 0.38, 0]));
+// keep the car centred in the space above the control panel
+function frameView() {
+  const panel = document.querySelector('.panel');
+  const off = panel ? Math.round(panel.getBoundingClientRect().height * 0.5) : 0;
+  camera.setViewOffset(innerWidth, innerHeight, 0, off, innerWidth, innerHeight);
+  camera.updateProjectionMatrix();
+}
+
+const controls = new OrbitControls(camera, canvas);
+controls.target.set(0.15, 0.38, 0);
+controls.enableDamping = true;
+controls.dampingFactor = 0.06;
+controls.minDistance = 1.6;
+controls.maxDistance = 16;
+controls.maxPolarAngle = Math.PI / 2 - 0.035;
+controls.autoRotate = true;
+controls.autoRotateSpeed = 0.55;
+
+const pmrem = new THREE.PMREMGenerator(renderer);
+
+// =====================================================================
+// Helpers
+// =====================================================================
+function canvasTex(w, h, draw, { srgb = true, repeat = null } = {}) {
+  const c = document.createElement('canvas');
+  c.width = w; c.height = h;
+  const ctx = c.getContext('2d');
+  draw(ctx, w, h);
+  const t = new THREE.CanvasTexture(c);
+  if (srgb) t.colorSpace = THREE.SRGBColorSpace;
+  t.anisotropy = MAX_ANISO;
+  if (repeat) { t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(repeat[0], repeat[1]); }
+  return t;
+}
+const catmull = (p0, p1, p2, p3, t) => {
+  const t2 = t * t, t3 = t2 * t;
+  return 0.5 * ((2 * p1) + (-p0 + p2) * t + (2 * p0 - 5 * p1 + 4 * p2 - p3) * t2 + (-p0 + 3 * p1 - 3 * p2 + p3) * t3);
+};
+function sampleStations(st, f) {
+  const i = Math.min(Math.floor(f), st.length - 2), t = f - i;
+  const g = (k) => st[Math.max(0, Math.min(st.length - 1, k))];
+  const out = {};
+  for (const key in st[0]) out[key] = catmull(g(i - 1)[key], g(i)[key], g(i + 1)[key], g(i + 2)[key], t);
+  return out;
+}
+// Super-ellipse cross-section. theta = -PI/2 is the bottom (texture seam lives there).
+function sectionPoint(s, th) {
+  const c = Math.cos(th), sn = Math.sin(th);
+  const top = sn >= 0;
+  const n = top ? s.nT : s.nB;
+  const z = s.w * Math.sign(c) * Math.pow(Math.abs(c), 2 / n);
+  let y = top ? s.yM + (s.yT - s.yM) * Math.pow(sn, 2 / n)
+              : s.yM - (s.yM - s.yB) * Math.pow(-sn, 2 / n);
+  if (top && s.dip > 0.002) {
+    const q = Math.abs(z) / s.dipW;
+    if (q < 1) y -= s.dip * (1 - Math.pow(q, 5));
   }
+  return [z + (s.zc || 0), y];
+}
 
-  // ---------- Tyres ----------
-  const TYRES = [
-    { id: 'soft', name: '소프트', c: '#ff2d2d', label: 'SLICK · SOFT · SLICK · SOFT · SLICK · SOFT ·' },
-    { id: 'medium', name: '미디엄', c: '#ffd400', label: 'SLICK · MEDIUM · SLICK · MEDIUM · SLICK ·' },
-    { id: 'hard', name: '하드', c: '#f2f2f2', label: 'SLICK · HARD · SLICK · HARD · SLICK · HARD ·' },
-    { id: 'inter', name: '인터미디엇', c: '#2ecc40', label: 'INTER · INTER · INTER · INTER · INTER ·' },
-    { id: 'wet', name: '웻', c: '#2f7bff', label: 'WET · WET · WET · WET · WET · WET · WET ·' },
-  ];
-  const tyreBtns = TYRES.map((t) => {
-    const b = document.createElement('button');
-    b.className = 'tyre'; b.style.setProperty('--c', t.c);
-    b.innerHTML = `<i></i>${t.name}`;
-    b.setAttribute('aria-pressed', 'false');
-    b.addEventListener('click', () => setTyre(t));
-    $('tyres').appendChild(b);
-    return b;
-  });
-  function setTyre(t) {
-    document.querySelectorAll('.band').forEach((el) => el.setAttribute('stroke', t.c));
-    document.querySelectorAll('.tyreLabel').forEach((el) => { el.setAttribute('fill', t.c); el.firstElementChild.textContent = t.label; });
-    tyreBtns.forEach((b, i) => b.setAttribute('aria-pressed', TYRES[i] === t ? 'true' : 'false'));
-    $('tyreName').textContent = t.name;
-  }
-  setTyre(TYRES[0]);
-
-  // ---------- Speed streaks ----------
-  const streaks = [];
-  for (let i = 0; i < 16; i++) {
-    const p = document.createElementNS(NS, 'path');
-    const s = { x: Math.random() * 1100, y: 40 + Math.random() * 380, len: 40 + Math.random() * 120, el: p, k: .6 + Math.random() * .8 };
-    p.setAttribute('stroke-width', (Math.random() * 1.4 + .4).toFixed(2));
-    p.setAttribute('opacity', (Math.random() * .5 + .2).toFixed(2));
-    $('streaks').appendChild(p); streaks.push(s);
-  }
-
-  // ---------- State ----------
-  const S = { engine: false, target: 0, speed: 0, drs: false, sound: true, offset: 0, angle: 0, rpm: 0 };
-  const GEAR_TOP = [0, 95, 130, 165, 200, 235, 270, 305, 360];
-
-  function gearFor(v) {
-    for (let g = 1; g < GEAR_TOP.length; g++) if (v <= GEAR_TOP[g]) return g;
-    return 8;
-  }
-
-  // ---------- Engine sound (Web Audio) ----------
-  let audio = null;
-  function initAudio() {
-    if (audio) return;
-    const AC = window.AudioContext || window.webkitAudioContext;
-    if (!AC) return;
-    try {
-      const ctx = new AC();
-      const master = ctx.createGain(); master.gain.value = 0;
-      const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 1400; lp.Q.value = 3;
-      const shaper = ctx.createWaveShaper();
-      const curve = new Float32Array(1024);
-      for (let i = 0; i < 1024; i++) { const x = i / 512 - 1; curve[i] = Math.tanh(2.6 * x); }
-      shaper.curve = curve;
-      const o1 = ctx.createOscillator(); o1.type = 'sawtooth';
-      const o2 = ctx.createOscillator(); o2.type = 'square';
-      const o3 = ctx.createOscillator(); o3.type = 'sawtooth';
-      const g1 = ctx.createGain(); g1.gain.value = .5;
-      const g2 = ctx.createGain(); g2.gain.value = .22;
-      const g3 = ctx.createGain(); g3.gain.value = .18;
-      o1.connect(g1); o2.connect(g2); o3.connect(g3);
-      [g1, g2, g3].forEach((g) => g.connect(shaper));
-      shaper.connect(lp); lp.connect(master); master.connect(ctx.destination);
-      [o1, o2, o3].forEach((o) => o.start());
-      audio = { ctx, master, lp, o1, o2, o3 };
-    } catch (e) { audio = null; }
-  }
-  function updateAudio() {
-    if (!audio) return;
-    const t = audio.ctx.currentTime;
-    const on = S.engine && S.sound;
-    const f = Math.max(S.rpm, 1) / 60 * 1.5; // V6: 3 firing pulses per rev, shown an octave lower
-    audio.o1.frequency.setTargetAtTime(f, t, .03);
-    audio.o2.frequency.setTargetAtTime(f * 2.005, t, .03);
-    audio.o3.frequency.setTargetAtTime(f * .5, t, .03);
-    audio.lp.frequency.setTargetAtTime(700 + S.rpm * .18, t, .05);
-    audio.master.gain.setTargetAtTime(on ? .045 + .05 * (S.rpm / 12500) : 0, t, .08);
-  }
-
-  // ---------- Controls ----------
-  const throttle = $('throttle');
-  function setTarget(v) {
-    S.target = Math.max(0, Math.min(330, v));
-    throttle.value = S.target;
-    $('throttleOut').textContent = `${S.target} km/h`;
-  }
-  function setEngine(on) {
-    S.engine = on;
-    if (on) { initAudio(); if (audio && audio.ctx.state === 'suspended') audio.ctx.resume(); }
-    else { setTarget(0); setDRS(false); }
-    $('engineBtn').setAttribute('aria-pressed', on);
-    $('engineBtn').textContent = on ? '시동 끄기' : '시동 걸기';
-    throttle.disabled = !on;
-    $('hint').textContent = on
-      ? '목표 속도를 올리면 출발해요. 100 km/h 이상에서 DRS를 열면 최고 속도가 올라가요.'
-      : '시동을 먼저 걸어야 출발할 수 있어요.';
-  }
-  function setDRS(open) {
-    S.drs = open;
-    $('drsFlap').classList.toggle('open', open);
-    $('drsBtn').setAttribute('aria-pressed', open);
-    $('drsBtn').textContent = open ? 'DRS 닫기' : 'DRS 열기';
-    $('drsPill').classList.toggle('on', open);
-  }
-  function setLabels(show) {
-    $('labels').classList.toggle('hidden', !show);
-    $('labelsBtn').setAttribute('aria-pressed', show);
-    $('labelsBtn').textContent = show ? '부품 이름 숨기기' : '부품 이름 보기';
-  }
-  function setSound(on) {
-    S.sound = on;
-    $('soundBtn').setAttribute('aria-pressed', on);
-    $('soundBtn').textContent = on ? '소리 켜짐' : '소리 꺼짐';
-  }
-  function brake() { setTarget(0); setDRS(false); }
-
-  $('engineBtn').addEventListener('click', () => setEngine(!S.engine));
-  $('drsBtn').addEventListener('click', () => setDRS(!S.drs));
-  $('brakeBtn').addEventListener('click', brake);
-  $('soundBtn').addEventListener('click', () => setSound(!S.sound));
-  $('labelsBtn').addEventListener('click', () => setLabels($('labels').classList.contains('hidden')));
-  throttle.addEventListener('input', () => setTarget(+throttle.value));
-
-  window.addEventListener('keydown', (e) => {
-    const k = e.key.toLowerCase();
-    // the focused slider handles its own arrow keys
-    if (e.target && e.target.tagName === 'INPUT' && k.startsWith('arrow')) return;
-    if (e.target && e.target.tagName === 'BUTTON' && k === ' ') return;
-    if (k === 'e') setEngine(!S.engine);
-    else if (k === 'd') setDRS(!S.drs);
-    else if (k === 'l') setLabels($('labels').classList.contains('hidden'));
-    else if (k === ' ') { e.preventDefault(); brake(); }
-    else if ((k === 'arrowup' || k === 'w') && S.engine) { e.preventDefault(); setTarget(S.target + 10); }
-    else if ((k === 'arrowdown' || k === 's') && S.engine) { e.preventDefault(); setTarget(S.target - 10); }
-  });
-
-  // ---------- Animation loop ----------
-  const wheels = [...document.querySelectorAll('.wheel')].map((w) => ({
-    spin: w.querySelector('.spin'), blur: w.querySelector('.blur'),
-  }));
-  const pats = [
-    { el: $('standsPat'), f: .12, w: 240 },
-    { el: $('wallPat'), f: .45, w: 260 },
-    { el: $('kerbPat'), f: 1, w: 60 },
-    { el: $('lanePat'), f: 1, w: 160 },
-    { el: $('grainPat'), f: 1, w: 140 },
-  ];
-  const car = $('car'), heat = $('heat'), rain = $('rainLight'), hblur = $('hblurStd');
-  const UNITS_PER_KMH = 5;   // scene units per second for each km/h
-  const WHEEL_R = 64;
-  let last = performance.now(), t = 0;
-
-  function frame(now) {
-    const dt = Math.min((now - last) / 1000, .05);
-    last = now; t += dt;
-
-    // physics
-    const drsBoost = S.drs && S.speed > 100 ? 1.06 : 1;
-    const goal = S.engine ? Math.min(S.target * drsBoost, 350) : 0;
-    if (goal > S.speed) {
-      const acc = Math.max(10, 48 - S.speed * .11) * (S.drs ? 1.08 : 1);
-      S.speed = Math.min(goal, S.speed + acc * dt);
-    } else {
-      S.speed = Math.max(goal, S.speed - 95 * dt);
+// Loft a smooth body through a list of stations. Returns { geo, startRing, endRing }.
+function loft(stations, { slices = 180, segs = 144, side = 1 } = {}) {
+  const pos = [], uv = [], idx = [];
+  const rings = [];
+  for (let i = 0; i <= slices; i++) {
+    const s = sampleStations(stations, (i / slices) * (stations.length - 1));
+    const ring = [];
+    for (let j = 0; j <= segs; j++) {
+      const v = j / segs;
+      const [z, y] = sectionPoint(s, -Math.PI / 2 + v * Math.PI * 2);
+      pos.push(s.x, y, z * side);
+      uv.push(i / slices, v);
+      ring.push(new THREE.Vector3(s.x, y, z * side));
     }
-
-    // rpm & gear
-    let gear = 0;
-    if (S.engine) {
-      if (S.speed < 1) { S.rpm += (4200 - S.rpm) * Math.min(1, dt * 6); }
-      else {
-        gear = gearFor(S.speed);
-        const lo = GEAR_TOP[gear - 1], hi = GEAR_TOP[gear];
-        const frac = (S.speed - lo) / (hi - lo);
-        const tgt = (gear === 1 ? 5000 : 8200) + frac * (12300 - (gear === 1 ? 5000 : 8200));
-        S.rpm += (tgt - S.rpm) * Math.min(1, dt * 14);
+    rings.push(ring);
+  }
+  const W = segs + 1;
+  for (let i = 0; i < slices; i++) for (let j = 0; j < segs; j++) {
+    const a = i * W + j, b = a + W;
+    if (side > 0) idx.push(a, a + 1, b, a + 1, b + 1, b);
+    else idx.push(a, b, a + 1, a + 1, b, b + 1);
+  }
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  geo.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
+  geo.setIndex(idx);
+  geo.computeVertexNormals();
+  // weld normals across the UV seam
+  const n = geo.attributes.normal;
+  for (let i = 0; i <= slices; i++) {
+    const a = i * W, b = a + segs;
+    const x = n.getX(a) + n.getX(b), y = n.getY(a) + n.getY(b), z = n.getZ(a) + n.getZ(b);
+    const l = Math.hypot(x, y, z) || 1;
+    n.setXYZ(a, x / l, y / l, z / l); n.setXYZ(b, x / l, y / l, z / l);
+  }
+  return { geo, startRing: rings[0], endRing: rings[slices] };
+}
+function capGeometry(ring, outward) {
+  const c = new THREE.Vector3();
+  ring.forEach((p) => c.add(p)); c.divideScalar(ring.length);
+  const pos = [c.x, c.y, c.z];
+  ring.forEach((p) => pos.push(p.x, p.y, p.z));
+  const idx = [];
+  for (let j = 1; j < ring.length; j++) idx.push(0, j, j + 1 > ring.length ? 1 : j + 1);
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  g.setIndex(idx.filter((_, k) => true));
+  g.computeVertexNormals();
+  // orient so the cap faces `outward`
+  const nn = g.attributes.normal;
+  if (nn.getX(0) * outward.x + nn.getY(0) * outward.y + nn.getZ(0) * outward.z < 0) {
+    const ix = g.index.array;
+    for (let k = 0; k < ix.length; k += 3) { const t = ix[k + 1]; ix[k + 1] = ix[k + 2]; ix[k + 2] = t; }
+    g.computeVertexNormals();
+  }
+  return g;
+}
+// Paint a texture pixel by pixel for a lofted surface.
+function paintLoft(stations, w, h, colorFn) {
+  return canvasTex(w, h, (ctx) => {
+    const img = ctx.createImageData(w, h);
+    const d = img.data;
+    for (let px = 0; px < w; px++) {
+      const u = (px + 0.5) / w;
+      const s = sampleStations(stations, u * (stations.length - 1));
+      for (let py = 0; py < h; py++) {
+        let r = 0, g = 0, b = 0;
+        for (let sy = 0; sy < 3; sy++) {
+          const v = 1 - (py + (sy + 0.5) / 3) / h;
+          const th = -Math.PI / 2 + v * Math.PI * 2;
+          const [z, y] = sectionPoint(s, th);
+          const col = colorFn(s, th, z, y);
+          r += col[0]; g += col[1]; b += col[2];
+        }
+        const k = (py * w + px) * 4;
+        d[k] = r / 3; d[k + 1] = g / 3; d[k + 2] = b / 3; d[k + 3] = 255;
       }
-      S.rpm += Math.sin(t * 90) * 25; // idle wobble
-    } else {
-      S.rpm += (0 - S.rpm) * Math.min(1, dt * 3);
     }
-
-    // motion
-    const dx = S.speed * UNITS_PER_KMH * dt;
-    S.offset += dx;
-    S.angle = (S.angle + dx / WHEEL_R * 180 / Math.PI) % 360;
-    pats.forEach((p) => p.el.setAttribute('patternTransform', `translate(${-((S.offset * p.f) % p.w)} 0)`));
-
-    const k = Math.min(1, S.speed / 260);
-    wheels.forEach((w) => {
-      w.spin.setAttribute('transform', `rotate(${S.angle.toFixed(2)})`);
-      w.blur.setAttribute('opacity', (k * .85).toFixed(3));
-    });
-    hblur.setAttribute('stdDeviation', `${(k * 5).toFixed(2)} 0`);
-
-    // body vibration / squat
-    const vib = reduceMotion ? 0 : (S.engine ? .35 + k * .9 : 0);
-    const bob = Math.sin(t * 47) * vib + Math.sin(t * 13) * vib * .4;
-    const pitch = S.engine && goal > S.speed + 5 ? -.25 : (goal < S.speed - 5 ? .3 : 0);
-    car.setAttribute('transform', `translate(0 ${bob.toFixed(2)}) rotate(${pitch} 560 360)`);
-
-    // exhaust heat & rain light
-    heat.setAttribute('opacity', S.engine ? (.25 + .6 * (S.rpm / 12500) + Math.random() * .15).toFixed(2) : '0');
-    rain.setAttribute('fill', S.engine && (Math.floor(t * 4) % 2 === 0) ? '#ff2a3a' : '#4a0008');
-
-    // speed streaks
-    const sOp = Math.max(0, (S.speed - 120) / 200);
-    $('streaks').setAttribute('opacity', sOp.toFixed(2));
-    if (sOp > 0) {
-      streaks.forEach((s) => {
-        s.x -= dx * 2.2 * s.k;
-        if (s.x + s.len < 0) { s.x = 1100 + Math.random() * 200; s.y = 40 + Math.random() * 380; }
-        s.el.setAttribute('d', `M${s.x.toFixed(1)},${s.y.toFixed(1)} h${s.len.toFixed(1)}`);
-      });
-    }
-
-    // HUD
-    $('spd').textContent = Math.round(S.speed);
-    $('gear').textContent = !S.engine ? '–' : (gear === 0 ? 'N' : gear);
-    $('rpm').textContent = Math.max(0, Math.round(S.rpm / 10) * 10).toLocaleString('ko-KR');
-    const lit = Math.round(Math.max(0, Math.min(1, (S.rpm - 8500) / 3700)) * 15);
-    const flash = S.rpm > 12150 && Math.floor(t * 10) % 2 === 0;
-    leds.forEach((l, i) => { l.classList.toggle('on', i < lit); l.classList.toggle('flash', flash); });
-
-    // DRS closes automatically under heavy braking
-    if (S.drs && goal < S.speed - 30) setDRS(false);
-
-    updateAudio();
-    requestAnimationFrame(frame);
+    ctx.putImageData(img, 0, 0);
+  });
+}
+// NACA-style cambered aerofoil, leading edge at origin, trailing edge toward -x.
+function aerofoilShape(chord, thick = 0.1, camber = 0.05) {
+  const N = 28, up = [], lo = [];
+  for (let i = 0; i <= N; i++) {
+    const t = (1 - Math.cos((i / N) * Math.PI)) / 2;
+    const yt = 5 * thick * chord * (0.2969 * Math.sqrt(t) - 0.126 * t - 0.3516 * t * t + 0.2843 * t ** 3 - 0.1036 * t ** 4);
+    const yc = -camber * chord * 4 * t * (1 - t); // inverted camber → downforce
+    up.push([-t * chord, yc + yt]);
+    lo.push([-t * chord, yc - yt]);
   }
-  requestAnimationFrame(frame);
-})();
+  const sh = new THREE.Shape();
+  sh.moveTo(up[0][0], up[0][1]);
+  for (let i = 1; i <= N; i++) sh.lineTo(up[i][0], up[i][1]);
+  for (let i = N - 1; i >= 1; i--) sh.lineTo(lo[i][0], lo[i][1]);
+  sh.closePath();
+  return sh;
+}
+// A wing element: span along z, positioned with leading edge at (x, y), pitched by aoa (deg, TE up).
+function wingElement({ chord, thick = 0.1, camber = 0.05, aoa = 0, span, x, y, warp = () => 0, sweep = () => 0, zOff = 0 }) {
+  let g = new THREE.ExtrudeGeometry(aerofoilShape(chord, thick, camber), { depth: span, bevelEnabled: false, curveSegments: 1, steps: 24 });
+  g.translate(0, 0, -span / 2);
+  g.rotateZ(-THREE.MathUtils.degToRad(aoa));
+  const p = g.attributes.position;
+  for (let i = 0; i < p.count; i++) {
+    const z = p.getZ(i);
+    p.setXYZ(i, p.getX(i) + x + sweep(z), p.getY(i) + y + warp(z), z + zOff);
+  }
+  g.deleteAttribute('normal'); g.deleteAttribute('uv');
+  g = BGU.mergeVertices(g, 1e-5);
+  g.computeVertexNormals();
+  return g;
+}
+function plate(points, thickness, { bevel = 0.0025 } = {}) {
+  const sh = new THREE.Shape();
+  sh.moveTo(points[0][0], points[0][1]);
+  for (let i = 1; i < points.length; i++) sh.lineTo(points[i][0], points[i][1]);
+  sh.closePath();
+  const g = new THREE.ExtrudeGeometry(sh, {
+    depth: Math.max(0.0005, thickness - bevel * 2), bevelEnabled: bevel > 0, bevelThickness: bevel, bevelSize: bevel, bevelSegments: 2, curveSegments: 8,
+  });
+  g.translate(0, 0, -thickness / 2 + bevel);
+  return g;
+}
+function smoothPlate(points, thickness, opts) {
+  // points through a closed Catmull-Rom curve for organic outlines
+  const curve = new THREE.CatmullRomCurve3(points.map((p) => new THREE.Vector3(p[0], p[1], 0)), true, 'centripetal');
+  const pts = curve.getPoints(points.length * 10).map((v) => [v.x, v.y]);
+  return plate(pts, thickness, opts);
+}
+// Aero-section strut between two points (suspension arm).
+const _up = new THREE.Vector3(0, 1, 0);
+function strut(a, b, chord = 0.04, thick = 0.012, mat) {
+  const A = new THREE.Vector3(...a), B = new THREE.Vector3(...b);
+  const d = B.clone().sub(A); const len = d.length(); d.normalize();
+  let wide = new THREE.Vector3().crossVectors(d, _up);
+  if (wide.lengthSq() < 1e-6) wide.set(1, 0, 0);
+  wide.normalize();
+  const thin = new THREE.Vector3().crossVectors(wide, d).normalize();
+  const g = new THREE.CylinderGeometry(0.5, 0.5, 1, 18, 1);
+  const m = new THREE.Mesh(g, mat);
+  const basis = new THREE.Matrix4().makeBasis(wide, d, thin);
+  m.quaternion.setFromRotationMatrix(basis);
+  m.scale.set(chord, len, thick);
+  m.position.copy(A).add(B).multiplyScalar(0.5);
+  return m;
+}
+
+// =====================================================================
+// Materials
+// =====================================================================
+const C = {
+  navy: '#141f49', red: '#d1001d', yellow: '#ffc400', black: '#0c0d10', carbon: '#191a1f',
+};
+const paintMats = []; // all livery materials react to the finish toggle
+function paint(opts) {
+  const m = new THREE.MeshPhysicalMaterial({ roughness: 0.48, metalness: 0.0, clearcoat: 0.25, clearcoatRoughness: 0.42, ...opts });
+  paintMats.push(m);
+  return m;
+}
+const carbonTex = canvasTex(256, 256, (ctx, w, h) => {
+  // 2x2 twill weave
+  const cell = 32;
+  for (let y = 0; y < h / cell; y++) for (let x = 0; x < w / cell; x++) {
+    const along = (x + y) % 4 < 2;
+    const g = ctx.createLinearGradient(x * cell, y * cell, along ? (x + 1) * cell : x * cell, along ? y * cell : (y + 1) * cell);
+    g.addColorStop(0, '#16171b'); g.addColorStop(0.5, '#2c2e35'); g.addColorStop(1, '#141519');
+    ctx.fillStyle = g; ctx.fillRect(x * cell, y * cell, cell, cell);
+  }
+}, { repeat: [24, 24] });
+const carbon = new THREE.MeshPhysicalMaterial({ map: carbonTex, roughness: 0.38, metalness: 0.1, clearcoat: 0.9, clearcoatRoughness: 0.12 });
+const carbonFloor = new THREE.MeshPhysicalMaterial({ map: carbonTex, roughness: 0.55, metalness: 0.05, clearcoat: 0.35, clearcoatRoughness: 0.35 });
+const carbonUV = new THREE.MeshPhysicalMaterial({ map: carbonTex.clone(), roughness: 0.38, metalness: 0.1, clearcoat: 0.9, clearcoatRoughness: 0.12 });
+carbonUV.map.repeat.set(6, 6); carbonUV.map.needsUpdate = true;
+const satinBlack = new THREE.MeshPhysicalMaterial({ color: C.black, roughness: 0.55, clearcoat: 0.2, clearcoatRoughness: 0.5 });
+const matteBlack = new THREE.MeshStandardMaterial({ color: '#050506', roughness: 0.9 });
+const navyPaint = paint({ color: C.navy });
+const redPaint = paint({ color: C.red });
+const yellowPaint = paint({ color: C.yellow });
+const titanium = new THREE.MeshStandardMaterial({ color: '#9a8f86', metalness: 1, roughness: 0.32 });
+const darkMetal = new THREE.MeshStandardMaterial({ color: '#17191e', metalness: 0.85, roughness: 0.5 });
+const mirrorMat = new THREE.MeshStandardMaterial({ color: '#d8dbe2', metalness: 1, roughness: 0.02 });
+
+// =====================================================================
+// Car
+// =====================================================================
+const car = new THREE.Group();
+scene.add(car);
+const add = (mesh, parent = car) => { mesh.castShadow = true; mesh.receiveShadow = true; parent.add(mesh); return mesh; };
+
+// ---- Fuselage: nose → monocoque → cockpit → airbox → engine cover → crash structure
+const D = { dip: 0, dipW: 0.2 };
+const FUS = [
+  { x: 2.72, w: 0.028, yB: 0.212, yM: 0.232, yT: 0.252, nT: 2.2, nB: 2.2, ...D },
+  { x: 2.60, w: 0.060, yB: 0.186, yM: 0.230, yT: 0.276, nT: 2.4, nB: 2.6, ...D },
+  { x: 2.32, w: 0.094, yB: 0.170, yM: 0.244, yT: 0.314, nT: 2.5, nB: 3.2, ...D },
+  { x: 1.95, w: 0.135, yB: 0.168, yM: 0.270, yT: 0.366, nT: 2.6, nB: 3.6, ...D },
+  { x: 1.55, w: 0.190, yB: 0.158, yM: 0.310, yT: 0.446, nT: 2.7, nB: 4.0, ...D },
+  { x: 1.10, w: 0.250, yB: 0.110, yM: 0.350, yT: 0.535, nT: 2.8, nB: 4.5, ...D },
+  { x: 0.66, w: 0.288, yB: 0.072, yM: 0.368, yT: 0.598, nT: 3.0, nB: 5.0, ...D },
+  { x: 0.40, w: 0.300, yB: 0.062, yM: 0.370, yT: 0.614, nT: 3.2, nB: 5.0, dip: 0.10, dipW: 0.17 },
+  { x: 0.10, w: 0.305, yB: 0.056, yM: 0.372, yT: 0.622, nT: 3.4, nB: 5.0, dip: 0.23, dipW: 0.205 },
+  { x: -0.16, w: 0.300, yB: 0.056, yM: 0.382, yT: 0.640, nT: 3.2, nB: 5.0, dip: 0.23, dipW: 0.205 },
+  { x: -0.28, w: 0.296, yB: 0.056, yM: 0.392, yT: 0.672, nT: 3.0, nB: 5.0, ...D },
+  { x: -0.42, w: 0.288, yB: 0.056, yM: 0.410, yT: 0.840, nT: 2.1, nB: 5.0, ...D },
+  { x: -0.58, w: 0.280, yB: 0.056, yM: 0.420, yT: 0.950, nT: 1.9, nB: 5.0, ...D },
+  { x: -0.85, w: 0.262, yB: 0.056, yM: 0.420, yT: 0.905, nT: 1.9, nB: 5.0, ...D },
+  { x: -1.25, w: 0.222, yB: 0.060, yM: 0.400, yT: 0.770, nT: 2.0, nB: 5.0, ...D },
+  { x: -1.65, w: 0.165, yB: 0.090, yM: 0.380, yT: 0.620, nT: 2.2, nB: 4.0, ...D },
+  { x: -2.00, w: 0.115, yB: 0.140, yM: 0.360, yT: 0.510, nT: 2.3, nB: 3.0, ...D },
+  { x: -2.30, w: 0.076, yB: 0.230, yM: 0.350, yT: 0.440, nT: 2.4, nB: 2.6, ...D },
+  { x: -2.40, w: 0.062, yB: 0.262, yM: 0.345, yT: 0.420, nT: 2.4, nB: 2.4, ...D },
+];
+const RGB = (hex) => { const c = new THREE.Color(hex); return [c.r, c.g, c.b].map((v) => Math.round(v * 255)); };
+const P = { navy: RGB(C.navy), red: RGB(C.red), yel: RGB(C.yellow), blk: [10, 10, 12], cf: [24, 25, 29] };
+P.navy = [20, 31, 73]; P.red = [209, 0, 29]; P.yel = [255, 196, 0];
+
+const fusTex = paintLoft(FUS, 2048, 1024, (s, th, z, y) => {
+  const sn = Math.sin(th);
+  const x = s.x;
+  if (sn > 0 && s.dip > 0.035 && Math.abs(z) < s.dipW * 0.985) return P.blk;  // cockpit tub
+  if (sn < -0.6) return P.cf;                                                   // carbon underside
+  if (x > 2.42) return P.red;                                                   // nose tip
+  if (x > 2.37) return P.yel;
+  if (x > 1.15 && x <= 2.37) {                                                  // red sweep on the nose sides
+    const b = -0.05 + (x - 1.15) * 0.22;
+    if (sn < b) return P.red;
+    if (sn < b + 0.05) return P.yel;
+  }
+  if (sn > 0 && x < -0.62 && x > -2.25 && Math.abs(z) < 0.011) return P.red;  // engine-cover spine stripe
+  if (x < -2.2) return P.cf;
+  return P.navy;
+});
+const fusMat = paint({ map: fusTex });
+const fus = loft(FUS, { slices: 220, segs: 160 });
+const fusMesh = add(new THREE.Mesh(fus.geo, fusMat));
+add(new THREE.Mesh(capGeometry(fus.endRing, new THREE.Vector3(-1, 0, 0)), carbon));
+
+// ---- Sidepods (mirrored)
+const POD = [
+  { x: 0.80, w: 0.150, zc: 0.505, yB: 0.105, yM: 0.322, yT: 0.495, nT: 3.2, nB: 2.6 },
+  { x: 0.74, w: 0.198, zc: 0.502, yB: 0.075, yM: 0.312, yT: 0.528, nT: 3.4, nB: 2.8 },
+  { x: 0.42, w: 0.228, zc: 0.490, yB: 0.056, yM: 0.300, yT: 0.536, nT: 3.4, nB: 3.0 },
+  { x: 0.00, w: 0.228, zc: 0.460, yB: 0.050, yM: 0.280, yT: 0.502, nT: 3.0, nB: 3.0 },
+  { x: -0.50, w: 0.200, zc: 0.410, yB: 0.050, yM: 0.240, yT: 0.420, nT: 2.8, nB: 3.0 },
+  { x: -1.00, w: 0.150, zc: 0.340, yB: 0.050, yM: 0.190, yT: 0.320, nT: 2.6, nB: 3.0 },
+  { x: -1.40, w: 0.080, zc: 0.262, yB: 0.050, yM: 0.150, yT: 0.240, nT: 2.4, nB: 3.0 },
+  { x: -1.62, w: 0.030, zc: 0.220, yB: 0.058, yM: 0.130, yT: 0.180, nT: 2.2, nB: 3.0 },
+];
+const podTex = paintLoft(POD, 2048, 1024, (s, th) => {
+  const sn = Math.sin(th), c = Math.cos(th);
+  if (sn < -0.78) return P.cf;
+  if (c > -0.3) {
+    const b = -0.10 + (0.7 - s.x) * 0.11;
+    if (sn < b) return P.red;
+    if (sn < b + 0.055) return P.yel;
+  }
+  return P.navy;
+});
+const podMat = paint({ map: podTex });
+const podMeshes = [];
+for (const side of [1, -1]) {
+  const L = loft(POD, { slices: 140, segs: 120, side });
+  podMeshes.push(add(new THREE.Mesh(L.geo, podMat)));
+  // inlet: dark recessed mouth with a lip
+  const inlet = add(new THREE.Mesh(capGeometry(L.startRing, new THREE.Vector3(1, 0, 0)), matteBlack));
+  inlet.position.x = -0.012;
+  const lip = add(new THREE.Mesh(capGeometry(L.endRing, new THREE.Vector3(-1, 0, 0)), podMat));
+}
+
+// ---- Floor, edge fins & plank
+{
+  const half = [[1.32, 0.18], [1.24, 0.42], [1.02, 0.60], [0.62, 0.765], [-0.55, 0.785], [-1.12, 0.72], [-1.34, 0.56], [-1.62, 0.52], [-1.76, 0.50]];
+  const pts = [...half, ...half.slice().reverse().map(([x, z]) => [x, -z])];
+  const sh = new THREE.Shape(); sh.moveTo(pts[0][0], pts[0][1]);
+  pts.slice(1).forEach(([x, z]) => sh.lineTo(x, z)); sh.closePath();
+  const g = new THREE.ExtrudeGeometry(sh, { depth: 0.012, bevelEnabled: true, bevelSize: 0.004, bevelThickness: 0.003, bevelSegments: 2 });
+  g.rotateX(Math.PI / 2); g.translate(0, 0.05, 0);
+  add(new THREE.Mesh(g, carbonFloor));
+  // floor edge kick-up in front of the rear tyres
+  for (const s of [1, -1]) {
+    const k = add(new THREE.Mesh(smoothPlate([[-0.95, 0.04], [-1.30, 0.04], [-1.36, 0.11], [-1.10, 0.075]], 0.006), carbon));
+    k.position.z = s * 0.70; k.rotation.y = s * 0.12;
+  }
+  // floor fences in front of the venturi tunnels
+  for (const s of [1, -1]) for (let i = 0; i < 4; i++) {
+    const f = add(new THREE.Mesh(smoothPlate([[1.28 - i * 0.03, 0.05], [0.75, 0.05], [0.70, 0.16 - i * 0.012], [1.10, 0.15 - i * 0.012]], 0.006), carbon));
+    f.position.z = s * (0.20 + i * 0.075);
+    f.rotation.y = s * (0.06 + i * 0.03);
+  }
+  // plank (beige wood strip seen at the edge)
+  const plank = new THREE.Mesh(new THREE.BoxGeometry(2.6, 0.01, 0.30), new THREE.MeshStandardMaterial({ color: '#8f7752', roughness: 0.8 }));
+  plank.position.set(-0.1, 0.04, 0); add(plank);
+}
+
+// ---- Diffuser
+{
+  const ramp = [];
+  for (let i = 0; i <= 16; i++) { const t = i / 16; ramp.push([-1.70 - t * 0.66, 0.05 + Math.pow(t, 1.6) * 0.25]); }
+  const top = ramp.map(([x, y]) => [x, y + 0.008]).reverse();
+  const g = plate([...ramp, ...top], 0.96, { bevel: 0 });
+  add(new THREE.Mesh(g, carbonFloor));
+  for (const z of [-0.47, -0.30, -0.14, 0.14, 0.30, 0.47]) {
+    const st = add(new THREE.Mesh(plate([[-1.78, 0.05], [-2.36, 0.05], [-2.36, 0.30], [-2.00, 0.12]], 0.006), carbon));
+    st.position.z = z;
+  }
+}
+
+// ---- Engine cover fin
+{
+  const fin = add(new THREE.Mesh(smoothPlate([[-0.70, 0.90], [-1.30, 0.80], [-1.95, 0.70], [-2.05, 0.52], [-1.60, 0.60], [-1.0, 0.80]], 0.008), navyPaint));
+}
+
+// ---- Airbox intake, roll-hoop camera, cockpit details
+{
+  const ray = new THREE.Raycaster(new THREE.Vector3(2, 0.84, 0), new THREE.Vector3(-1, 0, 0));
+  car.updateMatrixWorld(true);
+  const hit = ray.intersectObject(fusMesh)[0];
+  const ax = hit ? hit.point.x : -0.43;
+  const intake = add(new THREE.Mesh(new THREE.CircleGeometry(1, 48), matteBlack));
+  intake.scale.set(0.072, 0.058, 1); intake.rotation.y = Math.PI / 2; intake.rotation.x = -0.15;
+  intake.position.set(ax + 0.004, 0.84, 0);
+  const lip = add(new THREE.Mesh(new THREE.TorusGeometry(1, 0.12, 12, 48), navyPaint));
+  lip.scale.set(0.072, 0.058, 0.07); lip.rotation.y = Math.PI / 2; lip.position.copy(intake.position);
+  // T-cam
+  const tcam = add(new THREE.Mesh(new RoundedBoxGeometry(0.11, 0.032, 0.12, 3, 0.01), satinBlack));
+  tcam.position.set(-0.62, 0.958, 0); tcam.rotation.z = -0.1;
+  // steering wheel
+  const sw = add(new THREE.Mesh(new RoundedBoxGeometry(0.04, 0.13, 0.27, 3, 0.015), carbon));
+  sw.position.set(0.30, 0.55, 0); sw.rotation.z = 0.35;
+  const screen = add(new THREE.Mesh(new THREE.PlaneGeometry(0.07, 0.05), new THREE.MeshStandardMaterial({ color: '#000', emissive: '#2b6cff', emissiveIntensity: 0.6, roughness: 0.2 })));
+  screen.position.set(0.278, 0.555, 0); screen.rotation.set(0, -Math.PI / 2, 0); screen.rotateX(-0.35);
+  // pitot tube on the nose tip
+  const pitot = add(new THREE.Mesh(new THREE.CylinderGeometry(0.004, 0.006, 0.16, 10), titanium));
+  pitot.rotation.z = Math.PI / 2; pitot.position.set(2.78, 0.238, 0);
+}
+
+// ---- Driver helmet
+{
+  const helmTex = canvasTex(1024, 512, (ctx, w, h) => {
+    ctx.fillStyle = '#f4f5f7'; ctx.fillRect(0, 0, w, h);
+    ctx.fillStyle = '#1b2a6b'; ctx.fillRect(0, h * 0.30, w, h * 0.12);
+    ctx.fillStyle = '#d1001d'; ctx.fillRect(0, 0, w, h * 0.22);
+    ctx.fillStyle = '#ffc400'; ctx.fillRect(0, h * 0.22, w, h * 0.04);
+    ctx.fillStyle = '#d1001d'; ctx.fillRect(0, h * 0.42, w, h * 0.03);
+    ctx.fillStyle = '#1b2a6b';
+    for (let i = 0; i < 6; i++) { ctx.beginPath(); ctx.arc((i + 0.5) * w / 6, h * 0.62, 26, 0, Math.PI * 2); ctx.fill(); }
+  });
+  const helmMat = new THREE.MeshPhysicalMaterial({ map: helmTex, roughness: 0.25, clearcoat: 1, clearcoatRoughness: 0.05 });
+  const helmet = new THREE.Group();
+  const shell = new THREE.Mesh(new THREE.SphereGeometry(0.125, 64, 48), helmMat);
+  shell.scale.set(1.16, 0.97, 0.93);
+  helmet.add(shell);
+  const visor = new THREE.Mesh(
+    new THREE.SphereGeometry(0.1265, 64, 24, Math.PI - 0.95, 1.9, 1.18, 0.46),
+    new THREE.MeshPhysicalMaterial({ color: '#0a0a0c', metalness: 0.5, roughness: 0.04, iridescence: 1, iridescenceIOR: 1.9, iridescenceThicknessRange: [250, 900], clearcoat: 1 }),
+  );
+  visor.scale.copy(shell.scale);
+  helmet.add(visor);
+  helmet.position.set(-0.03, 0.635, 0);
+  helmet.rotation.z = -0.12;
+  helmet.traverse((o) => { if (o.isMesh) { o.castShadow = o.receiveShadow = true; } });
+  car.add(helmet);
+}
+
+// ---- Halo
+{
+  const loop = new THREE.CatmullRomCurve3([
+    [-0.32, 0.585, -0.250], [-0.20, 0.755, -0.255], [0.05, 0.800, -0.235], [0.30, 0.795, -0.170], [0.455, 0.780, -0.06],
+    [0.475, 0.778, 0], [0.455, 0.780, 0.06], [0.30, 0.795, 0.170], [0.05, 0.800, 0.235], [-0.20, 0.755, 0.255], [-0.32, 0.585, 0.250],
+  ].map((p) => new THREE.Vector3(...p)), false, 'centripetal');
+  add(new THREE.Mesh(new THREE.TubeGeometry(loop, 260, 0.022, 24, false), navyPaint));
+  const pillar = new THREE.CatmullRomCurve3([[0.47, 0.785, 0], [0.55, 0.70, 0], [0.64, 0.585, 0]].map((p) => new THREE.Vector3(...p)));
+  const pm = add(new THREE.Mesh(new THREE.TubeGeometry(pillar, 40, 0.026, 20, false), navyPaint));
+  pm.scale.z = 0.7;
+}
+
+// ---- Mirrors
+for (const s of [1, -1]) {
+  const housing = add(new THREE.Mesh(new RoundedBoxGeometry(0.07, 0.06, 0.16, 4, 0.022), navyPaint));
+  housing.position.set(0.58, 0.69, s * 0.43);
+  const glass = add(new THREE.Mesh(new THREE.PlaneGeometry(0.14, 0.045), mirrorMat));
+  glass.position.set(0.544, 0.69, s * 0.43); glass.rotation.y = -Math.PI / 2;
+  add(strut([0.58, 0.66, s * 0.43], [0.62, 0.52, s * 0.47], 0.03, 0.008, navyPaint));
+  add(strut([0.58, 0.68, s * 0.36], [0.60, 0.58, s * 0.27], 0.025, 0.008, navyPaint));
+}
+
+// ---- Exhaust & rain light
+{
+  const heat = canvasTex(256, 16, (ctx, w, h) => {
+    const g = ctx.createLinearGradient(0, 0, w, 0);
+    g.addColorStop(0, '#c7c2bd'); g.addColorStop(0.45, '#c9a46a'); g.addColorStop(0.7, '#6f5aa8'); g.addColorStop(1, '#3a4f9a');
+    ctx.fillStyle = g; ctx.fillRect(0, 0, w, h);
+  });
+  const ex = add(new THREE.Mesh(new THREE.CylinderGeometry(0.046, 0.05, 0.24, 40, 1, true),
+    new THREE.MeshStandardMaterial({ map: heat, metalness: 1, roughness: 0.3, side: THREE.DoubleSide })));
+  ex.rotation.z = Math.PI / 2 - 0.08; ex.position.set(-2.33, 0.47, 0);
+  const inner = add(new THREE.Mesh(new THREE.CircleGeometry(0.044, 32), matteBlack));
+  inner.rotation.y = -Math.PI / 2; inner.position.set(-2.445, 0.479, 0);
+}
+const rainMat = new THREE.MeshStandardMaterial({ color: '#300', emissive: '#ff1020', emissiveIntensity: 0 });
+{
+  const rl = add(new THREE.Mesh(new RoundedBoxGeometry(0.02, 0.06, 0.09, 2, 0.006), rainMat));
+  rl.position.set(-2.41, 0.33, 0);
+}
+
+// ---- Rear wing (endplates, main plane, DRS flap, beam wing, swan-neck pylon)
+const drsPivot = new THREE.Group();
+{
+  const SPAN = 1.0, HS = SPAN / 2;
+  const spoon = (z) => -0.028 * (1 - (z / HS) ** 2);
+  add(new THREE.Mesh(wingElement({ chord: 0.33, thick: 0.11, camber: 0.07, aoa: 9, span: SPAN, x: -2.29, y: 0.80, warp: spoon }), navyPaint));
+  // DRS flap rotates about its trailing edge
+  const flapTE = [-2.735, 1.02];
+  drsPivot.position.set(flapTE[0], flapTE[1], 0);
+  car.add(drsPivot);
+  const flapGeo = wingElement({ chord: 0.225, thick: 0.09, camber: 0.06, aoa: 38, span: SPAN - 0.01, x: -2.558, y: 0.884, warp: spoon });
+  flapGeo.translate(-flapTE[0], -flapTE[1], 0);
+  add(new THREE.Mesh(flapGeo, redPaint), drsPivot);
+  // DRS actuator pod
+  const act = add(new THREE.Mesh(new RoundedBoxGeometry(0.09, 0.05, 0.035, 3, 0.012), navyPaint));
+  act.position.set(-2.55, 0.86, 0);
+  // beam wing
+  add(new THREE.Mesh(wingElement({ chord: 0.13, thick: 0.1, camber: 0.05, aoa: 10, span: 0.88, x: -2.38, y: 0.40 }), carbon));
+  add(new THREE.Mesh(wingElement({ chord: 0.11, thick: 0.1, camber: 0.05, aoa: 28, span: 0.88, x: -2.50, y: 0.455 }), navyPaint));
+  // swan-neck pylon
+  add(new THREE.Mesh(smoothPlate([[-2.24, 0.42], [-2.28, 0.60], [-2.34, 0.79], [-2.46, 0.80], [-2.42, 0.62], [-2.40, 0.42]], 0.028), navyPaint));
+
+  // endplates with livery
+  const EX = [-2.86, -2.16], EY = [0.32, 1.10];
+  const epTex = canvasTex(512, 512, (ctx, w, h) => {
+    ctx.fillStyle = C.navy; ctx.fillRect(0, 0, w, h);
+    ctx.fillStyle = C.red; ctx.fillRect(0, 0, w, h * 0.16);
+    ctx.fillStyle = C.yellow; ctx.fillRect(0, h * 0.16, w, h * 0.022);
+    ctx.fillStyle = C.red;
+    ctx.beginPath(); ctx.moveTo(0, h); ctx.lineTo(w * 0.55, h); ctx.lineTo(0, h * 0.62); ctx.closePath(); ctx.fill();
+    const g = ctx.createRadialGradient(w * 0.62, h * 0.36, 2, w * 0.62, h * 0.36, 32);
+    g.addColorStop(0, '#ffe27a'); g.addColorStop(1, '#ffbf00');
+    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(w * 0.62, h * 0.36, 30, 0, Math.PI * 2); ctx.fill();
+  });
+  const pts = [[-2.20, 0.38], [-2.22, 0.86], [-2.30, 1.00], [-2.55, 1.06], [-2.80, 1.045], [-2.83, 0.93], [-2.72, 0.62], [-2.62, 0.37]];
+  for (const s of [1, -1]) {
+    const t = epTex.clone(); t.needsUpdate = true;
+    const sx = 1 / (EX[1] - EX[0]), sy = 1 / (EY[1] - EY[0]);
+    if (s > 0) { t.repeat.set(sx, sy); t.offset.set(-EX[0] * sx, -EY[0] * sy); }
+    else { t.repeat.set(-sx, sy); t.offset.set(1 + EX[0] * sx, -EY[0] * sy); }
+    const ep = add(new THREE.Mesh(smoothPlate(pts, 0.014), paint({ map: t })));
+    ep.position.z = s * (HS + 0.007);
+  }
+}
+
+// ---- Front wing
+{
+  const SPAN = 1.86, HS = SPAN / 2;
+  const rise = (k) => (z) => k * Math.pow(Math.abs(z) / HS, 2.2);
+  const sweep = (k) => (z) => -k * Math.pow(Math.abs(z) / HS, 2);
+  add(new THREE.Mesh(wingElement({ chord: 0.30, thick: 0.08, camber: 0.05, aoa: 3, span: SPAN, x: 2.93, y: 0.075, warp: rise(0.03), sweep: sweep(0.05) }), navyPaint));
+  add(new THREE.Mesh(wingElement({ chord: 0.20, thick: 0.08, camber: 0.05, aoa: 15, span: SPAN, x: 2.67, y: 0.118, warp: rise(0.05), sweep: sweep(0.06) }), navyPaint));
+  add(new THREE.Mesh(wingElement({ chord: 0.16, thick: 0.08, camber: 0.05, aoa: 27, span: SPAN, x: 2.52, y: 0.168, warp: rise(0.07), sweep: sweep(0.07) }), redPaint));
+  add(new THREE.Mesh(wingElement({ chord: 0.13, thick: 0.08, camber: 0.05, aoa: 40, span: SPAN, x: 2.41, y: 0.222, warp: rise(0.08), sweep: sweep(0.07) }), navyPaint));
+  for (const s of [1, -1]) {
+    const ep = add(new THREE.Mesh(smoothPlate([[2.95, 0.035], [2.965, 0.10], [2.84, 0.19], [2.56, 0.245], [2.34, 0.25], [2.30, 0.21], [2.32, 0.035]], 0.012), navyPaint));
+    ep.position.z = s * (HS + 0.006);
+    const tip = add(new THREE.Mesh(smoothPlate([[2.84, 0.19], [2.56, 0.25], [2.34, 0.255], [2.30, 0.215], [2.55, 0.225], [2.80, 0.175]], 0.014), redPaint));
+    tip.position.z = s * (HS + 0.006);
+    // footplate
+    const fp = add(new THREE.Mesh(new RoundedBoxGeometry(0.62, 0.008, 0.09, 2, 0.003), carbon));
+    fp.position.set(2.62, 0.044, s * (HS - 0.04));
+    // wing support pylons
+    add(strut([2.58, 0.18, s * 0.055], [2.66, 0.10, s * 0.09], 0.10, 0.01, navyPaint));
+  }
+}
+
+// ---- Wheels (tyre with sidewall graphics, rim, wheel cover, brake drum)
+const TYRES = [
+  { id: 'soft', name: '소프트', c: '#ff2a2a', label: 'SOFT' },
+  { id: 'medium', name: '미디엄', c: '#ffd21f', label: 'MEDIUM' },
+  { id: 'hard', name: '하드', c: '#f4f4f4', label: 'HARD' },
+  { id: 'inter', name: '인터', c: '#2fcf4f', label: 'INTERMEDIATE' },
+  { id: 'wet', name: '웻', c: '#2f7bff', label: 'WET' },
+];
+const R = 0.36, RIM = 0.229;
+const PHI0 = Math.PI * 7 / 6, PHI1 = -Math.PI / 6, NPROF = 96;
+function tyreProfile(width) {
+  const rc = (RIM + R) / 2, hr = (R - RIM) / 2, hw = width / 2 + 0.006, n = 5;
+  const pts = [];
+  pts.push(new THREE.Vector2(RIM - 0.002, -width / 2 + 0.018));
+  for (let i = 0; i <= NPROF; i++) {
+    const phi = PHI0 + (PHI1 - PHI0) * (i / NPROF);
+    const c = Math.cos(phi), s = Math.sin(phi);
+    const a = hw * Math.sign(c) * Math.pow(Math.abs(c), 2 / n);
+    const r = rc + hr * Math.sign(s) * Math.pow(Math.abs(s), 2 / n);
+    pts.push(new THREE.Vector2(Math.max(r, RIM), a));
+  }
+  pts.push(new THREE.Vector2(RIM - 0.002, width / 2 - 0.018));
+  return pts;
+}
+const vOfPhi = (phi) => (1 + ((PHI0 - phi) / (PHI0 - PHI1)) * NPROF) / (NPROF + 2);
+const tyreTexCache = {};
+function tyreTexture(t) {
+  if (tyreTexCache[t.id]) return tyreTexCache[t.id];
+  const tex = canvasTex(4096, 512, (ctx, w, h) => {
+    ctx.fillStyle = '#16171a'; ctx.fillRect(0, 0, w, h);
+    // subtle tread scuffing
+    for (let i = 0; i < 2500; i++) {
+      ctx.fillStyle = `rgba(255,255,255,${Math.random() * 0.025})`;
+      ctx.fillRect(Math.random() * w, h * (vOfPhi(Math.PI * 0.62) > 0.5 ? 0.3 : 0.3) + Math.random() * h * 0.4, Math.random() * 40, 1);
+    }
+    const yOf = (phi) => (1 - vOfPhi(phi)) * h;
+    // coloured band near the rim and near the shoulder (outer sidewall)
+    ctx.fillStyle = t.c;
+    ctx.fillRect(0, yOf(-0.30) - 5, w, 10);
+    ctx.fillRect(0, yOf(0.36) - 3, w, 6);
+    // lettering
+    const yText = yOf(0.03);
+    ctx.save();
+    ctx.translate(0, yText);
+    ctx.scale(1, -1);
+    ctx.font = '900 italic 46px system-ui, sans-serif';
+    ctx.textBaseline = 'middle';
+    for (let k = 0; k < 2; k++) {
+      const x0 = k * w / 2;
+      ctx.fillStyle = '#f2f2f2'; ctx.fillText('FORMULA SLICK', x0 + 120, 0);
+      ctx.fillStyle = t.c; ctx.fillText(t.label, x0 + 620, 0);
+      ctx.fillStyle = '#f2f2f2'; ctx.fillText('18"', x0 + 1300, 0);
+    }
+    ctx.restore();
+  });
+  tex.wrapS = THREE.RepeatWrapping; tex.repeat.x = -1;  // clockwise lettering, tops facing out
+  tyreTexCache[t.id] = tex;
+  return tex;
+}
+const tyreMat = new THREE.MeshPhysicalMaterial({ map: tyreTexture(TYRES[0]), roughness: 0.78, metalness: 0, sheen: 0.3, sheenRoughness: 0.8, sheenColor: '#222' });
+const coverMat = new THREE.MeshPhysicalMaterial({ color: '#0e1016', roughness: 0.3, metalness: 0.2, clearcoat: 1, clearcoatRoughness: 0.08 });
+function makeWheel(width, front) {
+  const g = new THREE.Group();
+  const tg = new THREE.LatheGeometry(tyreProfile(width), 160);
+  tg.rotateX(Math.PI / 2);
+  const tyre = new THREE.Mesh(tg, tyreMat); tyre.castShadow = tyre.receiveShadow = true; g.add(tyre);
+  const barrel = new THREE.Mesh(new THREE.CylinderGeometry(RIM, RIM, width - 0.03, 64, 1, true), darkMetal);
+  barrel.rotation.x = Math.PI / 2; barrel.material.side = THREE.DoubleSide; g.add(barrel);
+  // outer wheel cover: shallow dish
+  const dish = [];
+  for (let i = 0; i <= 24; i++) { const r = (i / 24) * RIM; dish.push(new THREE.Vector2(r, -0.016 * (1 - (r / RIM) ** 2))); }
+  const cg = new THREE.LatheGeometry(dish, 96); cg.rotateX(-Math.PI / 2);
+  const cover = new THREE.Mesh(cg, coverMat); cover.position.z = width / 2 - 0.02; cover.receiveShadow = true; g.add(cover);
+  const ring = new THREE.Mesh(new THREE.TorusGeometry(RIM - 0.006, 0.006, 10, 96), titanium); ring.position.z = width / 2 - 0.02; g.add(ring);
+  const ring2 = new THREE.Mesh(new THREE.TorusGeometry(0.075, 0.004, 8, 64), yellowPaint); ring2.position.z = width / 2 - 0.03; g.add(ring2);
+  const nut = new THREE.Mesh(new THREE.CylinderGeometry(0.038, 0.044, 0.05, 12), front ? redPaint : yellowPaint);
+  nut.rotation.x = Math.PI / 2; nut.position.z = width / 2 - 0.02; nut.castShadow = true; g.add(nut);
+  // inner side: brake duct drum
+  const drum = new THREE.Mesh(new THREE.CylinderGeometry(0.205, 0.215, 0.13, 48), carbonUV);
+  drum.rotation.x = Math.PI / 2; drum.position.z = -width / 2 - 0.02; drum.castShadow = true; g.add(drum);
+  const inner = new THREE.Mesh(new THREE.CircleGeometry(RIM, 64), darkMetal); inner.position.z = -width / 2 + 0.02; inner.rotation.y = Math.PI; g.add(inner);
+  if (front) {
+    // over-wheel winglet
+    const wl = new THREE.Mesh(new THREE.TorusGeometry(R + 0.035, 0.008, 8, 48, 1.1), carbon);
+    wl.rotation.z = Math.PI / 2 - 0.2; wl.scale.set(1, 1, 3); wl.position.z = -width / 2 - 0.03; wl.castShadow = true; g.add(wl);
+  }
+  return g;
+}
+const WHEELS = [
+  { x: 1.80, z: 0.80, w: 0.305, front: true },
+  { x: -1.80, z: 0.765, w: 0.405, front: false },
+];
+for (const W of WHEELS) for (const s of [1, -1]) {
+  const wg = makeWheel(W.w, W.front);
+  wg.position.set(W.x, R - 0.006, s * W.z);
+  if (s < 0) wg.rotation.y = Math.PI;
+  car.add(wg);
+}
+
+// ---- Suspension
+{
+  const m = carbon;
+  const f = (s) => [
+    strut([1.56, 0.42, s * 0.15], [1.80, 0.50, s * 0.68], 0.05, 0.014, m),
+    strut([2.06, 0.40, s * 0.11], [1.80, 0.50, s * 0.68], 0.05, 0.014, m),
+    strut([1.50, 0.22, s * 0.16], [1.82, 0.20, s * 0.70], 0.05, 0.014, m),
+    strut([2.06, 0.21, s * 0.11], [1.82, 0.20, s * 0.70], 0.05, 0.014, m),
+    strut([1.82, 0.22, s * 0.66], [1.66, 0.43, s * 0.15], 0.035, 0.014, m),
+    strut([1.97, 0.38, s * 0.12], [1.95, 0.45, s * 0.67], 0.03, 0.012, m),
+  ];
+  const r = (s) => [
+    strut([-1.58, 0.44, s * 0.17], [-1.80, 0.52, s * 0.60], 0.05, 0.014, m),
+    strut([-2.02, 0.44, s * 0.11], [-1.80, 0.52, s * 0.60], 0.05, 0.014, m),
+    strut([-1.55, 0.18, s * 0.25], [-1.80, 0.18, s * 0.62], 0.05, 0.014, m),
+    strut([-2.05, 0.20, s * 0.12], [-1.80, 0.18, s * 0.62], 0.05, 0.014, m),
+    strut([-1.84, 0.50, s * 0.58], [-1.70, 0.22, s * 0.16], 0.035, 0.014, m),
+    strut([-1.80, 0.36, s * 0.08], [-1.80, 0.36, s * 0.58], 0.05, 0.05, darkMetal),
+  ];
+  for (const s of [1, -1]) [...f(s), ...r(s)].forEach((o) => add(o));
+}
+
+// ---- Decals (wordmarks and numbers projected onto the curved bodywork)
+function decalTex(w, h, draw) { return canvasTex(w, h, (ctx) => { ctx.clearRect(0, 0, w, h); draw(ctx, w, h); }); }
+const wordmarkTex = decalTex(1024, 256, (ctx, w, h) => {
+  const g = ctx.createRadialGradient(118, 118, 10, 128, 128, 100);
+  g.addColorStop(0, '#ffe680'); g.addColorStop(0.7, '#ffc400'); g.addColorStop(1, '#f0a800');
+  ctx.fillStyle = g; ctx.beginPath(); ctx.arc(128, 128, 96, 0, Math.PI * 2); ctx.fill();
+  ctx.font = '900 italic 150px system-ui, sans-serif'; ctx.textBaseline = 'middle';
+  ctx.lineWidth = 10; ctx.strokeStyle = '#ffc400'; ctx.strokeText('RED BULL', 248, 136);
+  ctx.fillStyle = '#e1001d'; ctx.fillText('RED BULL', 248, 136);
+});
+const racingTex = decalTex(1024, 256, (ctx) => {
+  const g = ctx.createRadialGradient(110, 118, 8, 128, 128, 92);
+  g.addColorStop(0, '#ffe680'); g.addColorStop(1, '#ffbf00');
+  ctx.fillStyle = g; ctx.beginPath(); ctx.arc(128, 128, 88, 0, Math.PI * 2); ctx.fill();
+  ctx.font = '900 italic 120px system-ui, sans-serif'; ctx.textBaseline = 'middle'; ctx.fillStyle = '#f2f4f8';
+  ctx.fillText('RACING', 250, 136);
+});
+const numberTex = decalTex(256, 256, (ctx) => {
+  ctx.font = '900 italic 230px system-ui, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.lineWidth = 14; ctx.strokeStyle = '#d1001d'; ctx.strokeText('1', 128, 136);
+  ctx.fillStyle = '#ffffff'; ctx.fillText('1', 128, 136);
+});
+function decal(target, tex, x, y, side, size) {
+  car.updateMatrixWorld(true);
+  const ray = new THREE.Raycaster(new THREE.Vector3(x, y, side * 3), new THREE.Vector3(0, 0, -side));
+  const hit = ray.intersectObject(target)[0];
+  if (!hit) return;
+  const right = new THREE.Vector3(side, 0, 0), up = new THREE.Vector3(0, 1, 0), nrm = new THREE.Vector3(0, 0, side);
+  const e = new THREE.Euler().setFromRotationMatrix(new THREE.Matrix4().makeBasis(right, up, nrm));
+  const mat = paint({ map: tex, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -4 });
+  const m = new THREE.Mesh(new DecalGeometry(target, hit.point, e, new THREE.Vector3(size[0], size[1], 0.3)), mat);
+  m.receiveShadow = true;
+  car.add(m);
+}
+for (const s of [1, -1]) {
+  decal(podMeshes[s > 0 ? 0 : 1], wordmarkTex, 0.08, 0.40, s, [0.82, 0.205]);
+  decal(fusMesh, racingTex, -1.02, 0.63, s, [0.50, 0.125]);
+  decal(fusMesh, numberTex, 2.02, 0.30, s, [0.13, 0.13]);
+}
+
+// =====================================================================
+// Environment, lights, floor
+// =====================================================================
+const PRESETS = {
+  studio: {
+    name: '스튜디오', exposure: 1.0, envI: 1.0,
+    bg: ['#1a1d25', '#0b0d12'], fog: '#0d0f14', floor: '#14161b',
+    key: { c: '#ffffff', i: 2.4, p: [3.5, 7, 3.0] }, rim: { c: '#cfe0ff', i: 1.2, p: [-5, 3.5, -4] }, hemi: 0.18,
+    env: (s) => {
+      envRoom(s, '#07080b');
+      envPanel(s, [0, 6.5, 0], 7, 2.6, '#ffffff', 5, [0, -1, 0]);
+      envPanel(s, [0, 3.2, 7], 12, 0.7, '#ffffff', 9);
+      envPanel(s, [0, 3.2, -7], 12, 0.7, '#ffffff', 9);
+      envPanel(s, [9, 2.2, 0], 5, 3, '#eaf0ff', 2.2);
+      envPanel(s, [-9, 2.6, 0], 4, 2.4, '#fff3e0', 1.6);
+      envPanel(s, [0, 1.0, 9], 16, 0.25, '#ffffff', 4);
+      envPanel(s, [0, 1.0, -9], 16, 0.25, '#ffffff', 4);
+    },
+  },
+  golden: {
+    name: '골든아워', exposure: 0.9, envI: 0.85,
+    bg: ['#d07a45', '#2a1712'], fog: '#3a2218', floor: '#2b211c',
+    key: { c: '#ffbf80', i: 3.4, p: [7, 2.6, 4] }, rim: { c: '#7fa6ff', i: 0.7, p: [-5, 4, -5] }, hemi: 0.25,
+    env: (s) => {
+      envSky(s, '#3d5e96', '#ff9a52', '#2a1a12');
+      envPanel(s, [14, 5.2, 8], 2.2, 2.2, '#fff0d0', 60, null, true);
+    },
+  },
+  night: {
+    name: '나이트', exposure: 1.05, envI: 1.0,
+    bg: ['#121a33', '#04050a'], fog: '#05070d', floor: '#0a0b10',
+    key: { c: '#bcd2ff', i: 1.5, p: [2, 8, 4] }, rim: { c: '#ff3a4a', i: 2.2, p: [-6, 2.2, -3] }, hemi: 0.08,
+    env: (s) => {
+      envRoom(s, '#020306');
+      envPanel(s, [0, 3, 7.5], 14, 0.35, '#4f7dff', 10);
+      envPanel(s, [0, 1.4, -7.5], 14, 0.3, '#ff2a40', 9);
+      envPanel(s, [0, 7, 0], 4, 1.2, '#cfe0ff', 3, [0, -1, 0]);
+      envPanel(s, [9, 2, 2], 0.5, 4, '#ffc400', 6);
+    },
+  },
+};
+function envRoom(s, color) {
+  const m = new THREE.Mesh(new THREE.BoxGeometry(30, 16, 30), new THREE.MeshBasicMaterial({ color, side: THREE.BackSide }));
+  m.position.y = 7; s.add(m);
+}
+function envSky(s, top, horizon, ground) {
+  const g = new THREE.SphereGeometry(40, 48, 24);
+  const col = [];
+  const cT = new THREE.Color(top), cH = new THREE.Color(horizon).multiplyScalar(1.1), cG = new THREE.Color(ground);
+  const p = g.attributes.position;
+  for (let i = 0; i < p.count; i++) {
+    const y = p.getY(i) / 40;
+    const c = y > 0 ? cH.clone().lerp(cT, Math.pow(y, 0.6)) : cH.clone().lerp(cG, Math.min(1, -y * 6));
+    col.push(c.r, c.g, c.b);
+  }
+  g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+  s.add(new THREE.Mesh(g, new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.BackSide })));
+}
+function envPanel(s, pos, w, h, color, intensity, look = null, round = false) {
+  const geo = round ? new THREE.CircleGeometry(w / 2, 32) : new THREE.PlaneGeometry(w, h);
+  const m = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ color: new THREE.Color(color).multiplyScalar(intensity), side: THREE.DoubleSide }));
+  m.position.set(...pos);
+  if (look) m.lookAt(pos[0] + look[0], pos[1] + look[1], pos[2] + look[2]); else m.lookAt(0, 0.6, 0);
+  s.add(m);
+}
+const envCache = {};
+function envFor(key) {
+  if (!envCache[key]) {
+    const s = new THREE.Scene();
+    PRESETS[key].env(s);
+    envCache[key] = pmrem.fromScene(s, 0.02).texture;
+  }
+  return envCache[key];
+}
+
+const hemi = new THREE.HemisphereLight('#b8c6ff', '#1a1410', 0.2);
+scene.add(hemi);
+const key = new THREE.DirectionalLight('#fff', 2.4);
+key.castShadow = true;
+key.shadow.mapSize.set(isMobile ? 2048 : 4096, isMobile ? 2048 : 4096);
+Object.assign(key.shadow.camera, { left: -4, right: 4, top: 4, bottom: -4, near: 0.5, far: 25 });
+key.shadow.bias = -0.00015;
+key.shadow.normalBias = 0.015;
+scene.add(key, key.target);
+const rim = new THREE.DirectionalLight('#fff', 1);
+scene.add(rim);
+
+// Floor: mirror underneath a semi-transparent polished surface → soft, faded reflections
+const mirror = new Reflector(new THREE.CircleGeometry(34, 64), {
+  textureWidth: Math.min(2048, innerWidth * renderer.getPixelRatio()),
+  textureHeight: Math.min(2048, innerHeight * renderer.getPixelRatio()),
+  color: 0x9a9a9a,
+});
+mirror.rotation.x = -Math.PI / 2;
+mirror.position.y = -0.0005;
+scene.add(mirror);
+const floorAlpha = canvasTex(512, 512, (ctx, w, h) => {
+  const g = ctx.createRadialGradient(w / 2, h / 2, 0, w / 2, h / 2, w / 2);
+  g.addColorStop(0, '#c8c8c8'); g.addColorStop(0.12, '#d6d6d6'); g.addColorStop(0.45, '#ffffff'); g.addColorStop(1, '#ffffff');
+  ctx.fillStyle = g; ctx.fillRect(0, 0, w, h);
+}, { srgb: false });
+const floorMat = new THREE.MeshStandardMaterial({ color: '#14161b', roughness: 0.5, metalness: 0, envMapIntensity: 0.035, transparent: true, opacity: 1, alphaMap: floorAlpha });
+const floor = new THREE.Mesh(new THREE.CircleGeometry(34, 64), floorMat);
+floor.rotation.x = -Math.PI / 2;
+floor.position.y = 0.0005;
+floor.receiveShadow = true;
+scene.add(floor);
+
+// Contact shadow (ambient occlusion where the car meets the floor)
+const CS = { w: 7.5, h: 3.6, depth: 0.9, blur: 3.2, opacity: 0.85 };
+const csGroup = new THREE.Group(); csGroup.position.y = 0.002; scene.add(csGroup);
+const csRT = new THREE.WebGLRenderTarget(512, 256); csRT.texture.generateMipmaps = false;
+const csRTb = new THREE.WebGLRenderTarget(512, 256); csRTb.texture.generateMipmaps = false;
+const csPlaneGeo = new THREE.PlaneGeometry(CS.w, CS.h).rotateX(Math.PI / 2);
+const csPlane = new THREE.Mesh(csPlaneGeo, new THREE.MeshBasicMaterial({ map: csRT.texture, opacity: CS.opacity, transparent: true, depthWrite: false }));
+csPlane.renderOrder = 1; csPlane.scale.y = -1; csGroup.add(csPlane);
+const csBlurPlane = new THREE.Mesh(csPlaneGeo); csBlurPlane.visible = false; csGroup.add(csBlurPlane);
+const csCam = new THREE.OrthographicCamera(-CS.w / 2, CS.w / 2, CS.h / 2, -CS.h / 2, 0, CS.depth);
+csCam.rotation.x = Math.PI / 2; csGroup.add(csCam);
+const csDepth = new THREE.MeshDepthMaterial();
+csDepth.userData.darkness = { value: 1.25 };
+csDepth.onBeforeCompile = (sh) => {
+  sh.uniforms.darkness = csDepth.userData.darkness;
+  sh.fragmentShader = 'uniform float darkness;\n' + sh.fragmentShader.replace(
+    'gl_FragColor = vec4( vec3( 1.0 - fragCoordZ ), opacity );',
+    'gl_FragColor = vec4( vec3( 0.0 ), ( 1.0 - fragCoordZ ) * darkness );');
+};
+csDepth.depthTest = false; csDepth.depthWrite = false;
+const hBlur = new THREE.ShaderMaterial(HorizontalBlurShader); hBlur.depthTest = false;
+const vBlur = new THREE.ShaderMaterial(VerticalBlurShader); vBlur.depthTest = false;
+function csBlur(amount) {
+  csBlurPlane.visible = true;
+  csBlurPlane.material = hBlur; hBlur.uniforms.tDiffuse.value = csRT.texture; hBlur.uniforms.h.value = amount / 256;
+  renderer.setRenderTarget(csRTb); renderer.render(csBlurPlane, csCam);
+  csBlurPlane.material = vBlur; vBlur.uniforms.tDiffuse.value = csRTb.texture; vBlur.uniforms.v.value = amount / 256;
+  renderer.setRenderTarget(csRT); renderer.render(csBlurPlane, csCam);
+  csBlurPlane.visible = false;
+}
+let csDirty = true;
+function renderContactShadow() {
+  const bg = scene.background, fog = scene.fog;
+  scene.background = null; scene.fog = null;
+  const hidden = [floor, mirror, csPlane, dome];
+  hidden.forEach((o) => (o.visible = false));
+  const clearAlpha = renderer.getClearAlpha();
+  renderer.setClearAlpha(0);
+  scene.overrideMaterial = csDepth;
+  renderer.setRenderTarget(csRT);
+  renderer.clear();
+  renderer.render(scene, csCam);
+  scene.overrideMaterial = null;
+  csBlur(CS.blur);
+  csBlur(CS.blur * 0.4);
+  renderer.setRenderTarget(null);
+  renderer.setClearAlpha(clearAlpha);
+  hidden.forEach((o) => (o.visible = true));
+  scene.background = bg; scene.fog = fog;
+}
+
+// Backdrop dome (a real mesh rather than scene.background, so every pixel has depth for the AO pass)
+const domeMat = new THREE.MeshBasicMaterial({ side: THREE.BackSide, fog: false, depthWrite: true });
+const dome = new THREE.Mesh(new THREE.SphereGeometry(36, 64, 32), domeMat);
+scene.add(dome);
+function gradientBg(top, bottom, fog) {
+  return canvasTex(16, 1024, (ctx, w, h) => {
+    // sphere UV: v = 1 at the zenith, 0.5 at the horizon
+    const g = ctx.createLinearGradient(0, 0, 0, h);
+    g.addColorStop(0, top); g.addColorStop(0.36, bottom); g.addColorStop(0.5, fog); g.addColorStop(1, fog);
+    ctx.fillStyle = g; ctx.fillRect(0, 0, w, h);
+  });
+}
+let currentPreset = 'studio';
+function applyPreset(k) {
+  const p = PRESETS[k];
+  currentPreset = k;
+  scene.environment = envFor(k);
+  scene.environmentIntensity = p.envI;
+  if (domeMat.map) domeMat.map.dispose();
+  domeMat.map = gradientBg(p.bg[0], p.bg[1], p.fog); domeMat.needsUpdate = true;
+  scene.fog = new THREE.Fog(p.fog, 9, 30);
+  floorMat.color.set(p.floor);
+  renderer.toneMappingExposure = p.exposure;
+  key.color.set(p.key.c); key.intensity = p.key.i; key.position.set(...p.key.p); key.target.position.set(0, 0, 0);
+  rim.color.set(p.rim.c); rim.intensity = p.rim.i; rim.position.set(...p.rim.p);
+  hemi.intensity = p.hemi;
+  document.querySelectorAll('#lightBtns button').forEach((b) => b.setAttribute('aria-pressed', b.dataset.k === k));
+}
+
+// =====================================================================
+// Post-processing
+// =====================================================================
+const rt = new THREE.WebGLRenderTarget(innerWidth, innerHeight, { type: THREE.HalfFloatType, samples: 4 });
+const composer = new EffectComposer(renderer, rt);
+composer.setPixelRatio(renderer.getPixelRatio());
+composer.setSize(innerWidth, innerHeight);
+composer.addPass(new RenderPass(scene, camera));
+const gtao = new GTAOPass(scene, camera, innerWidth, innerHeight);
+gtao.output = GTAOPass.OUTPUT.Default;
+gtao.blendIntensity = 0.9;
+gtao.updateGtaoMaterial({ radius: 0.22, distanceExponent: 1.6, thickness: 1.2, scale: 1.0, samples: 16, distanceFallOff: 1, screenSpaceRadius: false });
+composer.addPass(gtao);
+const bloom = new UnrealBloomPass(new THREE.Vector2(innerWidth, innerHeight), 0.22, 0.45, 0.92);
+composer.addPass(bloom);
+composer.addPass(new OutputPass());
+let hq = !isMobile;
+function setHQ(on) {
+  hq = on;
+  gtao.enabled = on; bloom.enabled = on;
+  $('hqBtn').setAttribute('aria-pressed', on);
+}
+
+// =====================================================================
+// UI
+// =====================================================================
+const CAMS = [
+  { n: '3/4 전면', p: [5.0, 1.55, 4.4], t: [0.15, 0.38, 0] },
+  { n: '측면', p: [0.0, 0.85, 7.6], t: [0.0, 0.40, 0] },
+  { n: '정면', p: [7.4, 0.65, 0.0], t: [0.0, 0.40, 0] },
+  { n: '후면', p: [-4.9, 1.7, -3.9], t: [-0.4, 0.45, 0] },
+  { n: '위', p: [0.6, 8.2, 0.7], t: [0.0, 0.30, 0] },
+  { n: '콕핏', p: [1.55, 1.25, 1.25], t: [-0.1, 0.62, 0] },
+  { n: '로우', p: [3.6, 0.22, 2.3], t: [0.4, 0.35, 0] },
+];
+let camTween = null;
+CAMS.forEach((c, i) => {
+  const b = document.createElement('button');
+  b.textContent = c.n;
+  b.addEventListener('click', () => {
+    camTween = { t: 0, p0: camera.position.clone(), t0: controls.target.clone(), p1: dolly(c.p, c.t), t1: new THREE.Vector3(...c.t) };
+    setSpin(false);
+  });
+  $('camBtns').appendChild(b);
+});
+Object.entries(PRESETS).forEach(([k, p]) => {
+  const b = document.createElement('button');
+  b.textContent = p.name; b.dataset.k = k;
+  b.addEventListener('click', () => applyPreset(k));
+  $('lightBtns').appendChild(b);
+});
+const FINISHES = {
+  matte: { n: '무광', r: 0.5, cc: 0.22, ccr: 0.45 },
+  satin: { n: '새틴', r: 0.32, cc: 0.6, ccr: 0.2 },
+  gloss: { n: '유광', r: 0.2, cc: 1.0, ccr: 0.03 },
+};
+function setFinish(k) {
+  const f = FINISHES[k];
+  paintMats.forEach((m) => { m.roughness = f.r; m.clearcoat = f.cc; m.clearcoatRoughness = f.ccr; });
+  document.querySelectorAll('#finishBtns button').forEach((b) => b.setAttribute('aria-pressed', b.dataset.k === k));
+}
+Object.entries(FINISHES).forEach(([k, f]) => {
+  const b = document.createElement('button');
+  b.textContent = f.n; b.dataset.k = k;
+  b.addEventListener('click', () => setFinish(k));
+  $('finishBtns').appendChild(b);
+});
+function setTyre(t) {
+  tyreMat.map = tyreTexture(t); tyreMat.needsUpdate = true;
+  document.querySelectorAll('#tyreBtns button').forEach((b) => b.setAttribute('aria-pressed', b.dataset.k === t.id));
+}
+TYRES.forEach((t) => {
+  const b = document.createElement('button');
+  b.innerHTML = `<span class="dot" style="--c:${t.c}"></span>${t.name}`;
+  b.dataset.k = t.id;
+  b.addEventListener('click', () => setTyre(t));
+  $('tyreBtns').appendChild(b);
+});
+let drsOpen = false, drsAngle = 0;
+$('drsBtn').addEventListener('click', () => {
+  drsOpen = !drsOpen;
+  $('drsBtn').setAttribute('aria-pressed', drsOpen);
+  $('drsBtn').textContent = drsOpen ? 'DRS 닫기' : 'DRS 열기';
+});
+function setSpin(on) { controls.autoRotate = on; $('spinBtn').setAttribute('aria-pressed', on); }
+$('spinBtn').addEventListener('click', () => setSpin(!controls.autoRotate));
+$('hqBtn').addEventListener('click', () => setHQ(!hq));
+controls.addEventListener('start', () => { camTween = null; });
+
+frameView();
+applyPreset('studio');
+setFinish('matte');
+setTyre(TYRES[0]);
+setHQ(hq);
+
+// =====================================================================
+// Loop
+// =====================================================================
+addEventListener('resize', () => {
+  camera.aspect = innerWidth / innerHeight; camera.fov = lens().fov; frameView();
+  renderer.setSize(innerWidth, innerHeight, false);
+  composer.setSize(innerWidth, innerHeight);
+  gtao.setSize(innerWidth, innerHeight);
+  mirror.getRenderTarget().setSize(Math.min(2048, innerWidth * renderer.getPixelRatio()), Math.min(2048, innerHeight * renderer.getPixelRatio()));
+});
+
+const clock = new THREE.Clock();
+let first = true;
+function tick() {
+  const dt = Math.min(clock.getDelta(), 0.05);
+  const t = clock.elapsedTime;
+  if (camTween) {
+    camTween.t = Math.min(1, camTween.t + dt / 1.3);
+    const e = camTween.t < 0.5 ? 4 * camTween.t ** 3 : 1 - Math.pow(-2 * camTween.t + 2, 3) / 2;
+    camera.position.lerpVectors(camTween.p0, camTween.p1, e);
+    controls.target.lerpVectors(camTween.t0, camTween.t1, e);
+    if (camTween.t >= 1) camTween = null;
+  }
+  controls.update();
+  const goal = drsOpen ? 0.42 : 0;
+  if (Math.abs(goal - drsAngle) > 1e-4) {
+    drsAngle += (goal - drsAngle) * Math.min(1, dt * 9);
+    drsPivot.rotation.z = drsAngle;
+    csDirty = true;
+  }
+  rainMat.emissiveIntensity = (Math.floor(t * 2) % 2 === 0) ? 6 : 0.2;
+  if (csDirty) { renderContactShadow(); csDirty = false; }
+  composer.render();
+  if (first) { first = false; $('loading').classList.add('done'); }
+  requestAnimationFrame(tick);
+}
+requestAnimationFrame(tick);
+</script>
+<script>
+  // Shown only if the module above fails (e.g. no network for the 3D library or no WebGL).
+  setTimeout(() => {
+    const l = document.getElementById('loading');
+    if (l && !l.classList.contains('done')) document.getElementById('loadMsg').textContent =
+      '3D 라이브러리를 불러오지 못했거나 이 기기에서 WebGL을 쓸 수 없습니다. 인터넷 연결을 확인하고 새로고침해 주세요.';
+  }, 20000);
 </script>
 </body>
 </html>
