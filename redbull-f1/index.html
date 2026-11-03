@@ -238,7 +238,7 @@
     <div class="row"><label>RENDER</label><div class="chips" id="renderChips"></div></div>
     <div class="row"><label>PAINT · TYRE</label><div class="chips" id="paintChips"></div></div>
     <div class="row"><label>CAR</label><div class="chips" id="carChips"></div></div>
-    <p class="note"><a href="race.html" style="color:var(--red);font-weight:800">▶ 싱가포르 나이트 레이스 게임</a> · 팬 아트 · 공식 로고·스폰서 미재현 · 압력·공력 수치는 모델 추정</p>
+    <p class="note"><a href="demo.html" style="color:var(--red);font-weight:800">▶ 싱가포르 나이트 레이스 데모</a> · 팬 아트 · 공식 로고·스폰서 미재현 · 압력·공력 수치는 모델 추정</p>
   </div>
 
   <div id="ptStatus" class="ptstatus" role="status" hidden></div>
@@ -311,7 +311,7 @@ controls.autoRotateSpeed = 0.55;
 const pmrem = new THREE.PMREMGenerator(renderer);
 
 // =====================================================================
-// Car model (shared with race.html, see f1car.js)
+// Car model (shared with demo.html, see f1car.js)
 // =====================================================================
 const __F = window.createF1({ THREE, BGU, RoundedBoxGeometry, DecalGeometry, scene, MAX_ANISO, isMobile });
 const { canvasTex, DETAIL, q, hash2, vnoise, fbm, rng, heightToNormal, canvasHeight, catmull, sampleStations, sectionPoint, loft, capGeometry, paintLoft, bakeLoftHeight, groove, fastener, modc, aerofoilShape, wingElement, plate, smoothPlate, _up, strut, C, paintMats, paint, CF, cfNormal, carbon, carbonFloor, carbonUV, paintPeel, satinBlack, matteBlack, fabric, navyPaint, redPaint, yellowPaint, titanium, darkMetal, mirrorMat, stripePaint, rainMat, car, add, body, tag, smooth, P, mix3, LIVERY_TEXT, D, FUS, near, FLAMES_ENGINE, flame, fusTex, fusNrm, fusMat, fus, fusMesh, POD, podTex, podNrm, podMat, podMeshes, drsPivot, TYRES, R, PHI0, tyreProfile, vOfPhi, drawTyre, tyreTexCache, tyreTexture, tyreMat, nutPaint, magRim, magLip, ccFace, ccEdge, ccFaceMat, ccEdgeMat, caliperMat, brake, coverMat, makeWheel, WHEELS, decalTex, wordmarkTex, smallMarkTex, racingTex, numberTex, louvreTex, decalAt, wheelGroups } = __F;

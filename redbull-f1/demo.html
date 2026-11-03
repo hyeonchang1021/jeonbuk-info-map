@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
-<title>싱가포르 나이트 레이스</title>
-<meta name="description" content="RB F1 머신으로 싱가포르 마리나 베이 시가지 서킷(근사 레이아웃)을 달리는 3D 야간 레이싱 게임.">
+<title>싱가포르 나이트 레이스 데모</title>
+<meta name="description" content="데모: RB F1 머신 드라이버 1인칭 시점으로 싱가포르 마리나 베이 시가지 서킷(근사 레이아웃)을 달리는 3D 야간 레이싱 게임.">
 <style>
   :root { --ink: #eef1f6; --mute: #95a0b5; --red: #e3001b; --yel: #ffc300; --grn: #19e05a; --glass: rgba(8, 11, 20, .62); --line: rgba(255,255,255,.12); }
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
@@ -34,6 +34,7 @@
   .leds i { width: 12px; height: 12px; border-radius: 50%; background: #1a1f33; }
   .leds i.on.g { background: #19e05a; box-shadow: 0 0 8px #19e05a; } .leds i.on.r { background: #ff2a3a; box-shadow: 0 0 8px #ff2a3a; }
   .leds i.on.b { background: #3b8bff; box-shadow: 0 0 8px #3b8bff; } .leds.flash i { background: #3b8bff !important; box-shadow: 0 0 10px #3b8bff !important; }
+  body.fp .dash { left: auto; right: 16px; transform: none; }
   .dash .main { display: flex; align-items: flex-end; justify-content: center; gap: 22px; }
   .spd { font-size: 52px; font-weight: 900; line-height: .9; letter-spacing: -.03em; min-width: 120px; text-align: right; }
   .spd small { display: block; font-size: 11px; color: var(--mute); font-weight: 700; letter-spacing: .1em; text-align: right; margin-top: 4px; }
@@ -63,6 +64,8 @@
   .card { width: min(520px, 100%); text-align: center; padding: 26px 24px; }
   .card h1 { margin: 0; font-size: clamp(26px, 5vw, 40px); font-weight: 900; font-style: italic; letter-spacing: -.02em; }
   .card h1 span { color: var(--red); }
+  .demo { display: inline-block; font-size: 11px; font-weight: 900; letter-spacing: .3em; padding: 3px 10px 3px 13px; border-radius: 999px; background: var(--yel); color: #111; margin-bottom: 10px; }
+  .demotag { position: absolute; left: 50%; top: 10px; transform: translateX(-50%); font-size: 10px; font-weight: 900; letter-spacing: .3em; color: #111; background: var(--yel); padding: 2px 8px 2px 11px; border-radius: 999px; opacity: .85; }
   .card p { color: var(--mute); font-size: 14px; line-height: 1.6; margin: 8px 0 18px; }
   .card .row { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
   .big { font: inherit; font-size: 16px; font-weight: 900; padding: 12px 20px; border-radius: 10px; border: 0; cursor: pointer; color: #fff; background: linear-gradient(180deg, #ff2a3a, #c4001a); }
@@ -87,6 +90,7 @@
   #tBrake { right: 116px; background: rgba(255, 60, 60, .18); font-size: 14px; } #tGas { right: 16px; background: rgba(25, 224, 90, .18); font-size: 14px; }
   #tDrs { right: 16px; bottom: calc(max(18px, env(safe-area-inset-bottom)) + 100px); width: 64px; height: 44px; border-radius: 10px; font-size: 13px; }
   @media (max-width: 760px) {
+    body.fp .dash { left: 50%; right: auto; transform: translateX(-50%); }
     .timing { left: 10px; top: 10px; min-width: 0; padding: 7px 10px; } .timing .cur { font-size: 20px; margin: 0 0 3px; }
     .timing .row { font-size: 11px; } .sectors { margin-top: 5px; } .delta { display: none; }
     .map { right: 10px; top: 10px; padding: 4px; } .map canvas { width: 104px; height: 104px; }
@@ -112,6 +116,7 @@
 <canvas id="c" aria-label="싱가포르 야간 서킷 레이스 화면"></canvas>
 
 <div class="hud" id="hud">
+  <div class="demotag">DEMO</div>
   <div class="timing panel">
     <div class="lap">LAP <b id="lapNo">1</b><span id="lapOf"> / 3</span></div>
     <div class="cur" id="lapTime">0:00.000</div>
@@ -122,7 +127,7 @@
   </div>
   <div class="map panel"><canvas id="mapCv" width="400" height="400"></canvas></div>
   <div class="topbtns">
-    <button class="btn" id="camBtn">카메라 (C)</button>
+    <button class="btn" id="camBtn">카메라: 1인칭 (C)</button>
     <button class="btn" id="muteBtn">소리 켜짐 (M)</button>
     <button class="btn" id="pauseBtn">일시정지 (P)</button>
   </div>
@@ -144,8 +149,9 @@
 
 <div class="overlay" id="menu">
   <div class="card panel">
+    <div class="demo">DEMO</div>
     <h1>SINGAPORE <span>NIGHT</span> RACE</h1>
-    <p>RB F1 머신으로 마리나 베이 시가지 서킷을 달려 보세요. 투광등 아래 벽에 둘러싸인 4.94 km, 19개 코너의 야간 시가지 레이스입니다.</p>
+    <p>드라이버 1인칭 시점으로 RB F1 머신을 몰고 마리나 베이 시가지 서킷을 달려 보세요. 투광등 아래 벽에 둘러싸인 4.94 km, 19개 코너의 야간 시가지 레이스입니다.</p>
     <div class="row">
       <button class="big" id="startTA" disabled>타임 어택 (3랩)</button>
       <button class="big alt" id="startFree" disabled>자유 주행</button>
@@ -510,6 +516,7 @@ scene.add(key, key.target);
 // Car
 // =====================================================================
 let F, car, wheels, drsPivot;
+const cockpit = {};
 const shadowBlob = new THREE.Mesh(new THREE.PlaneGeometry(6.2, 2.6), new THREE.MeshBasicMaterial({
   map: canvasTex(128, 64, (ctx, w, h) => { const g = ctx.createRadialGradient(w / 2, h / 2, 2, w / 2, h / 2, w / 2); g.addColorStop(0, 'rgba(0,0,0,.75)'); g.addColorStop(1, 'rgba(0,0,0,0)'); ctx.fillStyle = g; ctx.fillRect(0, 0, w, h); }),
   transparent: true, depthWrite: false,
@@ -600,7 +607,7 @@ function physics(dt) {
 // =====================================================================
 // Game state, timing
 // =====================================================================
-const game = { state: 'menu', mode: 'ta', laps: 3, lap: 1, t: 0, lapStart: 0, last: null, best: null, sectorT: [], sectorBest: [null, null, null], sectorsDone: [false, false, false], lapTimes: [], cam: 0, paused: false, lightsT: 0 };
+const game = { state: 'menu', mode: 'ta', laps: 3, lap: 1, t: 0, lapStart: 0, last: null, best: null, sectorT: [], sectorBest: [null, null, null], sectorsDone: [false, false, false], lapTimes: [], cam: 3, paused: false, lightsT: 0 };
 try { const b = +localStorage.getItem('sgp-best'); if (b > 0) game.best = b; } catch (e) {}
 const S1 = Math.round(T.N / 3), S2 = Math.round(2 * T.N / 3);
 const fmt = (t) => { if (t == null) return '–'; const m = Math.floor(t / 60), s = t - m * 60; return `${m}:${s < 10 ? '0' : ''}${s.toFixed(3)}`; };
@@ -712,7 +719,7 @@ function tryDRS() {
   if (T.drs[car$.idx] && !car$.drs) { car$.drs = true; }
   else if (!T.drs[car$.idx]) flash('DRS 사용 불가', '직선 DRS 구간에서만 열 수 있어요', 900);
 }
-const CAMS = ['체이스', '원거리', 'T-캠', '콕핏'];
+const CAMS = ['체이스', '원거리', 'T-캠', '1인칭'];
 function nextCam() { game.cam = (game.cam + 1) % CAMS.length; $('camBtn').textContent = `카메라: ${CAMS[game.cam]} (C)`; }
 function toggleMute() { muted = !muted; $('muteBtn').textContent = muted ? '소리 꺼짐 (M)' : '소리 켜짐 (M)'; }
 $('camBtn').addEventListener('click', nextCam);
@@ -799,6 +806,7 @@ function updateHUD(dt) {
 // Camera
 // =====================================================================
 const camState = { pos: new THREE.Vector3(), look: new THREE.Vector3(), yaw: 0, init: false };
+const head = { lean: 0, nod: 0, acc: 0 };
 function updateCamera(dt) {
   const c = car$, fwd = new THREE.Vector3(Math.cos(c.yaw), 0, Math.sin(c.yaw));
   let a = c.yaw - camState.yaw; a = Math.atan2(Math.sin(a), Math.cos(a));
@@ -813,15 +821,24 @@ function updateCamera(dt) {
     camState.pos.lerp(want, Math.min(1, dt * 10));
     camera.position.copy(camState.pos);
     camera.lookAt(c.pos.clone().addScaledVector(fwd, 6).setY(0.95));
+  } else if (game.cam === 2) {
+    // T-cam above the airbox, rigid to the car body
+    car.updateMatrixWorld(); camera.position.copy(new THREE.Vector3(-0.42, 1.27, 0).applyMatrix4(car.matrixWorld));
+    camera.lookAt(new THREE.Vector3(20, 0.2, 0).applyMatrix4(car.matrixWorld));
   } else {
-    // onboard: rigid to the car body
-    const local = game.cam === 2 ? new THREE.Vector3(-0.42, 1.27, 0) : new THREE.Vector3(0.12, 0.99, 0);
-    car.updateMatrixWorld(); camera.position.copy(local.applyMatrix4(car.matrixWorld));
-    camera.lookAt(new THREE.Vector3(20, game.cam === 2 ? 0.2 : 0.6, 0).applyMatrix4(car.matrixWorld));
+    // driver's eyes: inside the helmet, head leaning with lateral g and nodding under braking/acceleration
+    car.updateMatrixWorld();
+    head.lean += ((-c.latG * 0.012) - head.lean) * Math.min(1, dt * 6);
+    head.nod += ((-head.acc * 0.0009) - head.nod) * Math.min(1, dt * 5);
+    const eye = new THREE.Vector3(-0.02 + head.nod * 2, 0.72, head.lean).applyMatrix4(car.matrixWorld);
+    camera.position.copy(eye);
+    const look = new THREE.Vector3(30, 0.95 - head.nod * 8, head.lean * 0.6 + c.steer * 6).applyMatrix4(car.matrixWorld);
+    camera.lookAt(look);
+    camera.rotateZ(head.lean * 2.2);   // horizon tilt with the head
   }
   if (shake > 0.001) { camera.position.x += (Math.random() - 0.5) * shake; camera.position.y += (Math.random() - 0.5) * shake; }
   c.shake = Math.max(0, c.shake - dt * 2.5);
-  camera.fov = (game.cam >= 2 ? 72 : 60) + Math.min(14, c.v * 0.12);
+  camera.fov = (game.cam === 3 ? 74 : game.cam === 2 ? 72 : 60) + Math.min(game.cam === 3 ? 8 : 14, c.v * (game.cam === 3 ? 0.06 : 0.12));
   camera.updateProjectionMatrix();
 }
 
@@ -832,7 +849,7 @@ let accPrev = 0;
 function poseCar(dt) {
   const c = car$;
   car.position.set(c.pos.x, 0.0, c.pos.z);
-  const acc = (c.v - accPrev) / Math.max(dt, 1e-3); accPrev = c.v;
+  const acc = (c.v - accPrev) / Math.max(dt, 1e-3); accPrev = c.v; head.acc += (acc - head.acc) * Math.min(1, dt * 4);
   car.rotation.set(0, -c.yaw, 0);
   car.rotateX(THREE.MathUtils.clamp(-c.latG * 0.006, -0.02, 0.02));           // roll
   car.rotateZ(THREE.MathUtils.clamp(-acc * 0.0006, -0.012, 0.012));            // pitch (squat/dive)
@@ -841,6 +858,10 @@ function poseCar(dt) {
     w.g.rotation.z = -w.side * c.spin;
     w.g.rotation.y = (w.side < 0 ? Math.PI : 0) + (w.front ? c.steer * 1.6 : 0);
   }
+  if (cockpit.wheel) cockpit.wheel.quaternion.copy(cockpit.base).multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), -c.steerIn * 1.35));
+  const fp = game.cam === 3;
+  if (cockpit.helmet) { cockpit.helmet.visible = !fp; cockpit.suit.visible = !fp; }
+  document.body.classList.toggle('fp', fp);
   c.drsA += ((c.drs ? 0.42 : 0) - c.drsA) * Math.min(1, dt * 10);
   drsPivot.rotation.z = c.drsA;
   shadowBlob.position.set(c.pos.x, 0.015, c.pos.z); shadowBlob.rotation.z = -c.yaw;
@@ -889,6 +910,8 @@ addEventListener('resize', () => {
   await progress(0.7, 'RB F1 머신 조립 (텍스처 생성)');
   F = window.createF1({ THREE, BGU, RoundedBoxGeometry, DecalGeometry, scene, MAX_ANISO, isMobile, detail: isMobile ? 0.32 : 0.5 });
   car = F.car; wheels = F.wheelGroups; drsPivot = F.drsPivot;
+  cockpit.wheel = car.getObjectByName('steeringWheel'); cockpit.base = cockpit.wheel ? cockpit.wheel.quaternion.clone() : null;
+  cockpit.helmet = car.getObjectByName('helmet'); cockpit.suit = car.getObjectByName('suit');
   { const t = F.TYRES[1], tx = F.tyreTexture(t); F.tyreMat.map = tx.map; F.tyreMat.normalMap = tx.normal; F.tyreMat.roughnessMap = tx.rough; F.tyreMat.needsUpdate = true; }
   F.paintMats.forEach((m) => { m.roughness = 0.42; m.clearcoat = 0.35; m.clearcoatRoughness = 0.3; });
   car.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });

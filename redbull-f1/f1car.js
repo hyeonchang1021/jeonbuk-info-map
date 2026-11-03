@@ -573,7 +573,7 @@ for (const side of [1, -1]) {
     for (let i = 0; i < 6; i++) { ctx.beginPath(); ctx.arc((i + 0.5) * w / 6, h * 0.62, 26, 0, Math.PI * 2); ctx.fill(); }
   });
   const helmMat = new THREE.MeshPhysicalMaterial({ map: helmTex, roughness: 0.25, clearcoat: 1, clearcoatRoughness: 0.05 });
-  const helmet = new THREE.Group();
+  const helmet = new THREE.Group(); helmet.name = 'helmet';
   const shell = new THREE.Mesh(new THREE.SphereGeometry(0.125, q(144), q(108)), helmMat);
   shell.scale.set(1.16, 0.97, 0.93);
   helmet.add(shell);
@@ -590,7 +590,7 @@ for (const side of [1, -1]) {
   helmet.traverse((o) => { if (o.isMesh) { o.castShadow = o.receiveShadow = true; } });
   car.add(helmet);
   // shoulders / race suit
-  const suit = add(new THREE.Mesh(new THREE.SphereGeometry(1, 32, 16), new THREE.MeshStandardMaterial({ color: '#16245c', roughness: 0.85 })));
+  const suit = add(new THREE.Mesh(new THREE.SphereGeometry(1, 32, 16), new THREE.MeshStandardMaterial({ color: '#16245c', roughness: 0.85 }))); suit.name = 'suit';
   suit.scale.set(0.16, 0.07, 0.19); suit.position.set(-0.02, 0.50, 0);
   // headrest padding around the helmet
   for (const s of [1, -1]) {
@@ -600,7 +600,7 @@ for (const side of [1, -1]) {
   const back = add(new THREE.Mesh(new RoundedBoxGeometry(0.08, 0.13, 0.28, 4, 0.03), fabric));
   back.position.set(-0.235, 0.60, 0);
   // steering wheel: carbon body, rubber grips, display, rotaries, buttons, shift paddles, LED bar
-  const wheel = new THREE.Group();
+  const wheel = new THREE.Group(); wheel.name = 'steeringWheel';
   wheel.position.set(0.30, 0.55, 0); wheel.rotation.z = 0.35;
   car.add(wheel);
   const rubber = new THREE.MeshStandardMaterial({ color: '#0b0b0d', roughness: 0.95 });
