@@ -1,0 +1,756 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>레드불 F1 머신</title>
+<meta name="description" content="레드불 레이싱 컬러의 F1 머신을 SVG로 그린 인터랙티브 페이지. 시동, 가속, DRS, 타이어 교체를 직접 조작할 수 있다.">
+<style>
+  :root {
+    --navy-900: #070b18;
+    --navy-800: #0d1430;
+    --navy-700: #16224a;
+    --navy-500: #2b3d6b;
+    --red: #e3001b;
+    --red-hi: #ff2a3a;
+    --yellow: #ffc906;
+    --text: #e9edf7;
+    --muted: #93a0bf;
+    --panel: rgba(18, 26, 56, .78);
+    --line: rgba(255, 255, 255, .1);
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body {
+    background: radial-gradient(1200px 600px at 50% -10%, #1c2a5c 0%, var(--navy-900) 60%) fixed, var(--navy-900);
+    color: var(--text);
+    font-family: system-ui, -apple-system, "Segoe UI", "Apple SD Gothic Neo", "Malgun Gothic", "Noto Sans KR", sans-serif;
+    line-height: 1.5;
+    min-height: 100vh;
+  }
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 20px 16px 48px; }
+
+  header { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-bottom: 14px; }
+  .brand { display: flex; align-items: center; gap: 14px; }
+  .sun { width: 42px; height: 42px; border-radius: 50%; background: radial-gradient(circle at 35% 35%, #ffe066, var(--yellow) 60%, #e0a800); box-shadow: 0 0 24px rgba(255, 201, 6, .45); flex: none; }
+  h1 { margin: 0; font-size: clamp(22px, 3.4vw, 34px); letter-spacing: -.02em; font-weight: 900; font-style: italic; }
+  h1 span { color: var(--red-hi); }
+  .sub { margin: 2px 0 0; color: var(--muted); font-size: 14px; }
+  .keys { color: var(--muted); font-size: 12.5px; }
+  kbd { background: #1d2754; border: 1px solid #34437c; border-bottom-width: 2px; border-radius: 4px; padding: 0 5px; font-size: 11.5px; color: var(--text); font-family: inherit; }
+
+  .stage {
+    position: relative;
+    border-radius: 18px;
+    overflow: hidden;
+    border: 1px solid var(--line);
+    box-shadow: 0 30px 80px rgba(0, 0, 0, .55), inset 0 0 0 1px rgba(255, 255, 255, .03);
+    background: #05070f;
+  }
+  .stage svg { display: block; width: 100%; height: auto; }
+
+  /* HUD (steering-wheel style display) */
+  .hud {
+    position: absolute; left: 14px; top: 14px;
+    display: grid; grid-template-columns: auto auto; gap: 2px 14px; align-items: end;
+    padding: 10px 14px 12px; border-radius: 12px;
+    background: rgba(5, 8, 20, .72); border: 1px solid rgba(255, 255, 255, .08);
+    backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+    font-variant-numeric: tabular-nums;
+    min-width: 230px;
+  }
+  .leds { grid-column: 1 / -1; display: flex; gap: 3px; margin-bottom: 6px; }
+  .led { width: 11px; height: 11px; border-radius: 50%; background: #1a1f33; box-shadow: inset 0 0 0 1px rgba(255,255,255,.06); transition: background .05s; }
+  .led.on.g { background: #19e05a; box-shadow: 0 0 8px #19e05a; }
+  .led.on.r { background: #ff2a3a; box-shadow: 0 0 8px #ff2a3a; }
+  .led.on.b { background: #3b8bff; box-shadow: 0 0 8px #3b8bff; }
+  .led.flash { background: #3b8bff !important; box-shadow: 0 0 10px #3b8bff !important; }
+  .spd { font-size: 44px; font-weight: 900; line-height: 1; letter-spacing: -.02em; }
+  .spd small { font-size: 13px; color: var(--muted); font-weight: 600; margin-left: 4px; letter-spacing: 0; }
+  .gear { font-size: 44px; font-weight: 900; line-height: 1; color: var(--yellow); text-align: right; min-width: 34px; }
+  .meta { grid-column: 1 / -1; display: flex; gap: 10px; font-size: 12px; color: var(--muted); margin-top: 6px; flex-wrap: wrap; }
+  .meta b { color: var(--text); font-weight: 700; }
+  .pill { display: inline-block; padding: 0 7px; border-radius: 999px; background: #222a48; color: var(--muted); font-weight: 800; letter-spacing: .04em; }
+  .pill.on { background: #19e05a; color: #04210e; }
+
+  /* Controls */
+  .controls {
+    display: grid; grid-template-columns: 1.3fr 1fr; gap: 14px; margin-top: 14px;
+  }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 14px 16px; }
+  .card h2 { margin: 0 0 10px; font-size: 13px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); font-weight: 800; }
+  .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  button {
+    font: inherit; font-weight: 800; font-size: 14px; color: var(--text);
+    background: #1d2754; border: 1px solid #34437c; border-radius: 10px;
+    padding: 9px 14px; cursor: pointer; transition: transform .08s, background .15s, border-color .15s;
+  }
+  button:hover { background: #26336b; }
+  button:active { transform: translateY(1px); }
+  button:focus-visible { outline: 2px solid var(--yellow); outline-offset: 2px; }
+  button.primary { background: linear-gradient(180deg, var(--red-hi), var(--red)); border-color: #ff5a66; }
+  button.primary[aria-pressed="true"] { background: linear-gradient(180deg, #2a3566, #1d2754); border-color: #34437c; }
+  button[aria-pressed="true"]:not(.primary) { background: #2b3b7d; border-color: var(--yellow); }
+  .tyre { display: inline-flex; align-items: center; gap: 7px; padding: 7px 11px; }
+  .tyre i { width: 14px; height: 14px; border-radius: 50%; border: 3px solid var(--c); background: #111; display: inline-block; }
+  .slider { display: flex; align-items: center; gap: 12px; margin-top: 12px; }
+  .slider label { font-size: 13px; color: var(--muted); white-space: nowrap; }
+  .slider output { min-width: 82px; text-align: right; font-weight: 800; font-variant-numeric: tabular-nums; }
+  input[type=range] { flex: 1; accent-color: var(--red-hi); height: 28px; min-width: 0; }
+  .hint { font-size: 12.5px; color: var(--muted); margin: 10px 0 0; }
+
+  .specs { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 10px; margin-top: 14px; }
+  .spec { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; }
+  .spec dt { font-size: 12px; color: var(--muted); }
+  .spec dd { margin: 2px 0 0; font-size: 17px; font-weight: 800; }
+  .spec dd small { display: block; font-size: 12px; color: var(--muted); font-weight: 500; }
+
+  footer { margin-top: 18px; font-size: 12px; color: #6f7a99; }
+
+  #labels { transition: opacity .35s; }
+  #labels.hidden { opacity: 0; pointer-events: none; }
+  #drsFlap { transform-box: fill-box; transform-origin: 96% 50%; transition: transform .25s cubic-bezier(.3,1.4,.5,1); }
+  #drsFlap.open { transform: rotate(16deg); }
+
+  @media (max-width: 760px) {
+    .controls { grid-template-columns: 1fr; }
+    .hud { position: static; border-radius: 0; border-width: 0 0 1px; min-width: 0; grid-template-columns: 1fr auto; }
+    .spd, .gear { font-size: 34px; }
+    .led { width: 9px; height: 9px; }
+    .stage { display: flex; flex-direction: column; }
+    .stage svg { order: 2; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    #drsFlap { transition: none; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="brand">
+      <div class="sun" aria-hidden="true"></div>
+      <div>
+        <h1>RED BULL <span>F1</span> MACHINE</h1>
+        <p class="sub">레드불 레이싱 컬러의 F1 머신 — 시동을 걸고 직접 달려 보세요.</p>
+      </div>
+    </div>
+    <div class="keys">
+      <kbd>E</kbd> 시동 · <kbd>↑</kbd><kbd>↓</kbd> 속도 · <kbd>Space</kbd> 브레이크 · <kbd>D</kbd> DRS · <kbd>L</kbd> 부품 이름
+    </div>
+  </header>
+
+  <div class="stage">
+    <div class="hud" aria-live="off">
+      <div class="leds" id="leds"></div>
+      <div class="spd"><span id="spd">0</span><small>km/h</small></div>
+      <div class="gear" id="gear">–</div>
+      <div class="meta">
+        <span>RPM <b id="rpm">0</b></span>
+        <span class="pill" id="drsPill">DRS</span>
+        <span>타이어 <b id="tyreName">소프트</b></span>
+      </div>
+    </div>
+
+    <svg id="scene" viewBox="0 0 1100 440" role="img" aria-labelledby="sceneTitle">
+      <title id="sceneTitle">레드불 컬러의 F1 머신 측면 일러스트. 짙은 남색 차체에 빨간색과 노란색 포인트가 들어가 있다.</title>
+      <defs>
+        <!-- Sky / environment -->
+        <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stop-color="#05070f"/>
+          <stop offset=".55" stop-color="#121a3a"/>
+          <stop offset="1" stop-color="#2a2350"/>
+        </linearGradient>
+        <radialGradient id="glow" cx=".5" cy="1" r=".8">
+          <stop offset="0" stop-color="#ff9a3c" stop-opacity=".25"/>
+          <stop offset="1" stop-color="#ff9a3c" stop-opacity="0"/>
+        </radialGradient>
+        <linearGradient id="asphalt" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stop-color="#2b2e36"/>
+          <stop offset="1" stop-color="#15171c"/>
+        </linearGradient>
+
+        <!-- Parallax patterns (patternTransform is animated from JS) -->
+        <pattern id="standsPat" width="240" height="90" patternUnits="userSpaceOnUse">
+          <rect width="240" height="90" fill="#0b1026"/>
+          <path d="M0 30 L120 18 L240 30 V90 H0Z" fill="#111836"/>
+          <g fill="#ffe7a8" opacity=".55">
+            <circle cx="12" cy="40" r="1.3"/><circle cx="30" cy="48" r="1.3"/><circle cx="48" cy="38" r="1.3"/>
+            <circle cx="70" cy="52" r="1.3"/><circle cx="92" cy="42" r="1.3"/><circle cx="118" cy="56" r="1.3"/>
+            <circle cx="140" cy="44" r="1.3"/><circle cx="162" cy="50" r="1.3"/><circle cx="186" cy="40" r="1.3"/>
+            <circle cx="208" cy="54" r="1.3"/><circle cx="228" cy="46" r="1.3"/>
+          </g>
+          <g fill="#7fa6ff" opacity=".35">
+            <circle cx="22" cy="62" r="1.2"/><circle cx="60" cy="66" r="1.2"/><circle cx="104" cy="70" r="1.2"/>
+            <circle cx="150" cy="64" r="1.2"/><circle cx="196" cy="72" r="1.2"/>
+          </g>
+          <!-- floodlight tower -->
+          <rect x="176" y="0" width="3" height="40" fill="#1c2448"/>
+          <rect x="166" y="0" width="23" height="7" rx="2" fill="#fff6d8"/>
+        </pattern>
+        <pattern id="wallPat" width="260" height="34" patternUnits="userSpaceOnUse">
+          <rect width="260" height="34" fill="#0f1530"/>
+          <rect x="4" y="4" width="120" height="26" rx="3" fill="#16224a"/>
+          <circle cx="24" cy="17" r="8" fill="#ffc906"/>
+          <text x="38" y="22" font-size="13" font-weight="900" font-style="italic" fill="#e3001b" font-family="system-ui, sans-serif">RACING</text>
+          <rect x="132" y="4" width="124" height="26" rx="3" fill="#e9edf7"/>
+          <text x="143" y="22" font-size="13" font-weight="900" font-style="italic" fill="#16224a" font-family="system-ui, sans-serif">FORMULA ONE</text>
+        </pattern>
+        <pattern id="kerbPat" width="60" height="12" patternUnits="userSpaceOnUse">
+          <rect width="30" height="12" fill="#e3001b"/>
+          <rect x="30" width="30" height="12" fill="#f2f2f2"/>
+        </pattern>
+        <pattern id="lanePat" width="160" height="4" patternUnits="userSpaceOnUse">
+          <rect width="80" height="4" fill="#d9dce4" opacity=".55"/>
+        </pattern>
+        <pattern id="grainPat" width="140" height="60" patternUnits="userSpaceOnUse">
+          <g fill="#ffffff" opacity=".05">
+            <rect x="8" y="6" width="14" height="1"/><rect x="40" y="22" width="22" height="1"/>
+            <rect x="90" y="12" width="10" height="1"/><rect x="118" y="40" width="16" height="1"/>
+            <rect x="62" y="50" width="12" height="1"/><rect x="20" y="36" width="8" height="1"/>
+          </g>
+        </pattern>
+
+        <!-- Car materials -->
+        <linearGradient id="body" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stop-color="#34497f"/>
+          <stop offset=".35" stop-color="#1c2a5a"/>
+          <stop offset="1" stop-color="#0c1430"/>
+        </linearGradient>
+        <linearGradient id="bodyDark" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stop-color="#1e2c5c"/>
+          <stop offset="1" stop-color="#0a1128"/>
+        </linearGradient>
+        <linearGradient id="red" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stop-color="#ff3647"/>
+          <stop offset="1" stop-color="#b80016"/>
+        </linearGradient>
+        <linearGradient id="yellow" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stop-color="#ffe066"/>
+          <stop offset="1" stop-color="#e5a800"/>
+        </linearGradient>
+        <linearGradient id="shine" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stop-color="#fff" stop-opacity=".28"/>
+          <stop offset="1" stop-color="#fff" stop-opacity="0"/>
+        </linearGradient>
+        <pattern id="carbon" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+          <rect width="6" height="6" fill="#121318"/>
+          <rect width="3" height="6" fill="#1b1d24"/>
+        </pattern>
+        <radialGradient id="tyre" cx=".5" cy=".5" r=".5">
+          <stop offset=".7" stop-color="#1a1b20"/>
+          <stop offset=".93" stop-color="#0d0e11"/>
+          <stop offset="1" stop-color="#050506"/>
+        </radialGradient>
+        <radialGradient id="rim" cx=".4" cy=".35" r=".7">
+          <stop offset="0" stop-color="#3a4262"/>
+          <stop offset="1" stop-color="#141827"/>
+        </radialGradient>
+        <radialGradient id="blurDisc" cx=".5" cy=".5" r=".5">
+          <stop offset=".55" stop-color="#2a2f40" stop-opacity=".95"/>
+          <stop offset=".8" stop-color="#1b1d24" stop-opacity=".7"/>
+          <stop offset="1" stop-color="#1b1d24" stop-opacity="0"/>
+        </radialGradient>
+        <radialGradient id="heat" cx=".5" cy=".5" r=".5">
+          <stop offset="0" stop-color="#ffb347" stop-opacity=".9"/>
+          <stop offset=".5" stop-color="#ff5a1f" stop-opacity=".35"/>
+          <stop offset="1" stop-color="#ff5a1f" stop-opacity="0"/>
+        </radialGradient>
+        <path id="tyreText" d="M -55,0 a 55,55 0 1,1 110,0 a 55,55 0 1,1 -110,0"/>
+        <filter id="soft" x="-20%" y="-200%" width="140%" height="500%">
+          <feGaussianBlur stdDeviation="6"/>
+        </filter>
+        <filter id="hblur" x="-5%" y="-5%" width="110%" height="110%">
+          <feGaussianBlur id="hblurStd" stdDeviation="0 0"/>
+        </filter>
+      </defs>
+
+      <!-- ===== Background ===== -->
+      <rect width="1100" height="300" fill="url(#sky)"/>
+      <rect y="120" width="1100" height="180" fill="url(#glow)"/>
+      <g id="bg" filter="url(#hblur)">
+        <rect y="206" width="1100" height="90" fill="url(#standsPat)" id="stands"/>
+        <rect y="296" width="1100" height="34" fill="url(#wallPat)" id="wall"/>
+        <rect y="330" width="1100" height="12" fill="url(#kerbPat)" id="kerb"/>
+      </g>
+      <rect y="342" width="1100" height="98" fill="url(#asphalt)"/>
+      <rect y="342" width="1100" height="98" fill="url(#grainPat)" id="grain"/>
+      <rect y="418" width="1100" height="4" fill="url(#lanePat)" id="lane"/>
+      <g id="streaks" stroke="#fff" stroke-linecap="round" opacity="0"></g>
+
+      <!-- ===== Car ===== -->
+      <ellipse cx="560" cy="374" rx="480" ry="9" fill="#000" opacity=".7" filter="url(#soft)"/>
+      <g id="car">
+        <!-- Rear wing (behind wheels) -->
+        <g id="rearWing">
+          <path d="M926,166 L1010,160 L1014,300 L944,302 Z" fill="url(#bodyDark)"/>
+          <path d="M926,166 L1010,160 L1011,174 L928,180 Z" fill="url(#red)"/>
+          <path d="M1010,160 L1014,300 L1008,300 L1004,162 Z" fill="#05070f" opacity=".5"/>
+          <text x="970" y="240" text-anchor="middle" font-size="15" font-weight="900" font-style="italic" fill="#ffc906" font-family="system-ui, sans-serif" transform="rotate(-2 970 240)">RB</text>
+          <!-- swan-neck pylon -->
+          <path d="M946,206 L958,206 L956,292 L944,292 Z" fill="#0b0f1d"/>
+          <!-- main plane -->
+          <path d="M914,210 C940,199 988,195 1018,201 L1018,209 C986,209 942,213 914,216 Z" fill="#0a0d18" stroke="#2b3d6b" stroke-width="1"/>
+          <!-- DRS flap -->
+          <path id="drsFlap" d="M920,190 C946,180 990,176 1016,180 L1016,188 C988,188 950,192 920,195 Z" fill="url(#red)" stroke="#ff6672" stroke-width=".8"/>
+          <!-- beam wing -->
+          <path d="M944,286 C964,280 992,280 1006,284 L1006,290 C990,290 966,291 944,292 Z" fill="#0a0d18"/>
+          <!-- rain light -->
+          <rect id="rainLight" x="952" y="294" width="10" height="5" rx="1" fill="#4a0008"/>
+        </g>
+
+        <!-- Diffuser -->
+        <path d="M930,362 L992,328 L1004,332 L978,364 Z" fill="url(#carbon)"/>
+        <path d="M940,360 L992,334 M952,362 L996,340" stroke="#2b2f3b" stroke-width="1.5"/>
+
+        <!-- Floor & plank -->
+        <path d="M316,346 L866,346 L874,358 L862,362 L322,362 Z" fill="url(#carbon)"/>
+        <path d="M322,360 L862,360" stroke="#c79a3a" stroke-width="2" opacity=".55"/>
+        <path d="M330,346 C420,341 520,341 600,343" stroke="#3a3f4f" stroke-width="2" fill="none"/>
+
+        <!-- Suspension -->
+        <g stroke="#0a0d18" stroke-width="5" stroke-linecap="round">
+          <path d="M342,286 L262,300"/>
+          <path d="M342,318 L262,314"/>
+          <path d="M338,292 L268,324" stroke-width="3.5"/>
+          <path d="M840,296 L880,300"/>
+          <path d="M846,326 L880,318"/>
+        </g>
+
+        <!-- Main body -->
+        <path id="mainBody" d="M128,330 C150,318 232,292 334,274 L446,262 L560,260 C570,240 578,212 592,204 L632,202 C652,206 702,222 762,238 C824,254 884,268 958,282 L960,300 L900,312 L862,344 L340,344 L332,322 C250,326 180,332 132,337 Z" fill="url(#body)"/>
+        <!-- top highlight -->
+        <path d="M150,320 C200,302 260,288 334,276 L446,264 M596,206 L632,204 C652,208 702,224 762,240 C824,256 884,270 956,284" stroke="#9fb4ff" stroke-opacity=".35" stroke-width="2" fill="none" stroke-linecap="round"/>
+
+        <!-- Nose tip (red) -->
+        <path d="M128,330 C150,318 176,309 204,302 L208,331 C180,333 152,335 132,337 Z" fill="url(#red)"/>
+        <path d="M204,302 L208,331" stroke="#ffc906" stroke-width="3"/>
+
+        <!-- Chassis number -->
+        <text x="388" y="312" font-size="30" font-weight="900" font-style="italic" fill="#fff" font-family="system-ui, sans-serif">1</text>
+        <path d="M360,322 L440,316" stroke="url(#red)" stroke-width="4" stroke-linecap="round"/>
+
+        <!-- Shark fin -->
+        <path d="M652,207 L888,236 L888,268 C820,254 730,232 652,212 Z" fill="url(#bodyDark)" opacity=".95"/>
+        <path d="M652,207 L888,236" stroke="#e3001b" stroke-width="2"/>
+        <text x="790" y="250" font-size="20" font-weight="900" font-style="italic" fill="#fff" font-family="system-ui, sans-serif">1</text>
+
+        <!-- Sidepod -->
+        <path d="M468,288 L522,283 C604,282 706,292 822,318 L846,344 L470,344 Z" fill="url(#bodyDark)"/>
+        <path d="M468,288 L522,283 C604,282 706,292 822,318" stroke="#9fb4ff" stroke-opacity=".25" stroke-width="1.5" fill="none"/>
+        <!-- inlet -->
+        <path d="M464,288 L486,285 L492,330 L468,334 Z" fill="#04060c"/>
+        <path d="M486,285 L492,330" stroke="#2b3d6b" stroke-width="2"/>
+        <!-- livery swoosh -->
+        <path d="M490,334 C600,326 730,326 842,338 L846,344 L492,344 Z" fill="url(#red)"/>
+        <path d="M520,327 C620,319 720,320 812,328" stroke="#ffc906" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+        <!-- sun disc + wordmark (generic fan livery, not the official logo) -->
+        <circle cx="560" cy="306" r="14" fill="url(#yellow)"/>
+        <text x="582" y="314" font-size="21" font-weight="900" font-style="italic" fill="#ff2a3a" font-family="system-ui, sans-serif" letter-spacing="-.5">RED BULL</text>
+        <!-- engine cover badge -->
+        <circle cx="706" cy="256" r="11" fill="url(#yellow)"/>
+        <text x="722" y="262" font-size="13" font-weight="900" font-style="italic" fill="#e9edf7" font-family="system-ui, sans-serif">RACING</text>
+
+        <!-- Airbox -->
+        <path d="M584,212 L600,206 L605,228 L590,232 Z" fill="#04060c"/>
+        <path d="M592,204 L632,202 L636,212 L598,214 Z" fill="url(#red)"/>
+
+        <!-- Cockpit & driver -->
+        <path d="M448,262 C470,250 540,248 562,258 L560,266 L450,266 Z" fill="#04060c"/>
+        <g id="driver">
+          <ellipse cx="514" cy="244" rx="20" ry="17" fill="#f2f2f2"/>
+          <path d="M494,244 C496,232 506,227 518,227 C528,227 534,232 534,240 L534,244 Z" fill="url(#red)"/>
+          <path d="M498,246 C504,242 520,241 532,244 L531,251 C518,249 506,250 499,253 Z" fill="#10172e"/>
+          <path d="M500,246 C508,243 520,243 530,245" stroke="#7fd7ff" stroke-opacity=".6" stroke-width="1.2" fill="none"/>
+          <path d="M496,256 C506,260 524,260 534,256" stroke="#ffc906" stroke-width="3" fill="none"/>
+          <rect x="534" y="246" width="20" height="14" rx="4" fill="#0b1026"/>
+        </g>
+
+        <!-- Halo -->
+        <path d="M452,262 C458,248 466,236 478,232 L556,232 C566,236 572,246 574,260" stroke="#141826" stroke-width="7" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M456,258 C462,246 468,238 479,235 L555,235" stroke="#5a6690" stroke-width="1.6" fill="none" stroke-linecap="round" opacity=".7"/>
+
+        <!-- Mirror -->
+        <path d="M440,264 L432,250" stroke="#0a0d18" stroke-width="3"/>
+        <ellipse cx="428" cy="246" rx="13" ry="6" fill="url(#bodyDark)" stroke="#2b3d6b" stroke-width="1"/>
+
+        <!-- Front wing -->
+        <g id="frontWing">
+          <path d="M156,336 L160,346 M176,333 L180,344" stroke="#0a0d18" stroke-width="4"/>
+          <path d="M92,360 C120,354 172,352 232,356 L232,362 C172,362 120,364 92,366 Z" fill="#0a0d18"/>
+          <path d="M118,350 C150,342 192,340 236,344 L236,349 C192,348 150,350 118,354 Z" fill="url(#red)"/>
+          <path d="M146,340 C172,332 206,330 238,334 L238,339 C206,338 172,340 146,344 Z" fill="url(#bodyDark)"/>
+          <path d="M98,320 L150,316 L154,364 L100,367 Z" fill="url(#body)"/>
+          <path d="M98,320 L150,316 L151,326 L99,330 Z" fill="url(#yellow)"/>
+          <path d="M100,360 L154,357" stroke="#e3001b" stroke-width="3"/>
+        </g>
+
+        <!-- Exhaust heat -->
+        <ellipse id="heat" cx="972" cy="276" rx="18" ry="10" fill="url(#heat)" opacity="0"/>
+        <circle cx="962" cy="279" r="4" fill="#1a1c24" stroke="#555b6e" stroke-width="1"/>
+
+        <!-- Wheels -->
+        <g class="wheel" transform="translate(250 308)">
+          <circle r="64" fill="url(#tyre)"/>
+          <circle r="50" fill="none" class="band" stroke="#ff2d2d" stroke-width="3"/>
+          <g class="spin">
+            <text font-size="9" font-weight="800" letter-spacing="1.5" class="tyreLabel" fill="#ff2d2d" font-family="system-ui, sans-serif"><textPath href="#tyreText">SLICK · F1 · SLICK · F1 · SLICK · F1 ·</textPath></text>
+            <circle r="44" fill="url(#rim)"/>
+            <g stroke="#0d1122" stroke-width="3">
+              <path d="M0,-40 L0,40 M-34.6,-20 L34.6,20 M-34.6,20 L34.6,-20"/>
+            </g>
+            <circle r="44" fill="none" stroke="#e3001b" stroke-width="2" stroke-dasharray="10 13"/>
+            <circle cx="0" cy="-36" r="2.5" fill="#ffc906"/>
+          </g>
+          <circle r="62" class="blur" fill="url(#blurDisc)" opacity="0"/>
+          <circle r="11" fill="#0b0f1d" stroke="#3a4262" stroke-width="2"/>
+          <circle r="5" fill="#ffc906"/>
+        </g>
+        <g class="wheel" transform="translate(880 308)">
+          <circle r="64" fill="url(#tyre)"/>
+          <circle r="50" fill="none" class="band" stroke="#ff2d2d" stroke-width="3"/>
+          <g class="spin">
+            <text font-size="9" font-weight="800" letter-spacing="1.5" class="tyreLabel" fill="#ff2d2d" font-family="system-ui, sans-serif"><textPath href="#tyreText">SLICK · F1 · SLICK · F1 · SLICK · F1 ·</textPath></text>
+            <circle r="44" fill="url(#rim)"/>
+            <g stroke="#0d1122" stroke-width="3">
+              <path d="M0,-40 L0,40 M-34.6,-20 L34.6,20 M-34.6,20 L34.6,-20"/>
+            </g>
+            <circle r="44" fill="none" stroke="#e3001b" stroke-width="2" stroke-dasharray="10 13"/>
+            <circle cx="0" cy="-36" r="2.5" fill="#ffc906"/>
+          </g>
+          <circle r="62" class="blur" fill="url(#blurDisc)" opacity="0"/>
+          <circle r="11" fill="#0b0f1d" stroke="#3a4262" stroke-width="2"/>
+          <circle r="5" fill="#ffc906"/>
+        </g>
+      </g>
+
+      <!-- ===== Part labels ===== -->
+      <g id="labels" class="hidden" font-family="system-ui, sans-serif">
+        <g data-x="128" data-y="342" data-lx="64" data-ly="196" data-t="프론트 윙" data-e="Front wing"></g>
+        <g data-x="160" data-y="322" data-lx="176" data-ly="250" data-t="노즈 콘" data-e="Nose cone"></g>
+        <g data-x="250" data-y="308" data-lx="300" data-ly="140" data-t="타이어 18인치" data-e="Tyre"></g>
+        <g data-x="514" data-y="232" data-lx="440" data-ly="80" data-t="헤일로·조종석" data-e="Halo / cockpit"></g>
+        <g data-x="476" data-y="310" data-lx="560" data-ly="150" data-t="사이드포드 흡기구" data-e="Sidepod inlet"></g>
+        <g data-x="740" data-y="250" data-lx="700" data-ly="80" data-t="파워 유닛" data-e="1.6L V6 turbo hybrid"></g>
+        <g data-x="968" data-y="184" data-lx="900" data-ly="130" data-t="리어 윙 · DRS" data-e="Rear wing / DRS"></g>
+        <g data-x="975" data-y="346" data-lx="1000" data-ly="408" data-t="디퓨저" data-e="Diffuser"></g>
+      </g>
+    </svg>
+  </div>
+
+  <div class="controls">
+    <section class="card" aria-label="주행 조작">
+      <h2>주행</h2>
+      <div class="row">
+        <button id="engineBtn" class="primary" aria-pressed="false">시동 걸기</button>
+        <button id="drsBtn" aria-pressed="false">DRS 열기</button>
+        <button id="brakeBtn">브레이크</button>
+        <button id="soundBtn" aria-pressed="true">소리 켜짐</button>
+        <button id="labelsBtn" aria-pressed="false">부품 이름 보기</button>
+      </div>
+      <div class="slider">
+        <label for="throttle">목표 속도</label>
+        <input id="throttle" type="range" min="0" max="330" step="5" value="0" disabled>
+        <output id="throttleOut" for="throttle">0 km/h</output>
+      </div>
+      <p class="hint" id="hint">시동을 먼저 걸어야 출발할 수 있어요.</p>
+    </section>
+    <section class="card" aria-label="타이어 선택">
+      <h2>타이어 컴파운드</h2>
+      <div class="row" id="tyres"></div>
+      <p class="hint">타이어 옆면의 띠 색깔로 종류를 구분해요. 맑은 날에는 슬릭(소프트·미디엄·하드), 비 오는 날에는 인터미디엇·웻을 써요.</p>
+    </section>
+  </div>
+
+  <dl class="specs">
+    <div class="spec"><dt>파워 유닛</dt><dd>1.6L V6 터보 하이브리드<small>엔진 + 전기 모터(MGU-K)</small></dd></div>
+    <div class="spec"><dt>최고 출력</dt><dd>약 1,000마력 이상<small>내연기관과 전기 출력 합산</small></dd></div>
+    <div class="spec"><dt>최고 속도</dt><dd>약 350 km/h<small>DRS를 열면 직선에서 더 빨라짐</small></dd></div>
+    <div class="spec"><dt>변속기</dt><dd>8단 반자동<small>핸들 뒤 패들로 변속</small></dd></div>
+    <div class="spec"><dt>최소 중량</dt><dd>약 800 kg<small>드라이버 포함</small></dd></div>
+    <div class="spec"><dt>엔진 회전수 제한</dt><dd>15,000 rpm<small>규정상 최대값</small></dd></div>
+  </dl>
+
+  <footer>
+    레드불 레이싱 팀 컬러(남색·빨강·노랑)를 바탕으로 직접 그린 팬 아트 일러스트입니다. 팀의 공식 로고·스폰서 그래픽은 재현하지 않았으며, 수치는 현행 F1 머신의 일반적인 값입니다.
+  </footer>
+</div>
+
+<script>
+(() => {
+  const $ = (id) => document.getElementById(id);
+  const reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  // ---------- Part labels ----------
+  const NS = 'http://www.w3.org/2000/svg';
+  document.querySelectorAll('#labels > g').forEach((g) => {
+    const x = +g.dataset.x, y = +g.dataset.y, lx = +g.dataset.lx, ly = +g.dataset.ly;
+    const line = document.createElementNS(NS, 'path');
+    line.setAttribute('d', `M${x},${y} L${lx},${ly}`);
+    line.setAttribute('stroke', '#ffc906'); line.setAttribute('stroke-width', '1.4'); line.setAttribute('stroke-dasharray', '3 3');
+    const dot = document.createElementNS(NS, 'circle');
+    dot.setAttribute('cx', x); dot.setAttribute('cy', y); dot.setAttribute('r', 4);
+    dot.setAttribute('fill', '#ffc906'); dot.setAttribute('stroke', '#070b18'); dot.setAttribute('stroke-width', 2);
+    const t1 = document.createElementNS(NS, 'text');
+    t1.textContent = g.dataset.t; t1.setAttribute('font-size', '14'); t1.setAttribute('font-weight', '800'); t1.setAttribute('fill', '#fff');
+    const t2 = document.createElementNS(NS, 'text');
+    t2.textContent = g.dataset.e; t2.setAttribute('font-size', '10.5'); t2.setAttribute('fill', '#93a0bf');
+    const box = document.createElementNS(NS, 'rect');
+    box.setAttribute('rx', 6); box.setAttribute('fill', 'rgba(7,11,24,.88)'); box.setAttribute('stroke', 'rgba(255,201,6,.6)');
+    g.append(line, dot, box, t1, t2);
+    // size the box after text is in the DOM
+    const w = Math.max(t1.getComputedTextLength(), t2.getComputedTextLength()) + 18;
+    let bx = Math.min(Math.max(lx - w / 2, 6), 1100 - w - 6);
+    const by = ly - 20;
+    box.setAttribute('x', bx); box.setAttribute('y', by); box.setAttribute('width', w); box.setAttribute('height', 38);
+    t1.setAttribute('x', bx + 9); t1.setAttribute('y', by + 17);
+    t2.setAttribute('x', bx + 9); t2.setAttribute('y', by + 31);
+  });
+
+  // ---------- Shift lights ----------
+  const leds = [];
+  for (let i = 0; i < 15; i++) {
+    const d = document.createElement('span');
+    d.className = 'led ' + (i < 5 ? 'g' : i < 10 ? 'r' : 'b');
+    $('leds').appendChild(d); leds.push(d);
+  }
+
+  // ---------- Tyres ----------
+  const TYRES = [
+    { id: 'soft', name: '소프트', c: '#ff2d2d', label: 'SLICK · SOFT · SLICK · SOFT · SLICK · SOFT ·' },
+    { id: 'medium', name: '미디엄', c: '#ffd400', label: 'SLICK · MEDIUM · SLICK · MEDIUM · SLICK ·' },
+    { id: 'hard', name: '하드', c: '#f2f2f2', label: 'SLICK · HARD · SLICK · HARD · SLICK · HARD ·' },
+    { id: 'inter', name: '인터미디엇', c: '#2ecc40', label: 'INTER · INTER · INTER · INTER · INTER ·' },
+    { id: 'wet', name: '웻', c: '#2f7bff', label: 'WET · WET · WET · WET · WET · WET · WET ·' },
+  ];
+  const tyreBtns = TYRES.map((t) => {
+    const b = document.createElement('button');
+    b.className = 'tyre'; b.style.setProperty('--c', t.c);
+    b.innerHTML = `<i></i>${t.name}`;
+    b.setAttribute('aria-pressed', 'false');
+    b.addEventListener('click', () => setTyre(t));
+    $('tyres').appendChild(b);
+    return b;
+  });
+  function setTyre(t) {
+    document.querySelectorAll('.band').forEach((el) => el.setAttribute('stroke', t.c));
+    document.querySelectorAll('.tyreLabel').forEach((el) => { el.setAttribute('fill', t.c); el.firstElementChild.textContent = t.label; });
+    tyreBtns.forEach((b, i) => b.setAttribute('aria-pressed', TYRES[i] === t ? 'true' : 'false'));
+    $('tyreName').textContent = t.name;
+  }
+  setTyre(TYRES[0]);
+
+  // ---------- Speed streaks ----------
+  const streaks = [];
+  for (let i = 0; i < 16; i++) {
+    const p = document.createElementNS(NS, 'path');
+    const s = { x: Math.random() * 1100, y: 40 + Math.random() * 380, len: 40 + Math.random() * 120, el: p, k: .6 + Math.random() * .8 };
+    p.setAttribute('stroke-width', (Math.random() * 1.4 + .4).toFixed(2));
+    p.setAttribute('opacity', (Math.random() * .5 + .2).toFixed(2));
+    $('streaks').appendChild(p); streaks.push(s);
+  }
+
+  // ---------- State ----------
+  const S = { engine: false, target: 0, speed: 0, drs: false, sound: true, offset: 0, angle: 0, rpm: 0 };
+  const GEAR_TOP = [0, 95, 130, 165, 200, 235, 270, 305, 360];
+
+  function gearFor(v) {
+    for (let g = 1; g < GEAR_TOP.length; g++) if (v <= GEAR_TOP[g]) return g;
+    return 8;
+  }
+
+  // ---------- Engine sound (Web Audio) ----------
+  let audio = null;
+  function initAudio() {
+    if (audio) return;
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if (!AC) return;
+    try {
+      const ctx = new AC();
+      const master = ctx.createGain(); master.gain.value = 0;
+      const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 1400; lp.Q.value = 3;
+      const shaper = ctx.createWaveShaper();
+      const curve = new Float32Array(1024);
+      for (let i = 0; i < 1024; i++) { const x = i / 512 - 1; curve[i] = Math.tanh(2.6 * x); }
+      shaper.curve = curve;
+      const o1 = ctx.createOscillator(); o1.type = 'sawtooth';
+      const o2 = ctx.createOscillator(); o2.type = 'square';
+      const o3 = ctx.createOscillator(); o3.type = 'sawtooth';
+      const g1 = ctx.createGain(); g1.gain.value = .5;
+      const g2 = ctx.createGain(); g2.gain.value = .22;
+      const g3 = ctx.createGain(); g3.gain.value = .18;
+      o1.connect(g1); o2.connect(g2); o3.connect(g3);
+      [g1, g2, g3].forEach((g) => g.connect(shaper));
+      shaper.connect(lp); lp.connect(master); master.connect(ctx.destination);
+      [o1, o2, o3].forEach((o) => o.start());
+      audio = { ctx, master, lp, o1, o2, o3 };
+    } catch (e) { audio = null; }
+  }
+  function updateAudio() {
+    if (!audio) return;
+    const t = audio.ctx.currentTime;
+    const on = S.engine && S.sound;
+    const f = Math.max(S.rpm, 1) / 60 * 1.5; // V6: 3 firing pulses per rev, shown an octave lower
+    audio.o1.frequency.setTargetAtTime(f, t, .03);
+    audio.o2.frequency.setTargetAtTime(f * 2.005, t, .03);
+    audio.o3.frequency.setTargetAtTime(f * .5, t, .03);
+    audio.lp.frequency.setTargetAtTime(700 + S.rpm * .18, t, .05);
+    audio.master.gain.setTargetAtTime(on ? .045 + .05 * (S.rpm / 12500) : 0, t, .08);
+  }
+
+  // ---------- Controls ----------
+  const throttle = $('throttle');
+  function setTarget(v) {
+    S.target = Math.max(0, Math.min(330, v));
+    throttle.value = S.target;
+    $('throttleOut').textContent = `${S.target} km/h`;
+  }
+  function setEngine(on) {
+    S.engine = on;
+    if (on) { initAudio(); if (audio && audio.ctx.state === 'suspended') audio.ctx.resume(); }
+    else { setTarget(0); setDRS(false); }
+    $('engineBtn').setAttribute('aria-pressed', on);
+    $('engineBtn').textContent = on ? '시동 끄기' : '시동 걸기';
+    throttle.disabled = !on;
+    $('hint').textContent = on
+      ? '목표 속도를 올리면 출발해요. 100 km/h 이상에서 DRS를 열면 최고 속도가 올라가요.'
+      : '시동을 먼저 걸어야 출발할 수 있어요.';
+  }
+  function setDRS(open) {
+    S.drs = open;
+    $('drsFlap').classList.toggle('open', open);
+    $('drsBtn').setAttribute('aria-pressed', open);
+    $('drsBtn').textContent = open ? 'DRS 닫기' : 'DRS 열기';
+    $('drsPill').classList.toggle('on', open);
+  }
+  function setLabels(show) {
+    $('labels').classList.toggle('hidden', !show);
+    $('labelsBtn').setAttribute('aria-pressed', show);
+    $('labelsBtn').textContent = show ? '부품 이름 숨기기' : '부품 이름 보기';
+  }
+  function setSound(on) {
+    S.sound = on;
+    $('soundBtn').setAttribute('aria-pressed', on);
+    $('soundBtn').textContent = on ? '소리 켜짐' : '소리 꺼짐';
+  }
+  function brake() { setTarget(0); setDRS(false); }
+
+  $('engineBtn').addEventListener('click', () => setEngine(!S.engine));
+  $('drsBtn').addEventListener('click', () => setDRS(!S.drs));
+  $('brakeBtn').addEventListener('click', brake);
+  $('soundBtn').addEventListener('click', () => setSound(!S.sound));
+  $('labelsBtn').addEventListener('click', () => setLabels($('labels').classList.contains('hidden')));
+  throttle.addEventListener('input', () => setTarget(+throttle.value));
+
+  window.addEventListener('keydown', (e) => {
+    const k = e.key.toLowerCase();
+    // the focused slider handles its own arrow keys
+    if (e.target && e.target.tagName === 'INPUT' && k.startsWith('arrow')) return;
+    if (e.target && e.target.tagName === 'BUTTON' && k === ' ') return;
+    if (k === 'e') setEngine(!S.engine);
+    else if (k === 'd') setDRS(!S.drs);
+    else if (k === 'l') setLabels($('labels').classList.contains('hidden'));
+    else if (k === ' ') { e.preventDefault(); brake(); }
+    else if ((k === 'arrowup' || k === 'w') && S.engine) { e.preventDefault(); setTarget(S.target + 10); }
+    else if ((k === 'arrowdown' || k === 's') && S.engine) { e.preventDefault(); setTarget(S.target - 10); }
+  });
+
+  // ---------- Animation loop ----------
+  const wheels = [...document.querySelectorAll('.wheel')].map((w) => ({
+    spin: w.querySelector('.spin'), blur: w.querySelector('.blur'),
+  }));
+  const pats = [
+    { el: $('standsPat'), f: .12, w: 240 },
+    { el: $('wallPat'), f: .45, w: 260 },
+    { el: $('kerbPat'), f: 1, w: 60 },
+    { el: $('lanePat'), f: 1, w: 160 },
+    { el: $('grainPat'), f: 1, w: 140 },
+  ];
+  const car = $('car'), heat = $('heat'), rain = $('rainLight'), hblur = $('hblurStd');
+  const UNITS_PER_KMH = 5;   // scene units per second for each km/h
+  const WHEEL_R = 64;
+  let last = performance.now(), t = 0;
+
+  function frame(now) {
+    const dt = Math.min((now - last) / 1000, .05);
+    last = now; t += dt;
+
+    // physics
+    const drsBoost = S.drs && S.speed > 100 ? 1.06 : 1;
+    const goal = S.engine ? Math.min(S.target * drsBoost, 350) : 0;
+    if (goal > S.speed) {
+      const acc = Math.max(10, 48 - S.speed * .11) * (S.drs ? 1.08 : 1);
+      S.speed = Math.min(goal, S.speed + acc * dt);
+    } else {
+      S.speed = Math.max(goal, S.speed - 95 * dt);
+    }
+
+    // rpm & gear
+    let gear = 0;
+    if (S.engine) {
+      if (S.speed < 1) { S.rpm += (4200 - S.rpm) * Math.min(1, dt * 6); }
+      else {
+        gear = gearFor(S.speed);
+        const lo = GEAR_TOP[gear - 1], hi = GEAR_TOP[gear];
+        const frac = (S.speed - lo) / (hi - lo);
+        const tgt = (gear === 1 ? 5000 : 8200) + frac * (12300 - (gear === 1 ? 5000 : 8200));
+        S.rpm += (tgt - S.rpm) * Math.min(1, dt * 14);
+      }
+      S.rpm += Math.sin(t * 90) * 25; // idle wobble
+    } else {
+      S.rpm += (0 - S.rpm) * Math.min(1, dt * 3);
+    }
+
+    // motion
+    const dx = S.speed * UNITS_PER_KMH * dt;
+    S.offset += dx;
+    S.angle = (S.angle + dx / WHEEL_R * 180 / Math.PI) % 360;
+    pats.forEach((p) => p.el.setAttribute('patternTransform', `translate(${-((S.offset * p.f) % p.w)} 0)`));
+
+    const k = Math.min(1, S.speed / 260);
+    wheels.forEach((w) => {
+      w.spin.setAttribute('transform', `rotate(${S.angle.toFixed(2)})`);
+      w.blur.setAttribute('opacity', (k * .85).toFixed(3));
+    });
+    hblur.setAttribute('stdDeviation', `${(k * 5).toFixed(2)} 0`);
+
+    // body vibration / squat
+    const vib = reduceMotion ? 0 : (S.engine ? .35 + k * .9 : 0);
+    const bob = Math.sin(t * 47) * vib + Math.sin(t * 13) * vib * .4;
+    const pitch = S.engine && goal > S.speed + 5 ? -.25 : (goal < S.speed - 5 ? .3 : 0);
+    car.setAttribute('transform', `translate(0 ${bob.toFixed(2)}) rotate(${pitch} 560 360)`);
+
+    // exhaust heat & rain light
+    heat.setAttribute('opacity', S.engine ? (.25 + .6 * (S.rpm / 12500) + Math.random() * .15).toFixed(2) : '0');
+    rain.setAttribute('fill', S.engine && (Math.floor(t * 4) % 2 === 0) ? '#ff2a3a' : '#4a0008');
+
+    // speed streaks
+    const sOp = Math.max(0, (S.speed - 120) / 200);
+    $('streaks').setAttribute('opacity', sOp.toFixed(2));
+    if (sOp > 0) {
+      streaks.forEach((s) => {
+        s.x -= dx * 2.2 * s.k;
+        if (s.x + s.len < 0) { s.x = 1100 + Math.random() * 200; s.y = 40 + Math.random() * 380; }
+        s.el.setAttribute('d', `M${s.x.toFixed(1)},${s.y.toFixed(1)} h${s.len.toFixed(1)}`);
+      });
+    }
+
+    // HUD
+    $('spd').textContent = Math.round(S.speed);
+    $('gear').textContent = !S.engine ? '–' : (gear === 0 ? 'N' : gear);
+    $('rpm').textContent = Math.max(0, Math.round(S.rpm / 10) * 10).toLocaleString('ko-KR');
+    const lit = Math.round(Math.max(0, Math.min(1, (S.rpm - 8500) / 3700)) * 15);
+    const flash = S.rpm > 12150 && Math.floor(t * 10) % 2 === 0;
+    leds.forEach((l, i) => { l.classList.toggle('on', i < lit); l.classList.toggle('flash', flash); });
+
+    // DRS closes automatically under heavy braking
+    if (S.drs && goal < S.speed - 30) setDRS(false);
+
+    updateAudio();
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>
