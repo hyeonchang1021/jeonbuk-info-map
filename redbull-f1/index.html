@@ -23,7 +23,8 @@
   .ui { position: fixed; inset: 0; pointer-events: none; font-variant-numeric: tabular-nums; }
   .ui > * { pointer-events: auto; }
   .ui.hide > :not(#ptStatus) { display: none; }
-  .ui.nocharts .col, .ui.nocharts .legend { display: none; }
+  .ui.nocharts .col, .ui.nocharts .legend, .ui.nocharts .dock.left, .ui.nocharts .firing,
+  .ui.nocharts .big, .ui.nocharts .title .bar, .ui.nocharts .barlbl, .ui.nocharts .title .sub { display: none; }
   .leaders, .callouts { position: absolute; inset: 0; pointer-events: none !important; width: 100%; height: 100%; }
   .leaders polyline { fill: none; stroke: var(--ink); stroke-opacity: .55; stroke-width: 1; }
   .leaders circle { fill: var(--ink); }
@@ -486,7 +487,7 @@ const fastener = (d) => -0.75 * Math.exp(-(d * d) / (0.0032 * 0.0032)) + 0.22 * 
 const modc = (a, p) => ((a % p) + p) % p - p / 2;
 // NACA-style cambered aerofoil, leading edge at origin, trailing edge toward -x.
 function aerofoilShape(chord, thick = 0.1, camber = 0.05) {
-  const N = 64, up = [], lo = [];
+  const N = 80, up = [], lo = [];
   for (let i = 0; i <= N; i++) {
     const t = (1 - Math.cos((i / N) * Math.PI)) / 2;
     const yt = 5 * thick * chord * (0.2969 * Math.sqrt(t) - 0.126 * t - 0.3516 * t * t + 0.2843 * t ** 3 - 0.1036 * t ** 4);
@@ -502,8 +503,11 @@ function aerofoilShape(chord, thick = 0.1, camber = 0.05) {
   return sh;
 }
 // A wing element: span along z, positioned with leading edge at (x, y), pitched by aoa (deg, TE up).
-function wingElement({ chord, thick = 0.1, camber = 0.05, aoa = 0, span, x, y, warp = () => 0, sweep = () => 0, zOff = 0 }) {
-  let g = new THREE.ExtrudeGeometry(aerofoilShape(chord, thick, camber), { depth: span, bevelEnabled: false, curveSegments: 1, steps: q(140) });
+function wingElement({ chord, thick = 0.1, camber = 0.05, aoa = 0, span, x, y, warp = () => 0, sweep = () => 0, zOff = 0, stripe = null, unitUV = false }) {
+  let g = new THREE.ExtrudeGeometry(aerofoilShape(chord, thick, camber), { depth: span, bevelEnabled: false, curveSegments: 1, steps: q(200) });
+  { const pp = g.attributes.position, tc = new Float32Array(pp.count * 2);
+    for (let i = 0; i < pp.count; i++) { tc[i * 2] = -pp.getX(i) / chord; tc[i * 2 + 1] = pp.getZ(i) / span; }
+    g.setAttribute('tc', new THREE.BufferAttribute(tc, 2)); }
   g.translate(0, 0, -span / 2);
   g.rotateZ(-THREE.MathUtils.degToRad(aoa));
   const p = g.attributes.position;
@@ -515,9 +519,18 @@ function wingElement({ chord, thick = 0.1, camber = 0.05, aoa = 0, span, x, y, w
   g = BGU.mergeVertices(g, 1e-5);
   g.computeVertexNormals();
   // planar UVs (metres) so paint and carbon detail maps have a stable scale
-  const pp = g.attributes.position, uv = new Float32Array(pp.count * 2);
-  for (let i = 0; i < pp.count; i++) { uv[i * 2] = pp.getX(i) + pp.getY(i) * 0.5; uv[i * 2 + 1] = pp.getZ(i); }
+  const pp = g.attributes.position, uv = new Float32Array(pp.count * 2), tc = g.attributes.tc;
+  for (let i = 0; i < pp.count; i++) {
+    if (unitUV) { uv[i * 2] = tc.getX(i); uv[i * 2 + 1] = tc.getY(i); }
+    else { uv[i * 2] = pp.getX(i) + pp.getY(i) * 0.5; uv[i * 2 + 1] = pp.getZ(i); }
+  }
   g.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
+  if (stripe) {   // stripe = [from, to, baseHex, stripeHex] in chord fraction
+    const a = new THREE.Color(stripe[2]), b = new THREE.Color(stripe[3]), col = new Float32Array(pp.count * 3);
+    for (let i = 0; i < pp.count; i++) { const c = tc.getX(i) >= stripe[0] && tc.getX(i) <= stripe[1] ? b : a; col.set([c.r, c.g, c.b], i * 3); }
+    g.setAttribute('color', new THREE.BufferAttribute(col, 3));
+  }
+  g.deleteAttribute('tc');
   return g;
 }
 function plate(points, thickness, { bevel = 0.0025 } = {}) {
@@ -558,7 +571,7 @@ function strut(a, b, chord = 0.04, thick = 0.012, mat) {
 // =====================================================================
 // Materials
 // =====================================================================
-const C = { navy: '#141f49', red: '#d1001d', yellow: '#ffc400', black: '#0c0d10' };
+const C = { navy: '#171d36', red: '#d7162a', yellow: '#ffc300', orange: '#f5821f', black: '#0c0d10' };
 const paintMats = []; // every livery material reacts to the finish toggle
 function paint(opts) {
   const m = new THREE.MeshPhysicalMaterial({
@@ -612,6 +625,7 @@ const yellowPaint = paint({ color: C.yellow });
 const titanium = new THREE.MeshStandardMaterial({ color: '#9a8f86', metalness: 1, roughness: 0.32 });
 const darkMetal = new THREE.MeshStandardMaterial({ color: '#17191e', metalness: 0.85, roughness: 0.5 });
 const mirrorMat = new THREE.MeshStandardMaterial({ color: '#d8dbe2', metalness: 1, roughness: 0.02 });
+const stripePaint = paint({ color: '#ffffff', vertexColors: true });
 const rainMat = new THREE.MeshStandardMaterial({ color: '#300', emissive: '#ff1020', emissiveIntensity: 0 });
 
 // =====================================================================
@@ -624,7 +638,10 @@ const body = (mesh) => { mesh.userData.body = true; return mesh; };   // enclosi
 const smooth = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
 
 // Livery palette (sRGB bytes for the painted textures)
-const P = { navy: [20, 31, 73], line: [9, 14, 36], red: [209, 0, 29], yel: [255, 196, 0], blk: [10, 10, 12], cf: [24, 25, 29] };
+const P = { navy: [23, 29, 54], line: [8, 11, 24], red: [215, 22, 42], org: [246, 128, 30], yel: [255, 195, 0], blk: [10, 10, 12], cf: [22, 23, 27], wht: [236, 238, 242] };
+const mix3 = (a, b, t) => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t];
+// Text placeholders for the sponsor positions — edit freely (official logos are not reproduced)
+const LIVERY_TEXT = { sidepod: 'RED BULL', rearWing: 'RED BULL RACING', frontWing: 'RACING', endplate: 'RB', halo: 'RB' };
 
 // ---- Fuselage: nose → monocoque → cockpit → airbox → engine cover → crash structure
 const D = { dip: 0, dipW: 0.2, zc: 0, uc: 0 };
@@ -651,27 +668,52 @@ const FUS = [
   { ...D, x: -2.40, w: 0.060, yB: 0.262, yM: 0.343, yT: 0.420, nT: 2.4, nB: 2.4 },
 ];
 const near = (a, b, d) => Math.abs(a - b) < d;
-const fusTex = paintLoft(FUS, 2560, 1280, (s, th, z, y) => {
+// Flame tongues (abstract charging-bull feel): segments from an origin sweeping back and down, tapering
+const FLAMES_ENGINE = [
+  [[-0.62, 0.78], [-1.40, 0.68], 0.06], [[-0.62, 0.72], [-1.50, 0.58], 0.055], [[-0.64, 0.67], [-1.30, 0.52], 0.05],
+  [[-0.66, 0.62], [-1.12, 0.47], 0.04], [[-0.70, 0.84], [-1.20, 0.79], 0.04], [[-0.6, 0.58], [-0.95, 0.44], 0.03],
+];
+function flame(x, y, list) {
+  let best = 0;
+  for (const [[x0, y0], [x1, y1], w0] of list) {
+    const dx = x1 - x0, dy = y1 - y0, L2 = dx * dx + dy * dy;
+    const t = Math.max(0, Math.min(1, ((x - x0) * dx + (y - y0) * dy) / L2));
+    const d = Math.hypot(x - (x0 + dx * t), y - (y0 + dy * t));
+    const w = w0 * Math.pow(1 - t, 0.85) * (1 + 0.25 * Math.sin(t * 19 + x0 * 40));
+    if (w > 0 && d < w) best = Math.max(best, 1 - d / w);
+  }
+  return best;
+}
+const fusTex = paintLoft(FUS, q(3072), q(1536), (s, th, z, y) => {
   const sn = Math.sin(th), x = s.x;
   if (sn > 0 && s.dip > 0.035 && Math.abs(z) < s.dipW * 0.985) return P.blk;  // cockpit tub
-  if (sn < -0.6) return P.cf;                                                   // carbon underside
-  if (x > 2.50) return P.red;                                                   // nose tip
-  if (x > 2.46) return P.yel;
-  // panel shut lines: nose box joint, engine-cover outline
-  if (near(x, 1.48, 0.003) && sn > -0.5) return P.line;
-  if (near(x, -0.66, 0.003) && sn > 0.25) return P.line;
-  if (x < -0.66 && x > -2.1 && near(y, 0.47, 0.0025) && sn > 0) return P.line;
-  if (x > 1.10 && x <= 2.46) {                                                  // red sweep on the nose sides
-    const b = -0.10 + (x - 1.10) * 0.2;
-    if (sn < b) return P.red;
-    if (sn < b + 0.045) return P.yel;
+  if (sn < -0.62 && x < 1.9) return P.cf;                                       // carbon underside
+  // ---- nose: yellow front with an orange fade and red flame tongues behind it
+  const xb = 1.46 + 0.10 * sn + 0.03 * Math.sin(sn * 7);
+  if (x > xb) {
+    const k = Math.min(1, (x - xb) / 0.22);
+    return k < 1 ? mix3(P.org, P.yel, Math.pow(k, 0.6)) : P.yel;
   }
-  if (sn > 0 && x < -0.66 && x > -2.25 && Math.abs(z) < 0.010) return P.red;   // engine-cover spine stripe
+  const tongue = Math.max(0, Math.sin(sn * 10 + 1.1)) ** 1.5;
+  if (x > xb - 0.06 - 0.26 * tongue && sn > -0.55) return x > xb - 0.03 - 0.08 * tongue ? P.org : P.red;
+  // ---- panel shut lines
+  if (near(x, 1.48, 0.003) && sn > -0.5) return P.line;
+  if (near(x, -0.66, 0.003) && sn > 0.25 && y < 0.70) return P.line;
+  if (x < -0.66 && x > -2.1 && near(y, 0.47, 0.0025) && sn > 0) return P.line;
+  // ---- airbox surround: yellow into orange, then flames down the engine cover
+  if (x < -0.30 && x > -0.98 && y > 0.66 + (-0.30 - x) * 0.22 && sn > 0) {
+    const k = Math.min(1, Math.max(0, (-0.40 - x) / 0.55 + (0.90 - y) * 1.2));
+    return k < 0.5 ? P.yel : mix3(P.yel, P.org, (k - 0.5) / 0.5);
+  }
+  if (sn > -0.2) {
+    const f = flame(x, y, FLAMES_ENGINE);
+    if (f > 0) return f > 0.72 ? P.org : P.red;
+  }
   if (x < -2.22) return P.cf;
   return P.navy;
 });
 const fusNrm = (() => {
-  const W = q(3072), H = q(1536);
+  const W = q(3584), H = q(1792);
   const Hf = bakeLoftHeight(FUS, W, H, (s, th, z, y, arc) => {
     const sn = Math.sin(th), x = s.x;
     let h = (vnoise(x / 0.0016, arc / 0.0016) - 0.5) * 0.025;                     // orange peel (sub-millimetre)
@@ -685,7 +727,7 @@ const fusNrm = (() => {
   return heightToNormal(Hf, W, H, 1.5, { wrap: false });
 })();
 const fusMat = paint({ map: fusTex, normalMap: fusNrm, normalScale: new THREE.Vector2(1, 1), clearcoatNormalMap: fusNrm, clearcoatNormalScale: new THREE.Vector2(1, 1) });
-const fus = loft(FUS, { slices: q(560), segs: q(288) });
+const fus = loft(FUS, { slices: q(780), segs: q(352) });
 const fusMesh = body(add(new THREE.Mesh(fus.geo, fusMat)));
 body(add(new THREE.Mesh(capGeometry(fus.endRing, new THREE.Vector3(-1, 0, 0)), carbon)));
 
@@ -706,11 +748,6 @@ const podTex = paintLoft(POD, 2048, 1024, (s, th) => {
   const sn = Math.sin(th), c = Math.cos(th), x = s.x;
   if (sn < -0.86) return P.cf;
   if ((near(x, 0.30, 0.0035) || near(x, -0.55, 0.0035)) && c > -0.2 && sn > -0.7) return P.line;
-  if (c > -0.3) {
-    const b = -0.22 + (0.75 - x) * 0.13;
-    if (sn < b) return P.red;
-    if (sn < b + 0.06) return P.yel;
-  }
   return P.navy;
 });
 const podNrm = (() => {
@@ -727,7 +764,7 @@ const podNrm = (() => {
 const podMat = paint({ map: podTex, normalMap: podNrm, normalScale: new THREE.Vector2(1, 1), clearcoatNormalMap: podNrm, clearcoatNormalScale: new THREE.Vector2(1, 1) });
 const podMeshes = [];
 for (const side of [1, -1]) {
-  const L = loft(POD, { slices: q(380), segs: q(240), side });
+  const L = loft(POD, { slices: q(520), segs: q(300), side });
   podMeshes.push(body(add(new THREE.Mesh(L.geo, podMat))));
   // recessed inlet: a short black tunnel and a back wall, so the mouth has real depth
   const ring = L.startRing, n = ring.length - 1;
@@ -791,12 +828,19 @@ for (const side of [1, -1]) {
   car.updateMatrixWorld(true);
   const hit = new THREE.Raycaster(new THREE.Vector3(2, 0.86, 0), new THREE.Vector3(-1, 0, 0)).intersectObject(fusMesh)[0];
   const ax = hit ? hit.point.x : -0.45;
-  const intake = body(add(new THREE.Mesh(new THREE.CircleGeometry(1, 48), matteBlack)));
-  intake.scale.set(0.068, 0.056, 1); intake.rotation.y = Math.PI / 2; intake.position.set(ax + 0.004, 0.86, 0);
-  const lip = body(add(new THREE.Mesh(new THREE.TorusGeometry(1, 0.13, 14, 64), navyPaint)));
-  lip.scale.set(0.068, 0.056, 0.07); lip.rotation.y = Math.PI / 2; lip.position.copy(intake.position);
-  const tcam = add(new THREE.Mesh(new RoundedBoxGeometry(0.11, 0.032, 0.12, 3, 0.01), satinBlack));
-  tcam.position.set(-0.64, 0.955, 0); tcam.rotation.z = -0.1;
+  const intake = body(add(new THREE.Mesh(new THREE.CircleGeometry(1, 96), matteBlack)));
+  intake.scale.set(0.078, 0.064, 1); intake.rotation.y = Math.PI / 2; intake.position.set(ax + 0.006, 0.858, 0);
+  const lip = body(add(new THREE.Mesh(new THREE.TorusGeometry(1, 0.16, 24, 128), yellowPaint)));
+  lip.scale.set(0.078, 0.064, 0.085); lip.rotation.y = Math.PI / 2; lip.position.copy(intake.position);
+  // T-camera on a slim mast above the roll hoop
+  const mast = add(new THREE.Mesh(new RoundedBoxGeometry(0.03, 0.12, 0.012, 3, 0.005), satinBlack));
+  mast.position.set(-0.6, 0.995, 0);
+  const tcam = add(new THREE.Mesh(new RoundedBoxGeometry(0.075, 0.034, 0.22, 4, 0.012), satinBlack));
+  tcam.position.set(-0.6, 1.06, 0);
+  for (const s of [1, -1]) {   // lens windows
+    const lens = add(new THREE.Mesh(new THREE.CircleGeometry(0.009, 24), mirrorMat));
+    lens.rotation.y = Math.PI / 2; lens.position.set(-0.561, 1.06, s * 0.07);
+  }
   for (const [x, y, h] of [[1.20, 0.50, 0.07], [-1.45, 0.69, 0.05]]) {
     const a = add(new THREE.Mesh(new THREE.CylinderGeometry(0.0025, 0.004, h, 8), satinBlack)); a.position.set(x, y + h / 2, 0);
   }
@@ -930,9 +974,16 @@ const drsPivot = new THREE.Group();
   const flapTE = [-2.735, 1.0225];
   drsPivot.position.set(flapTE[0], flapTE[1], 0);
   car.add(drsPivot);
-  const flapGeo = wingElement({ chord: 0.225, thick: 0.09, camber: 0.06, aoa: 38, span: SPAN - 0.01, x: -2.558, y: 0.884, warp: spoon });
+  const flapGeo = wingElement({ chord: 0.225, thick: 0.09, camber: 0.06, aoa: 38, span: SPAN - 0.01, x: -2.558, y: 0.884, warp: spoon, unitUV: true });
   flapGeo.translate(-flapTE[0], -flapTE[1], 0);
-  add(new THREE.Mesh(flapGeo, redPaint), drsPivot);
+  const flapTex = canvasTex(256, 2048, (ctx, w, h) => {   // u = chord (LE→TE), v = span
+    ctx.fillStyle = C.navy; ctx.fillRect(0, 0, w, h);
+    ctx.save(); ctx.translate(w * 0.5, h / 2); ctx.rotate(Math.PI / 2);
+    ctx.font = '800 150px system-ui, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillStyle = '#eef0f4';
+    ctx.fillText(LIVERY_TEXT.rearWing, 0, 0, h * 0.9);
+    ctx.restore();
+  });
+  add(new THREE.Mesh(flapGeo, paint({ map: flapTex })), drsPivot);
   const gurney = add(new THREE.Mesh(new THREE.BoxGeometry(0.004, 0.016, SPAN - 0.03), satinBlack), drsPivot);
   gurney.position.set(0.002, 0.006, 0); gurney.rotation.z = -0.66;
   const act = add(new THREE.Mesh(new RoundedBoxGeometry(0.09, 0.05, 0.035, 3, 0.012), navyPaint));
@@ -944,15 +995,12 @@ const drsPivot = new THREE.Group();
   const EX = [-2.86, -2.16], EY = [0.32, 1.10];
   const epTex = canvasTex(512, 512, (ctx, w, h) => {
     ctx.fillStyle = C.navy; ctx.fillRect(0, 0, w, h);
-    ctx.fillStyle = C.red; ctx.fillRect(0, 0, w, h * 0.16);
-    ctx.fillStyle = C.yellow; ctx.fillRect(0, h * 0.16, w, h * 0.022);
-    ctx.fillStyle = C.red;
-    ctx.beginPath(); ctx.moveTo(0, h); ctx.lineTo(w * 0.55, h); ctx.lineTo(0, h * 0.62); ctx.closePath(); ctx.fill();
-    const g = ctx.createRadialGradient(w * 0.62, h * 0.36, 2, w * 0.62, h * 0.36, 32);
-    g.addColorStop(0, '#ffe27a'); g.addColorStop(1, '#ffbf00');
-    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(w * 0.62, h * 0.36, 30, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = C.red; ctx.fillRect(w * 0.06, h * 0.36, w * 0.4, h * 0.13);           // rear sponsor box
+    ctx.font = '800 italic 54px system-ui, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillStyle = '#f2f4f8';
+    ctx.fillText(LIVERY_TEXT.endplate, w * 0.26, h * 0.43);
+    ctx.fillStyle = 'rgba(255,255,255,.85)'; ctx.font = '700 30px system-ui, sans-serif'; ctx.fillText(LIVERY_TEXT.endplate, w * 0.4, h * 0.22);
   });
-  const pts = [[-2.20, 0.38], [-2.21, 0.80], [-2.26, 0.95], [-2.40, 1.03], [-2.62, 1.05], [-2.79, 1.0], [-2.82, 0.90], [-2.72, 0.62], [-2.62, 0.37]];
+  const pts = [[-2.25, 0.60], [-2.22, 0.84], [-2.26, 0.96], [-2.40, 1.04], [-2.62, 1.06], [-2.78, 1.02], [-2.82, 0.92], [-2.76, 0.80], [-2.58, 0.72], [-2.46, 0.58], [-2.38, 0.50]];
   for (const s of [1, -1]) {
     const t = epTex.clone(); t.needsUpdate = true;
     const sx = 1 / (EX[1] - EX[0]), sy = 1 / (EY[1] - EY[0]);
@@ -972,13 +1020,14 @@ const drsPivot = new THREE.Group();
   const rise = (k1, k2) => (z) => { const a = Math.abs(z) / HS; return k1 * a * a + k2 * Math.pow(smooth(0.74, 1, a), 1.4); };
   const sweep = (k) => (z) => -k * Math.pow(Math.abs(z) / HS, 2);
   add(new THREE.Mesh(wingElement({ chord: 0.30, thick: 0.08, camber: 0.05, aoa: 3, span: SPAN, x: 2.97, y: 0.072, warp: rise(0.02, 0.03), sweep: sweep(0.04) }), carbon));
-  add(new THREE.Mesh(wingElement({ chord: 0.22, thick: 0.08, camber: 0.05, aoa: 14, span: SPAN, x: 2.73, y: 0.112, warp: rise(0.04, 0.07), sweep: sweep(0.06) }), navyPaint));
-  add(new THREE.Mesh(wingElement({ chord: 0.17, thick: 0.08, camber: 0.05, aoa: 26, span: SPAN, x: 2.57, y: 0.160, warp: rise(0.06, 0.10), sweep: sweep(0.07) }), navyPaint));
-  add(new THREE.Mesh(wingElement({ chord: 0.14, thick: 0.08, camber: 0.05, aoa: 38, span: SPAN, x: 2.46, y: 0.208, warp: rise(0.07, 0.12), sweep: sweep(0.07) }), redPaint));
+  const fwS = (a) => [a, a + 0.07, '#0e1018', C.red];
+  add(new THREE.Mesh(wingElement({ chord: 0.22, thick: 0.08, camber: 0.05, aoa: 14, span: SPAN, x: 2.73, y: 0.112, warp: rise(0.04, 0.07), sweep: sweep(0.06), stripe: fwS(0.86) }), stripePaint));
+  add(new THREE.Mesh(wingElement({ chord: 0.17, thick: 0.08, camber: 0.05, aoa: 26, span: SPAN, x: 2.57, y: 0.160, warp: rise(0.06, 0.10), sweep: sweep(0.07), stripe: fwS(0.84) }), stripePaint));
+  add(new THREE.Mesh(wingElement({ chord: 0.14, thick: 0.08, camber: 0.05, aoa: 38, span: SPAN, x: 2.46, y: 0.208, warp: rise(0.07, 0.12), sweep: sweep(0.07), stripe: fwS(0.80) }), stripePaint));
   for (const s of [1, -1]) {
     const ep = add(new THREE.Mesh(smoothPlate([[2.98, 0.03], [3.0, 0.12], [2.90, 0.25], [2.66, 0.36], [2.42, 0.42], [2.33, 0.36], [2.35, 0.03]], 0.012), navyPaint));
     ep.position.z = s * (HS + 0.006);
-    const tip = add(new THREE.Mesh(smoothPlate([[2.90, 0.25], [2.66, 0.365], [2.42, 0.425], [2.33, 0.365], [2.42, 0.38], [2.66, 0.33], [2.86, 0.23]], 0.014), redPaint));
+    const tip = add(new THREE.Mesh(smoothPlate([[2.90, 0.25], [2.66, 0.365], [2.42, 0.425], [2.33, 0.365], [2.42, 0.38], [2.66, 0.33], [2.86, 0.23]], 0.014), satinBlack));
     tip.position.z = s * (HS + 0.006);
     const fp = add(new THREE.Mesh(new RoundedBoxGeometry(0.62, 0.008, 0.09, 2, 0.003), carbon));
     fp.position.set(2.64, 0.034, s * (HS - 0.04));
@@ -997,7 +1046,7 @@ const TYRES = [
   { id: 'wet', name: '웻', c: '#2f7bff', label: 'WET' },
 ];
 const R = 0.36, RIM = 0.229;
-const PHI0 = Math.PI * 7 / 6, PHI1 = -Math.PI / 6, NPROF = q(220);
+const PHI0 = Math.PI * 7 / 6, PHI1 = -Math.PI / 6, NPROF = q(240);
 function tyreProfile(width) {
   const rc = (RIM + R) / 2, hr = (R - RIM) / 2, hw = width / 2 + 0.006, n = 5;
   const pts = [new THREE.Vector2(RIM - 0.002, -width / 2 + 0.018)];
@@ -1072,10 +1121,11 @@ function tyreTexture(t) {
   return (tyreTexCache[t.id] = { map, rough, normal });
 }
 const tyreMat = new THREE.MeshPhysicalMaterial({ roughness: 1, metalness: 0, normalScale: new THREE.Vector2(1, 1), sheen: 0.25, sheenRoughness: 0.8, sheenColor: '#222' });
-const coverMat = new THREE.MeshPhysicalMaterial({ ...CF.unit, normalScale: new THREE.Vector2(0.35, 0.35), anisotropy: 0.5, roughness: 0.3, metalness: 0.05, clearcoat: 1, clearcoatRoughness: 0.05 });
+const nutPaint = paint({ color: '#cfdc00' });
+const coverMat = new THREE.MeshPhysicalMaterial({ ...CF.unit, color: '#5a5a5a', normalScale: new THREE.Vector2(0.35, 0.35), anisotropy: 0.4, roughness: 0.4, metalness: 0.05, clearcoat: 0.8, clearcoatRoughness: 0.08, envMapIntensity: 0.45 });
 function makeWheel(width, front) {
   const g = new THREE.Group();
-  const tg = new THREE.LatheGeometry(tyreProfile(width), q(360));
+  const tg = new THREE.LatheGeometry(tyreProfile(width), q(420));
   tg.rotateX(Math.PI / 2);
   const tyre = new THREE.Mesh(tg, tyreMat); tyre.castShadow = tyre.receiveShadow = true; g.add(tyre);
   const barrel = new THREE.Mesh(new THREE.CylinderGeometry(RIM, RIM, width - 0.03, q(160), 1, true), darkMetal);
@@ -1088,7 +1138,7 @@ function makeWheel(width, front) {
   const cover = new THREE.Mesh(cg, coverMat); cover.position.z = width / 2 - 0.02; cover.receiveShadow = true; g.add(cover);
   const lipRing = new THREE.Mesh(new THREE.TorusGeometry(RIM - 0.006, 0.007, 16, q(240)), titanium); lipRing.position.z = width / 2 - 0.02; g.add(lipRing);
   const ring2 = new THREE.Mesh(new THREE.TorusGeometry(0.075, 0.004, 8, 64), yellowPaint); ring2.position.z = width / 2 - 0.03; g.add(ring2);
-  const nut = new THREE.Mesh(new THREE.CylinderGeometry(0.038, 0.044, 0.05, 12), front ? redPaint : yellowPaint);
+  const nut = new THREE.Mesh(new THREE.CylinderGeometry(0.038, 0.044, 0.05, 12), nutPaint);
   nut.rotation.x = Math.PI / 2; nut.position.z = width / 2 - 0.02; nut.castShadow = true; g.add(nut);
   const pin = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.03, 16), titanium);
   pin.rotation.x = Math.PI / 2; pin.position.z = width / 2 + 0.01; g.add(pin);
@@ -1137,13 +1187,13 @@ for (const W of WHEELS) for (const s of [1, -1]) {
 
 // ---- Decals projected onto the curved bodywork
 function decalTex(w, h, draw) { return canvasTex(w, h, (ctx) => { ctx.clearRect(0, 0, w, h); draw(ctx, w, h); }); }
-const wordmarkTex = decalTex(1024, 256, (ctx) => {
-  const g = ctx.createRadialGradient(118, 118, 10, 128, 128, 100);
-  g.addColorStop(0, '#ffe680'); g.addColorStop(0.7, '#ffc400'); g.addColorStop(1, '#f0a800');
-  ctx.fillStyle = g; ctx.beginPath(); ctx.arc(128, 128, 96, 0, Math.PI * 2); ctx.fill();
-  ctx.font = '900 italic 150px system-ui, sans-serif'; ctx.textBaseline = 'middle';
-  ctx.lineWidth = 10; ctx.strokeStyle = '#ffc400'; ctx.strokeText('RED BULL', 248, 136);
-  ctx.fillStyle = '#e1001d'; ctx.fillText('RED BULL', 248, 136);
+const wordmarkTex = decalTex(1024, 256, (ctx, w, h) => {
+  ctx.font = '700 188px "Helvetica Neue", Arial, system-ui, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillStyle = '#f2f4f8'; ctx.fillText(LIVERY_TEXT.sidepod, w / 2, h / 2 + 8, w * 0.96);
+});
+const smallMarkTex = decalTex(512, 128, (ctx, w, h) => {
+  ctx.font = '800 italic 84px system-ui, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillStyle = '#f2f4f8'; ctx.fillText(LIVERY_TEXT.frontWing, w / 2, h / 2 + 4, w * 0.94);
 });
 const racingTex = decalTex(1024, 256, (ctx) => {
   const g = ctx.createRadialGradient(110, 118, 8, 128, 128, 92);
@@ -1185,13 +1235,12 @@ function decalAt(target, tex, origin, dir, rightHint, size, depth = 0.3) {
 }
 for (const s of [1, -1]) {
   const pod = podMeshes[s > 0 ? 0 : 1];
-  decalAt(pod, wordmarkTex, [0.10, 0.42, s * 3], [0, 0, -s], [s, 0, 0], [0.80, 0.20]);
+  decalAt(pod, wordmarkTex, [0.14, 0.40, s * 3], [0, 0, -s], [s, 0, 0], [0.86, 0.215]);
   decalAt(pod, louvreTex, [-0.62, 2, s * 0.40], [0, -1, 0], [1, 0, 0], [0.34, 0.15], 0.12);
-  decalAt(fusMesh, racingTex, [-1.02, 0.60, s * 3], [0, 0, -s], [s, 0, 0], [0.48, 0.12]);
   decalAt(fusMesh, louvreTex, [-1.45, 2, s * 0.13], [0, -1, 0], [1, 0, 0], [0.26, 0.11], 0.1);
-  decalAt(fusMesh, numberTex, [2.02, 0.27, s * 3], [0, 0, -s], [s, 0, 0], [0.12, 0.12]);
+  decalAt(fusMesh, numberTex, [1.62, 0.33, s * 3], [0, 0, -s], [s, 0, 0], [0.12, 0.12]);
 }
-decalAt(fusMesh, numberTex, [2.30, 2, 0], [0, -1, 0], [0, 0, -1], [0.10, 0.10], 0.12);
+decalAt(fusMesh, numberTex, [1.58, 2, 0], [0, -1, 0], [0, 0, -1], [0.10, 0.10], 0.12);
 
 // =====================================================================
 // Internals: 1.6 L V6 turbo hybrid power unit + packaging (seen through the glass / section cutaways)
@@ -1533,6 +1582,22 @@ function updateArrows(t, speedK, drs) {
 // Environment, lights, floor
 // =====================================================================
 const PRESETS = {
+  track: {
+    name: '트랙', tag: 'Track', light: true, exposure: 1.0, envI: 1.0, fx: 0, floorTex: 'asphalt',
+    bg: ['#86aee0', '#dfe7ef'], fog: '#c9cfd5', floor: '#8a8c90',
+    key: { c: '#fff3e2', i: 3.4, p: [6, 9, 5] }, rim: { c: '#bcd4ff', i: 0.6, p: [-5, 4, -4] }, hemi: 0.55,
+    env: { sky: ['#4f86d6', '#e4ecf4', '#6e6e6c'], panels: [[[16, 18, 12], 2.6, 2.6, '#fff6e8', 90, null, true]] },
+  },
+  garage: {
+    name: '차고', tag: 'Garage', light: false, exposure: 1.05, envI: 1.0, fx: 0, floorTex: 'concrete',
+    bg: ['#17181b', '#0c0c0e'], fog: '#0c0c0e', floor: '#3a3b3e',
+    key: { c: '#eef4ff', i: 2.6, p: [0.5, 9, 1.5] }, rim: { c: '#ffffff', i: 0.5, p: [-6, 3, -4] }, hemi: 0.06,
+    env: { room: '#0a0a0b', panels: [
+      [[-2.5, 5.2, -1.6], 5, 0.14, '#ffffff', 16, [0, -1, 0]], [[2.5, 5.2, -1.6], 5, 0.14, '#ffffff', 16, [0, -1, 0]],
+      [[-2.5, 5.2, 1.6], 5, 0.14, '#ffffff', 16, [0, -1, 0]], [[2.5, 5.2, 1.6], 5, 0.14, '#ffffff', 16, [0, -1, 0]],
+      [[0, 2.5, -14.5], 28, 5, '#2a2622', 0.4], [[0, 2.5, 14.5], 28, 5, '#2a2622', 0.3],
+    ] },
+  },
   tech: {
     name: '테크니컬', tag: 'Tech', light: true, exposure: 1.0, envI: 1.0, fx: 0,
     bg: ['#f3f4f6', '#e7e9ec'], fog: '#e4e6e9', floor: '#e6e8eb',
@@ -1689,6 +1754,31 @@ const floorAlpha = canvasTex(512, 512, (ctx, w, h) => {
   ctx.fillStyle = g; ctx.fillRect(0, 0, w, h);
 }, { srgb: false });
 const floorMat = new THREE.MeshPhysicalMaterial({ color: '#14161b', roughness: 0.7, metalness: 0, specularIntensity: 0.3, envMapIntensity: 0.03, transparent: true, opacity: 1, alphaMap: floorAlpha });
+// Procedural ground surfaces: race asphalt (aggregate + binder) and polished garage concrete
+function groundTex(kind) {
+  const S = 1024, H = new Float32Array(S * S);
+  const col = new Uint8ClampedArray(S * S * 4), rand = rng(kind === 'asphalt' ? 11 : 29);
+  for (let y = 0; y < S; y++) for (let x = 0; x < S; x++) {
+    const n = fbm(x / 48, y / 48, 4, S / 48, S / 48), f = vnoise(x / 2.2, y / 2.2, S / 2.2, S / 2.2);
+    let v, h;
+    if (kind === 'asphalt') { v = 96 + n * 40 + (f - 0.5) * 70; h = f * 0.8 + n * 0.3; }
+    else { v = 128 + n * 46 + (f - 0.5) * 10; h = n * 0.25 + f * 0.04; }
+    const k = (y * S + x) * 4; col[k] = v; col[k + 1] = v; col[k + 2] = v * (kind === 'asphalt' ? 1.02 : 0.98); col[k + 3] = 255; H[y * S + x] = h;
+  }
+  if (kind === 'asphalt') for (let i = 0; i < 26000; i++) {      // light aggregate stones and dark pits
+    const x = (rand() * S) | 0, y = (rand() * S) | 0, r = 1 + ((rand() * 2.5) | 0), lite = rand() < 0.55;
+    for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) {
+      if (dx * dx + dy * dy > r * r) continue;
+      const xx = (x + dx + S) % S, yy = (y + dy + S) % S, k = (yy * S + xx) * 4, val = lite ? 150 + rand() * 50 : 40;
+      col[k] = col[k + 1] = col[k + 2] = val; H[yy * S + xx] = lite ? 1.1 : -0.4;
+    }
+  }
+  const map = canvasTex(S, S, (ctx) => { const img = ctx.createImageData(S, S); img.data.set(col); ctx.putImageData(img, 0, 0); }, { repeat: kind === 'asphalt' ? [44, 44] : [16, 16] });
+  const normalMap = heightToNormal(H, S, S, kind === 'asphalt' ? 2.2 : 0.8, { repeat: kind === 'asphalt' ? [44, 44] : [16, 16] });
+  return { map, normalMap };
+}
+const GROUND = {};
+const groundFor = (k) => (GROUND[k] ||= groundTex(k));
 const floor = new THREE.Mesh(new THREE.CircleGeometry(34, 64), floorMat);
 floor.rotation.x = -Math.PI / 2;
 floor.position.y = 0.0005;
@@ -1795,7 +1885,16 @@ function gradientBg(top, bottom, fog) {
     ctx.fillStyle = g; ctx.fillRect(0, 0, w, h);
   });
 }
-let currentPreset = 'tech';
+let currentPreset = 'track';
+function syncFloor() {
+  const p = PRESETS[currentPreset], g = p.floorTex ? groundFor(p.floorTex) : null;
+  floorMat.map = g ? g.map : null; floorMat.normalMap = g ? g.normalMap : null;
+  floorMat.roughness = p.floorTex === 'asphalt' ? 0.95 : p.floorTex === 'concrete' ? 0.5 : 0.7;
+  floorMat.alphaMap = p.floorTex === 'asphalt' ? null : floorAlpha;   // asphalt is opaque: no mirror sheen
+  floorMat.needsUpdate = true;
+  mirror.visible = p.floorTex !== 'asphalt' && !ptOn;
+  ptFloorMat.map = floorMat.map; ptFloorMat.roughness = p.floorTex === 'asphalt' ? 0.9 : 0.3; ptFloorMat.needsUpdate = true;
+}
 let ptOn = false;
 const ptFloorMat = new THREE.MeshPhysicalMaterial({ color: '#0f1115', roughness: 0.18, metalness: 0, specularIntensity: 0.6 });
 function applyPreset(k) {
@@ -1807,6 +1906,7 @@ function applyPreset(k) {
   domeMat.map = gradientBg(p.bg[0], p.bg[1], p.fog); domeMat.needsUpdate = true;
   scene.fog = p.fx ? new THREE.FogExp2(p.fog, 0.05) : new THREE.Fog(p.fog, 9, 30);
   floorMat.color.set(p.floor); ptFloorMat.color.set(p.floor);
+  syncFloor();
   fx.visible = !!p.fx && !ptOn;
   if (typeof film !== 'undefined') { film.uniforms.grain.value = p.fx ? 0.055 : 0.02; film.uniforms.vignette.value = p.fx ? 0.55 : 0.22; film.uniforms.aberration.value = p.fx ? 0.0005 : 0.00012; }
   if (typeof bokeh !== 'undefined') bokeh.enabled = !!p.fx && hq;
@@ -1816,7 +1916,7 @@ function applyPreset(k) {
   hemi.intensity = p.hemi;
   if (ptOn) ptApplyEnvironment();
   document.body.classList.toggle('dark', !p.light);
-  floorMat.opacity = p.light ? 1 : 1; mirror.material.uniforms.color.value.set(p.light ? 0x5a5a5a : 0x9a9a9a);
+  floorMat.opacity = p.light ? 1 : 1; mirror.material.uniforms.color.value.set(p.floorTex === 'concrete' ? 0x3c3c3c : p.light ? 0x5a5a5a : 0x9a9a9a);
   if (typeof syncChips === 'function') syncChips();
 }
 
@@ -2004,6 +2104,7 @@ async function setPT(on) {
 function restoreRaster() {
   ptHidden().forEach((o) => (o.visible = true));
   flow.visible = showFlow; arrows.visible = showArrows;
+  syncFloor();
   fx.visible = !!PRESETS[currentPreset].fx;
   floor.material = floorMat;
   if (scene.background && scene.background.dispose) scene.background.dispose();
@@ -2043,7 +2144,7 @@ for (const o of bodies) {
 }
 const puTransparent = []; pu.traverse((o) => { if (o.isMesh && o.material.transparent) puTransparent.push(o); });
 depthHidden = () => [fx, flow, arrows, ...(cutaway !== 'solid' ? bodies : []), ...puTransparent];
-let cutaway = 'glass', isolate = false;
+let cutaway = 'solid', isolate = false;
 function applyCutaway() {
   for (const o of bodies) {
     const m = cutaway === 'glass' ? o.userData.glass : cutaway === 'section' ? o.userData.section : o.userData.orig;
@@ -2087,7 +2188,7 @@ for (const c of CALLOUTS) {
   leaders.append(c.line, c.dot);
 }
 const _p = new THREE.Vector3(), _c = new THREE.Vector3();
-let showCallouts = true;
+let showCallouts = false;
 function updateCallouts() {
   const W = innerWidth, H = innerHeight;
   const wide = W > 1180 && showCharts && !$('ui').classList.contains('hide');
@@ -2269,7 +2370,7 @@ const FINISHES = {
   satin: { n: 'Satin', r: 0.32, cc: 0.6, ccr: 0.2 },
   gloss: { n: 'Gloss', r: 0.2, cc: 1.0, ccr: 0.03 },
 };
-let finish = 'matte', tyreId = 'soft';
+let finish = 'matte', tyreId = 'medium';
 function setFinish(k) {
   finish = k; const f = FINISHES[k];
   paintMats.forEach((m) => { m.roughness = f.r; m.clearcoat = f.cc; m.clearcoatRoughness = f.ccr; });
@@ -2284,7 +2385,7 @@ function setTyre(t) {
   if (ptOn) pt.updateMaterials();
   syncChips();
 }
-let drsOpen = false, drsAngle = 0, showFlow = true, showArrows = false, showCharts = true;
+let drsOpen = false, drsAngle = 0, showFlow = false, showArrows = false, showCharts = false;
 function setDRS(on) { if (ptOn) setPT(false); drsOpen = on; syncChips(); }
 function setSpin(on) { if (on && ptOn) setPT(false); controls.autoRotate = on; syncChips(); }
 function chip(parent, label, onClick, cls = '') {
@@ -2340,9 +2441,9 @@ controls.addEventListener('change', () => {
 });
 
 frameView();
-applyPreset('tech');
+applyPreset('track');
 setFinish('matte');
-setTyre(TYRES[0]);
+setTyre(TYRES[1]);
 setHQ(hq);
 setSpin(false);
 applyCutaway();
