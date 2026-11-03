@@ -53,6 +53,9 @@
   .hint { position: absolute; right: 20px; top: 20px; font-size: 12px; color: var(--muted); text-align: right; pointer-events: none; text-shadow: 0 1px 8px rgba(0,0,0,.7); }
   .credit { position: absolute; right: 20px; top: 40px; font-size: 11px; color: #6b7390; text-align: right; max-width: 300px; pointer-events: none; }
 
+  .ptstatus { position: absolute; left: 50%; top: 18px; transform: translateX(-50%); pointer-events: none;
+    padding: 6px 12px; border-radius: 999px; font-size: 12.5px; font-weight: 700; color: #dffcf5;
+    background: rgba(8, 24, 24, .72); border: 1px solid rgba(120, 255, 220, .35); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); white-space: nowrap; }
   #loading { position: fixed; inset: 0; display: grid; place-items: center; background: #0b0d12; z-index: 10; transition: opacity .6s; }
   #loading.done { opacity: 0; pointer-events: none; }
   #loading .box { text-align: center; color: var(--muted); font-size: 14px; }
@@ -61,7 +64,9 @@
     animation: pulse 1.2s ease-in-out infinite alternate; }
   @keyframes pulse { from { transform: scale(.9); opacity: .7 } to { transform: scale(1.05); opacity: 1 } }
 
+  @media (max-width: 1100px) { .ptstatus { top: auto; bottom: calc(100% - 100vh + 300px); } }
   @media (max-width: 720px) {
+    .ptstatus { bottom: calc(46vh + 12px); font-size: 11.5px; }
     .hint, .credit { display: none; }
     .panel { gap: 8px 12px; padding: 10px; max-height: 44vh; overflow-y: auto; }
     button { padding: 6px 9px; font-size: 12px; }
@@ -71,7 +76,10 @@
 {
   "imports": {
     "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
-    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/",
+    "three/examples/jsm/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/",
+    "three-mesh-bvh": "https://cdn.jsdelivr.net/npm/three-mesh-bvh@0.8.3/build/index.module.js",
+    "three-gpu-pathtracer": "https://cdn.jsdelivr.net/npm/three-gpu-pathtracer@0.0.23/build/index.module.js"
   }
 }
 </script>
@@ -84,12 +92,22 @@
 <div class="ui">
   <div class="title">
     <h1>RED BULL <span>F1</span> MACHINE</h1>
-    <p>차체 곡면부터 윙, 서스펜션, 타이어까지 직접 모델링한 실시간 3D 렌더링 · 물리 기반 재질 · 환경 반사 · 그림자 · 앰비언트 오클루전</p>
+    <p>차체 곡면부터 윙, 서스펜션, 타이어까지 직접 모델링한 실시간 3D · 경로 추적 렌더 · 작업 화면(조각 뷰) · 시네마틱 조명</p>
   </div>
   <div class="hint">드래그: 회전 · 휠/핀치: 확대 · 우클릭 드래그: 이동</div>
   <div class="credit">레드불 레이싱 팀 컬러를 바탕으로 한 팬 아트 모델입니다. 공식 로고·스폰서 그래픽은 재현하지 않았습니다.</div>
 
+  <div id="ptStatus" class="ptstatus" role="status" hidden></div>
   <div class="panel" role="toolbar" aria-label="뷰어 설정">
+    <div class="group">
+      <h2>보기</h2>
+      <div class="seg" id="viewBtns">
+        <button data-v="render" aria-pressed="true">렌더</button>
+        <button data-v="clay" aria-pressed="false">작업 화면</button>
+        <button id="revealBtn">전환 연출</button>
+        <button id="ptBtn" aria-pressed="false">경로 추적</button>
+      </div>
+    </div>
     <div class="group">
       <h2>카메라</h2>
       <div class="seg" id="camBtns"></div>
@@ -126,6 +144,8 @@ import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { GTAOPass } from 'three/addons/postprocessing/GTAOPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+import { BokehPass } from 'three/addons/postprocessing/BokehPass.js';
+import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 import { Reflector } from 'three/addons/objects/Reflector.js';
 import { DecalGeometry } from 'three/addons/geometries/DecalGeometry.js';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
@@ -1078,76 +1098,122 @@ decalAt(fusMesh, numberTex, [2.30, 2, 0], [0, -1, 0], [0, 0, -1], [0.10, 0.10], 
 // =====================================================================
 const PRESETS = {
   studio: {
-    name: '스튜디오', exposure: 1.0, envI: 1.0,
+    name: '스튜디오', exposure: 1.0, envI: 1.0, fx: 0,
     bg: ['#1a1d25', '#0b0d12'], fog: '#0d0f14', floor: '#0f1115',
     key: { c: '#ffffff', i: 2.4, p: [3.5, 7, 3.0] }, rim: { c: '#cfe0ff', i: 1.2, p: [-5, 3.5, -4] }, hemi: 0.18,
-    env: (s) => {
-      envRoom(s, '#07080b');
-      envPanel(s, [0, 4.5, -14.5], 28, 9, '#c9d4ff', 0.22);
-      envPanel(s, [0, 4.5, 14.5], 28, 9, '#c9d4ff', 0.22);
-      envPanel(s, [0, 6.5, 0], 7, 2.6, '#ffffff', 3.4, [0, -1, 0]);
-      envPanel(s, [0, 3.2, 7], 12, 0.7, '#ffffff', 9);
-      envPanel(s, [0, 3.2, -7], 12, 0.7, '#ffffff', 9);
-      envPanel(s, [9, 2.2, 0], 5, 3, '#eaf0ff', 2.2);
-      envPanel(s, [-9, 2.6, 0], 4, 2.4, '#fff3e0', 1.6);
-      envPanel(s, [0, 1.0, 9], 16, 0.25, '#ffffff', 4);
-      envPanel(s, [0, 1.0, -9], 16, 0.25, '#ffffff', 4);
-    },
+    env: { room: '#07080b', panels: [
+      [[0, 4.5, -14.5], 28, 9, '#c9d4ff', 0.22], [[0, 4.5, 14.5], 28, 9, '#c9d4ff', 0.22],
+      [[0, 6.5, 0], 7, 2.6, '#ffffff', 3.4, [0, -1, 0]],
+      [[0, 3.2, 7], 12, 0.7, '#ffffff', 9], [[0, 3.2, -7], 12, 0.7, '#ffffff', 9],
+      [[9, 2.2, 0], 5, 3, '#eaf0ff', 2.2], [[-9, 2.6, 0], 4, 2.4, '#fff3e0', 1.6],
+      [[0, 1.0, 9], 16, 0.25, '#ffffff', 4], [[0, 1.0, -9], 16, 0.25, '#ffffff', 4],
+    ] },
+  },
+  cinema: {
+    name: '시네마틱', exposure: 0.95, envI: 0.9, fx: 1,
+    bg: ['#163b3a', '#041010'], fog: '#061414', floor: '#081010',
+    key: { c: '#c8fff0', i: 3.0, p: [-1.2, 8, -1.4] }, rim: { c: '#5fffd2', i: 1.3, p: [-6, 2.0, 3.5] }, hemi: 0.04,
+    env: { room: '#020606', panels: [
+      [[-1, 7, -1], 5, 1.4, '#c8fff0', 4, [0, -1, 0]],
+      [[0, 2.6, -8], 12, 0.4, '#5fffd0', 5],
+      [[8, 1.8, 4], 0.4, 3, '#f4fffb', 3],
+      [[-8, 1.2, 3], 10, 0.3, '#1aa58a', 3],
+      [[0, 4.5, 14.5], 28, 9, '#0f3a34', 0.35],
+    ] },
   },
   golden: {
-    name: '골든아워', exposure: 0.9, envI: 0.85,
+    name: '골든아워', exposure: 0.9, envI: 0.85, fx: 0,
     bg: ['#d07a45', '#2a1712'], fog: '#3a2218', floor: '#2b211c',
     key: { c: '#ffbf80', i: 3.4, p: [7, 2.6, 4] }, rim: { c: '#7fa6ff', i: 0.7, p: [-5, 4, -5] }, hemi: 0.25,
-    env: (s) => {
-      envSky(s, '#3d5e96', '#ff9a52', '#2a1a12');
-      envPanel(s, [14, 5.2, 8], 2.2, 2.2, '#fff0d0', 60, null, true);
-    },
+    env: { sky: ['#3d5e96', '#ff9a52', '#2a1a12'], panels: [[[14, 5.2, 8], 2.2, 2.2, '#fff0d0', 60, null, true]] },
   },
   night: {
-    name: '나이트', exposure: 1.05, envI: 1.0,
+    name: '나이트', exposure: 1.05, envI: 1.0, fx: 0,
     bg: ['#121a33', '#04050a'], fog: '#05070d', floor: '#0a0b10',
     key: { c: '#bcd2ff', i: 1.5, p: [2, 8, 4] }, rim: { c: '#ff3a4a', i: 1.6, p: [-6, 3.2, -3] }, hemi: 0.08,
-    env: (s) => {
-      envRoom(s, '#020306');
-      envPanel(s, [0, 3, 7.5], 14, 0.35, '#4f7dff', 10);
-      envPanel(s, [0, 1.4, -7.5], 14, 0.3, '#ff2a40', 9);
-      envPanel(s, [0, 7, 0], 4, 1.2, '#cfe0ff', 3, [0, -1, 0]);
-      envPanel(s, [9, 2, 2], 0.5, 4, '#ffc400', 6);
-    },
+    env: { room: '#020306', panels: [
+      [[0, 3, 7.5], 14, 0.35, '#4f7dff', 10], [[0, 1.4, -7.5], 14, 0.3, '#ff2a40', 9],
+      [[0, 7, 0], 4, 1.2, '#cfe0ff', 3, [0, -1, 0]], [[9, 2, 2], 0.5, 4, '#ffc400', 6],
+    ] },
   },
 };
-function envRoom(s, color) {
-  const m = new THREE.Mesh(new THREE.BoxGeometry(30, 16, 30), new THREE.MeshBasicMaterial({ color, side: THREE.BackSide }));
-  m.position.y = 7; s.add(m);
+function skyColor(spec, y) {
+  const cT = new THREE.Color(spec[0]), cH = new THREE.Color(spec[1]).multiplyScalar(1.1), cG = new THREE.Color(spec[2]);
+  return y > 0 ? cH.lerp(cT, Math.pow(y, 0.6)) : cH.lerp(cG, Math.min(1, -y * 6));
 }
-function envSky(s, top, horizon, ground) {
-  const g = new THREE.SphereGeometry(40, 48, 24);
-  const col = [];
-  const cT = new THREE.Color(top), cH = new THREE.Color(horizon).multiplyScalar(1.1), cG = new THREE.Color(ground);
-  const p = g.attributes.position;
-  for (let i = 0; i < p.count; i++) {
-    const y = p.getY(i) / 40;
-    const c = y > 0 ? cH.clone().lerp(cT, Math.pow(y, 0.6)) : cH.clone().lerp(cG, Math.min(1, -y * 6));
-    col.push(c.r, c.g, c.b);
+function envSceneFrom(spec) {
+  const s = new THREE.Scene();
+  if (spec.room) {
+    const m = new THREE.Mesh(new THREE.BoxGeometry(30, 16, 30), new THREE.MeshBasicMaterial({ color: spec.room, side: THREE.BackSide }));
+    m.position.y = 7; s.add(m);
   }
-  g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
-  s.add(new THREE.Mesh(g, new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.BackSide })));
-}
-function envPanel(s, pos, w, h, color, intensity, look = null, round = false) {
-  const geo = round ? new THREE.CircleGeometry(w / 2, 32) : new THREE.PlaneGeometry(w, h);
-  const m = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ color: new THREE.Color(color).multiplyScalar(intensity), side: THREE.DoubleSide }));
-  m.position.set(...pos);
-  if (look) m.lookAt(pos[0] + look[0], pos[1] + look[1], pos[2] + look[2]); else m.lookAt(0, 0.6, 0);
-  s.add(m);
+  if (spec.sky) {
+    const g = new THREE.SphereGeometry(40, 48, 24), col = [], pp = g.attributes.position;
+    for (let i = 0; i < pp.count; i++) { const c = skyColor(spec.sky, pp.getY(i) / 40); col.push(c.r, c.g, c.b); }
+    g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+    s.add(new THREE.Mesh(g, new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.BackSide })));
+  }
+  for (const [pos, w, h, color, intensity, look, round] of spec.panels) {
+    const geo = round ? new THREE.CircleGeometry(w / 2, 32) : new THREE.PlaneGeometry(w, h);
+    const m = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ color: new THREE.Color(color).multiplyScalar(intensity), side: THREE.DoubleSide }));
+    m.position.set(...pos);
+    if (look) m.lookAt(pos[0] + look[0], pos[1] + look[1], pos[2] + look[2]); else m.lookAt(0, 0.6, 0);
+    s.add(m);
+  }
+  return s;
 }
 const envCache = {};
 function envFor(key) {
-  if (!envCache[key]) {
-    const s = new THREE.Scene();
-    PRESETS[key].env(s);
-    envCache[key] = pmrem.fromScene(s, 0.02).texture;
-  }
+  if (!envCache[key]) envCache[key] = pmrem.fromScene(envSceneFrom(PRESETS[key].env), 0.02).texture;
   return envCache[key];
+}
+// The same lighting as an HDR equirectangular map (ray-cast against the panels) for the path tracer.
+const equiCache = {};
+function equirectFor(key) {
+  if (equiCache[key]) return equiCache[key];
+  const spec = PRESETS[key].env, W = 1024, H = 512, data = new Float32Array(W * H * 4);
+  const o = new THREE.Vector3(0, 0.6, 0), up = new THREE.Vector3(0, 1, 0);
+  const panels = spec.panels.map(([pos, w, h, color, intensity, look, round]) => {
+    const c = new THREE.Vector3(...pos);
+    const n = look ? new THREE.Vector3(...look).normalize() : o.clone().sub(c).normalize();
+    let r = new THREE.Vector3().crossVectors(up, n);
+    if (r.lengthSq() < 1e-8) r.set(1, 0, 0);
+    r.normalize();
+    const u = new THREE.Vector3().crossVectors(n, r);
+    return { c, n, r, u, w, h, round, col: new THREE.Color(color).multiplyScalar(intensity) };
+  });
+  const room = spec.room ? new THREE.Color(spec.room) : null;
+  const d = new THREE.Vector3(), hit = new THREE.Vector3(), rel = new THREE.Vector3();
+  for (let y = 0; y < H; y++) {
+    const lat = ((y + 0.5) / H - 0.5) * Math.PI;
+    for (let x = 0; x < W; x++) {
+      const phi = ((x + 0.5) / W - 0.5) * Math.PI * 2;
+      d.set(Math.cos(phi) * Math.cos(lat), Math.sin(lat), Math.sin(phi) * Math.cos(lat));
+      let col = room ? room : skyColor(spec.sky, d.y), best = Infinity;
+      if (room) { // distance to the room box (x,z ±15, y -1..15)
+        const tx = (Math.sign(d.x) * 15 - o.x) / (d.x || 1e-9), tz = (Math.sign(d.z) * 15 - o.z) / (d.z || 1e-9);
+        const ty = ((d.y > 0 ? 15 : -1) - o.y) / (d.y || 1e-9);
+        best = Math.min(Math.abs(tx), Math.abs(ty), Math.abs(tz));
+      }
+      for (const P of panels) {
+        const den = d.dot(P.n);
+        if (Math.abs(den) < 1e-6) continue;
+        const t = rel.copy(P.c).sub(o).dot(P.n) / den;
+        if (t <= 0 || t >= best) continue;
+        hit.copy(d).multiplyScalar(t).add(o).sub(P.c);
+        const a = hit.dot(P.r), b = hit.dot(P.u);
+        const inside = P.round ? a * a + b * b < (P.w / 2) ** 2 : Math.abs(a) < P.w / 2 && Math.abs(b) < P.h / 2;
+        if (inside) { best = t; col = P.col; }
+      }
+      const k = (y * W + x) * 4;
+      data[k] = col.r; data[k + 1] = col.g; data[k + 2] = col.b; data[k + 3] = 1;
+    }
+  }
+  const tex = new THREE.DataTexture(data, W, H, THREE.RGBAFormat, THREE.FloatType);
+  tex.mapping = THREE.EquirectangularReflectionMapping;
+  tex.minFilter = tex.magFilter = THREE.LinearFilter;
+  tex.needsUpdate = true;
+  return (equiCache[key] = tex);
 }
 
 const hemi = new THREE.HemisphereLight('#b8c6ff', '#1a1410', 0.2);
@@ -1217,7 +1283,8 @@ let csDirty = true;
 function renderContactShadow() {
   const bg = scene.background, fog = scene.fog;
   scene.background = null; scene.fog = null;
-  const hidden = [floor, mirror, csPlane, dome];
+  const hidden = [floor, mirror, csPlane, dome, fx];
+  const was = hidden.map((o) => o.visible);
   hidden.forEach((o) => (o.visible = false));
   const clearAlpha = renderer.getClearAlpha();
   renderer.setClearAlpha(0);
@@ -1230,9 +1297,44 @@ function renderContactShadow() {
   csBlur(CS.blur * 0.4);
   renderer.setRenderTarget(null);
   renderer.setClearAlpha(clearAlpha);
-  hidden.forEach((o) => (o.visible = true));
+  hidden.forEach((o, i) => (o.visible = was[i]));
   scene.background = bg; scene.fog = fog;
 }
+
+// Volumetric-looking light shafts and floating dust for the cinematic preset
+const fx = new THREE.Group(); fx.visible = false; scene.add(fx);
+const shaftMat = new THREE.ShaderMaterial({
+  uniforms: { color: { value: new THREE.Color('#9ffff0') }, intensity: { value: 0.05 }, time: { value: 0 } },
+  vertexShader: `varying vec3 vN; varying vec3 vV; varying vec2 vUv; varying vec3 vW;
+    void main(){ vec4 wp = modelMatrix * vec4(position,1.0); vW = wp.xyz; vN = normalize(mat3(modelMatrix) * normal);
+      vV = normalize(cameraPosition - wp.xyz); vUv = uv; gl_Position = projectionMatrix * viewMatrix * wp; }`,
+  fragmentShader: `uniform vec3 color; uniform float intensity; uniform float time; varying vec3 vN; varying vec3 vV; varying vec2 vUv; varying vec3 vW;
+    float h(vec2 p){ return fract(sin(dot(p, vec2(127.1,311.7))) * 43758.5453); }
+    float n(vec2 p){ vec2 i=floor(p), f=fract(p); f=f*f*(3.0-2.0*f); return mix(mix(h(i),h(i+vec2(1,0)),f.x), mix(h(i+vec2(0,1)),h(i+vec2(1,1)),f.x), f.y); }
+    void main(){
+      float rim = pow(abs(dot(normalize(vN), normalize(vV))), 2.0);
+      float along = smoothstep(0.0, 0.25, vUv.y) * (1.0 - smoothstep(0.82, 1.0, vUv.y));
+      float streak = 0.65 + 0.35 * n(vec2(vUv.x * 18.0, vUv.y * 2.0 - time * 0.05));
+      gl_FragColor = vec4(color * intensity * rim * along * streak, 1.0);
+    }`,
+  transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide, fog: false,
+});
+[[-0.5, 1.15, 0.0, 0.10], [1.0, 0.7, 0.35, -0.06], [-1.9, 0.55, -0.45, 0.14]].forEach(([x, r, z, tilt], i) => {
+  const cone = new THREE.Mesh(new THREE.ConeGeometry(r, 7.5, 96, 1, true), shaftMat);
+  cone.position.set(x, 3.75, z); cone.rotation.z = tilt; cone.rotation.x = -0.05 * i;
+  fx.add(cone);
+});
+const dust = (() => {
+  const N = 2200, pos = new Float32Array(N * 3);
+  const rand = rng(77);
+  for (let i = 0; i < N; i++) { pos[i * 3] = (rand() - 0.5) * 8; pos[i * 3 + 1] = rand() * 4.2; pos[i * 3 + 2] = (rand() - 0.5) * 5; }
+  const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  const sprite = canvasTex(64, 64, (ctx) => { const gr = ctx.createRadialGradient(32, 32, 0, 32, 32, 32); gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(1, 'rgba(255,255,255,0)'); ctx.fillStyle = gr; ctx.fillRect(0, 0, 64, 64); });
+  return new THREE.Points(g, new THREE.PointsMaterial({ size: 0.018, map: sprite, color: '#c8fff2', transparent: true, opacity: 0.55, depthWrite: false, blending: THREE.AdditiveBlending, fog: false }));
+})();
+fx.add(dust);
+// hide the atmosphere from depth/normal based passes so it never casts AO or confuses focus
+function withoutFx(fn) { const v = fx.visible; fx.visible = false; try { return fn(); } finally { fx.visible = v; } }
 
 // Backdrop dome (a real mesh rather than scene.background, so every pixel has depth for the AO pass)
 const domeMat = new THREE.MeshBasicMaterial({ side: THREE.BackSide, fog: false, depthWrite: true });
@@ -1247,6 +1349,8 @@ function gradientBg(top, bottom, fog) {
   });
 }
 let currentPreset = 'studio';
+let ptOn = false;
+const ptFloorMat = new THREE.MeshPhysicalMaterial({ color: '#0f1115', roughness: 0.18, metalness: 0, specularIntensity: 0.6 });
 function applyPreset(k) {
   const p = PRESETS[k];
   currentPreset = k;
@@ -1254,12 +1358,16 @@ function applyPreset(k) {
   scene.environmentIntensity = p.envI;
   if (domeMat.map) domeMat.map.dispose();
   domeMat.map = gradientBg(p.bg[0], p.bg[1], p.fog); domeMat.needsUpdate = true;
-  scene.fog = new THREE.Fog(p.fog, 9, 30);
-  floorMat.color.set(p.floor);
+  scene.fog = p.fx ? new THREE.FogExp2(p.fog, 0.05) : new THREE.Fog(p.fog, 9, 30);
+  floorMat.color.set(p.floor); ptFloorMat.color.set(p.floor);
+  fx.visible = !!p.fx && !ptOn;
+  if (typeof film !== 'undefined') { film.uniforms.grain.value = p.fx ? 0.055 : 0.02; film.uniforms.vignette.value = p.fx ? 0.55 : 0.22; film.uniforms.aberration.value = p.fx ? 0.0005 : 0.00012; }
+  if (typeof bokeh !== 'undefined') bokeh.enabled = !!p.fx && hq;
   renderer.toneMappingExposure = p.exposure;
   key.color.set(p.key.c); key.intensity = p.key.i; key.position.set(...p.key.p); key.target.position.set(0, 0, 0);
   rim.color.set(p.rim.c); rim.intensity = p.rim.i; rim.position.set(...p.rim.p);
   hemi.intensity = p.hemi;
+  if (ptOn) ptApplyEnvironment();
   document.querySelectorAll('#lightBtns button').forEach((b) => b.setAttribute('aria-pressed', b.dataset.k === k));
 }
 
@@ -1271,19 +1379,186 @@ const composer = new EffectComposer(renderer, rt);
 composer.setPixelRatio(renderer.getPixelRatio());
 composer.setSize(innerWidth, innerHeight);
 composer.addPass(new RenderPass(scene, camera));
+
+// "Sculpt view": every part in a pastel clay matcap (keeps the baked surface normals so seams,
+// fasteners and the carbon weave read like sculpted cavities), revealed/hidden with a diagonal wipe.
+const clayRT = new THREE.WebGLRenderTarget(innerWidth * renderer.getPixelRatio(), innerHeight * renderer.getPixelRatio(), { type: THREE.HalfFloatType, samples: 4 });
+const wipe = new ShaderPass({
+  uniforms: { tDiffuse: { value: null }, tClay: { value: null }, amount: { value: 1 }, aspect: { value: innerWidth / innerHeight } },
+  vertexShader: `varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }`,
+  fragmentShader: `uniform sampler2D tDiffuse; uniform sampler2D tClay; uniform float amount; uniform float aspect; varying vec2 vUv;
+    void main(){
+      vec4 a = texture2D(tDiffuse, vUv), c = texture2D(tClay, vUv);
+      float s = vUv.x * 0.62 + (1.0 - vUv.y) * 0.38;          // diagonal sweep coordinate
+      float edge = (1.0 - amount) * 1.25 - 0.12;
+      float m = smoothstep(edge - 0.004, edge + 0.004, s);     // 1 = render, 0 = clay
+      vec3 col = mix(c.rgb, a.rgb, m);
+      float glow = exp(-pow((s - edge) / 0.006, 2.0)) * step(0.001, amount) * step(amount, 0.999);
+      gl_FragColor = vec4(col + vec3(0.55, 1.0, 0.9) * glow * 3.0, 1.0);
+    }`,
+});
+wipe.uniforms.tClay.value = clayRT.texture;   // ShaderPass clones uniforms and drops render-target textures
+wipe.enabled = false;
+composer.addPass(wipe);
 const gtao = new GTAOPass(scene, camera, innerWidth, innerHeight);
 gtao.output = GTAOPass.OUTPUT.Default;
 gtao.blendIntensity = 0.9;
 gtao.updateGtaoMaterial({ radius: 0.22, distanceExponent: 1.6, thickness: 1.2, scale: 1.0, samples: 16, distanceFallOff: 1, screenSpaceRadius: false });
+{ const r0 = gtao.render.bind(gtao); gtao.render = (...a) => withoutFx(() => r0(...a)); }
 composer.addPass(gtao);
+const bokeh = new BokehPass(scene, camera, { focus: 6, aperture: 0.00012, maxblur: 0.005 });
+{ const r0 = bokeh.render.bind(bokeh); bokeh.render = (...a) => withoutFx(() => r0(...a)); }
+bokeh.enabled = false;
+composer.addPass(bokeh);
 const bloom = new UnrealBloomPass(new THREE.Vector2(innerWidth, innerHeight), 0.22, 0.45, 0.92);
 composer.addPass(bloom);
 composer.addPass(new OutputPass());
+// film finish: grain, vignette, slight chromatic aberration (display space, after tone mapping)
+const film = new ShaderPass({
+  uniforms: { tDiffuse: { value: null }, time: { value: 0 }, grain: { value: 0.02 }, vignette: { value: 0.22 }, aberration: { value: 0.00012 } },
+  vertexShader: `varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }`,
+  fragmentShader: `uniform sampler2D tDiffuse; uniform float time, grain, vignette, aberration; varying vec2 vUv;
+    float rnd(vec2 p){ return fract(sin(dot(p + time, vec2(12.9898,78.233))) * 43758.5453); }
+    void main(){
+      vec2 d = vUv - 0.5;
+      vec3 c = vec3(texture2D(tDiffuse, vUv + d * aberration * 10.0).r, texture2D(tDiffuse, vUv).g, texture2D(tDiffuse, vUv - d * aberration * 10.0).b);
+      c *= 1.0 - vignette * smoothstep(0.25, 0.85, length(d * vec2(1.0, 0.85)));
+      c += (rnd(vUv * 1000.0) - 0.5) * grain;
+      gl_FragColor = vec4(c, 1.0);
+    }`,
+});
+composer.addPass(film);
+
 let hq = !isMobile;
 function setHQ(on) {
   hq = on;
   gtao.enabled = on; bloom.enabled = on;
+  bokeh.enabled = on && !!PRESETS[currentPreset].fx;
   $('hqBtn').setAttribute('aria-pressed', on);
+}
+
+// ---- clay materials
+const PASTEL = ['#e3a1c4', '#a6d6ae', '#b7a5e4', '#e6d3a3', '#9cc7e6', '#eeb298', '#c4e096', '#d6b0e6', '#9fe0d6', '#f0c7a0'];
+const matcap = canvasTex(256, 256, (ctx, w, h) => {
+  ctx.fillStyle = '#000'; ctx.fillRect(0, 0, w, h);
+  const g = ctx.createRadialGradient(w * 0.38, h * 0.32, 4, w * 0.5, h * 0.5, w * 0.5);
+  g.addColorStop(0, '#ffffff'); g.addColorStop(0.18, '#e9e9e9'); g.addColorStop(0.6, '#9a9a9a'); g.addColorStop(0.92, '#3a3a3a'); g.addColorStop(1, '#202020');
+  ctx.fillStyle = g; ctx.beginPath(); ctx.arc(w / 2, h / 2, w / 2, 0, Math.PI * 2); ctx.fill();
+  const r = ctx.createRadialGradient(w * 0.5, h * 0.95, 2, w * 0.5, h * 0.95, w * 0.45);   // bounce light from below
+  r.addColorStop(0, 'rgba(255,255,255,0.25)'); r.addColorStop(1, 'rgba(255,255,255,0)');
+  ctx.fillStyle = r; ctx.fillRect(0, 0, w, h);
+});
+const carMeshes = [];
+car.updateMatrixWorld(true);
+car.traverse((o) => {
+  if (!o.isMesh) return;
+  const m = o.material;
+  const bb = new THREE.Box3().setFromObject(o), c = bb.getCenter(new THREE.Vector3());
+  const keyStr = `${c.x.toFixed(1)}|${c.y.toFixed(1)}|${Math.abs(c.z).toFixed(1)}`;   // mirrored parts share a group colour
+  let hsh = 0; for (const ch of keyStr) hsh = (hsh * 31 + ch.charCodeAt(0)) | 0;
+  const isDecal = o.geometry instanceof DecalGeometry;
+  o.userData.orig = m;
+  o.userData.clay = new THREE.MeshMatcapMaterial({
+    matcap, color: PASTEL[Math.abs(hsh) % PASTEL.length],
+    normalMap: m.normalMap || null, normalScale: m.normalScale ? m.normalScale.clone().multiplyScalar(1.6) : new THREE.Vector2(1, 1),
+    side: m.side,
+  });
+  o.userData.isDecal = isDecal;
+  carMeshes.push(o);
+});
+function renderClay() {
+  for (const o of carMeshes) { o.material = o.userData.clay; if (o.userData.isDecal) o.visible = false; }
+  const fv = fx.visible; fx.visible = false;
+  renderer.setRenderTarget(clayRT);
+  renderer.render(scene, camera);
+  renderer.setRenderTarget(null);
+  fx.visible = fv;
+  for (const o of carMeshes) { o.material = o.userData.orig; if (o.userData.isDecal) o.visible = true; }
+}
+// amount: 1 = full render, 0 = full clay
+let wipeAmount = 1, wipeTarget = 1, wipeSpeed = 0.6, revealTimer = 0;
+function setView(mode) {
+  if (mode === 'clay') { wipeTarget = 0; wipeSpeed = 0.9; }
+  else { wipeTarget = 1; wipeSpeed = 0.6; }
+  document.querySelectorAll('#viewBtns button[data-v]').forEach((b) => b.setAttribute('aria-pressed', b.dataset.v === mode));
+}
+function playReveal() {
+  if (ptOn) setPT(false);
+  wipeAmount = 0; wipeTarget = 0; revealTimer = 1.1;     // hold the sculpt view, then sweep to the render
+  document.querySelectorAll('#viewBtns button[data-v]').forEach((b) => b.setAttribute('aria-pressed', b.dataset.v === 'render'));
+}
+
+// ---- path tracing mode (loaded on demand)
+let pt = null;
+const ptHidden = () => [mirror, csPlane, dome, fx];
+function ptBackground(p) {
+  const t = canvasTex(16, 512, (ctx, w, h) => {
+    const g = ctx.createLinearGradient(0, 0, 0, h);
+    g.addColorStop(0, p.bg[0]); g.addColorStop(0.42, p.bg[1]); g.addColorStop(0.5, p.fog); g.addColorStop(1, p.fog);
+    ctx.fillStyle = g; ctx.fillRect(0, 0, w, h);
+  });
+  t.mapping = THREE.EquirectangularReflectionMapping;
+  return t;
+}
+function ptApplyEnvironment() {
+  const p = PRESETS[currentPreset];
+  scene.environment = equirectFor(currentPreset);
+  if (scene.background && scene.background.dispose) scene.background.dispose();
+  scene.background = ptBackground(p);
+  fx.visible = false;
+  pt.updateEnvironment(); pt.updateLights(); pt.updateMaterials();
+}
+function ptStatus(text) { const el = $('ptStatus'); el.textContent = text; el.hidden = !text; }
+async function setPT(on) {
+  if (on === ptOn) return;
+  const btn = $('ptBtn');
+  if (on) {
+    setSpin(false); camTween = null; setView('render'); wipeAmount = 1;
+    btn.disabled = true;
+    ptStatus('경로 추적 준비 중… (장면 구조 계산)');
+    await new Promise((r) => setTimeout(r, 60));
+    try {
+      if (!pt) {
+        const { WebGLPathTracer } = await import('three-gpu-pathtracer');
+        pt = new WebGLPathTracer(renderer);
+        pt.tiles.set(2, 2);
+        pt.bounces = 6;
+        pt.filteredGlossyFactor = 0.5;
+        pt.minSamples = 2;
+        pt.renderDelay = 120;
+        pt.fadeDuration = 400;
+        pt.renderScale = Math.min(1, 1.25 / renderer.getPixelRatio());
+        pt.rasterizeSceneCallback = () => composer.render();
+      }
+      ptHidden().forEach((o) => (o.visible = false));
+      floor.material = ptFloorMat;
+      for (const o of carMeshes) o.castShadow = true;
+      ptOn = true;
+      ptApplyEnvironment();
+      pt.setScene(scene, camera);
+      ptStatus('경로 추적 렌더링 중');
+    } catch (e) {
+      console.error(e);
+      ptOn = false; restoreRaster();
+      ptStatus('이 기기에서는 경로 추적을 실행할 수 없습니다');
+      setTimeout(() => ptStatus(''), 4000);
+    }
+    btn.disabled = false;
+  } else {
+    ptOn = false;
+    restoreRaster();
+    ptStatus('');
+  }
+  btn.setAttribute('aria-pressed', ptOn);
+}
+function restoreRaster() {
+  ptHidden().forEach((o) => (o.visible = true));
+  fx.visible = !!PRESETS[currentPreset].fx;
+  floor.material = floorMat;
+  if (scene.background && scene.background.dispose) scene.background.dispose();
+  scene.background = null;
+  scene.environment = envFor(currentPreset);
+  csDirty = true;
 }
 
 // =====================================================================
@@ -1322,6 +1597,7 @@ const FINISHES = {
 function setFinish(k) {
   const f = FINISHES[k];
   paintMats.forEach((m) => { m.roughness = f.r; m.clearcoat = f.cc; m.clearcoatRoughness = f.ccr; });
+  if (ptOn) pt.updateMaterials();
   document.querySelectorAll('#finishBtns button').forEach((b) => b.setAttribute('aria-pressed', b.dataset.k === k));
 }
 Object.entries(FINISHES).forEach(([k, f]) => {
@@ -1333,6 +1609,7 @@ Object.entries(FINISHES).forEach(([k, f]) => {
 function setTyre(t) {
   const tx = tyreTexture(t);
   tyreMat.map = tx.map; tyreMat.normalMap = tx.normal; tyreMat.roughnessMap = tx.rough; tyreMat.needsUpdate = true;
+  if (ptOn) pt.updateMaterials();
   document.querySelectorAll('#tyreBtns button').forEach((b) => b.setAttribute('aria-pressed', b.dataset.k === t.id));
 }
 TYRES.forEach((t) => {
@@ -1344,13 +1621,29 @@ TYRES.forEach((t) => {
 });
 let drsOpen = false, drsAngle = 0;
 $('drsBtn').addEventListener('click', () => {
+  if (ptOn) setPT(false);   // moving geometry needs the raster view
   drsOpen = !drsOpen;
   $('drsBtn').setAttribute('aria-pressed', drsOpen);
   $('drsBtn').textContent = drsOpen ? 'DRS 닫기' : 'DRS 열기';
 });
-function setSpin(on) { controls.autoRotate = on; $('spinBtn').setAttribute('aria-pressed', on); }
+function setSpin(on) { if (on && ptOn) setPT(false); controls.autoRotate = on; $('spinBtn').setAttribute('aria-pressed', on); }
 $('spinBtn').addEventListener('click', () => setSpin(!controls.autoRotate));
 $('hqBtn').addEventListener('click', () => setHQ(!hq));
+$('viewBtns').addEventListener('click', (e) => {
+  const b = e.target.closest('button'); if (!b) return;
+  if (b.dataset.v) { if (ptOn) setPT(false); setView(b.dataset.v); }
+  else if (b.id === 'revealBtn') playReveal();
+  else if (b.id === 'ptBtn') setPT(!ptOn);
+});
+// restart path tracing only for visible camera motion (damping keeps emitting tiny 'change' events)
+const ptCamPos = new THREE.Vector3(), ptCamQuat = new THREE.Quaternion();
+controls.addEventListener('change', () => {
+  if (!ptOn || !pt) return;
+  if (camera.position.distanceToSquared(ptCamPos) > 1e-8 || 1 - Math.abs(camera.quaternion.dot(ptCamQuat)) > 1e-9) {
+    ptCamPos.copy(camera.position); ptCamQuat.copy(camera.quaternion);
+    pt.updateCamera();
+  }
+});
 controls.addEventListener('start', () => { camTween = null; });
 
 frameView();
@@ -1367,6 +1660,8 @@ addEventListener('resize', () => {
   renderer.setSize(innerWidth, innerHeight, false);
   composer.setSize(innerWidth, innerHeight);
   gtao.setSize(innerWidth, innerHeight);
+  clayRT.setSize(innerWidth * renderer.getPixelRatio(), innerHeight * renderer.getPixelRatio());
+  wipe.uniforms.aspect.value = innerWidth / innerHeight;
   mirror.getRenderTarget().setSize(Math.min(2048, innerWidth * renderer.getPixelRatio()), Math.min(2048, innerHeight * renderer.getPixelRatio()));
 });
 
@@ -1390,8 +1685,26 @@ function tick() {
     csDirty = true;
   }
   rainMat.emissiveIntensity = (Math.floor(t * 2) % 2 === 0) ? 6 : 0.2;
-  if (csDirty) { renderContactShadow(); csDirty = false; }
-  composer.render();
+  if (csDirty && !ptOn) { renderContactShadow(); csDirty = false; }
+  // atmosphere drift + film grain animation
+  if (fx.visible) { shaftMat.uniforms.time.value = t; dust.rotation.y = t * 0.01; dust.position.y = Math.sin(t * 0.2) * 0.05; }
+  film.uniforms.time.value = (t * 60) % 1000;
+  if (bokeh.enabled) bokeh.uniforms.focus.value = camera.position.distanceTo(controls.target);
+  // sculpt-view wipe
+  if (revealTimer > 0) { revealTimer -= dt; if (revealTimer <= 0) { wipeTarget = 1; wipeSpeed = 0.45; } }
+  if (wipeAmount !== wipeTarget) {
+    const step = wipeSpeed * dt;
+    wipeAmount = Math.abs(wipeTarget - wipeAmount) < step ? wipeTarget : wipeAmount + Math.sign(wipeTarget - wipeAmount) * step;
+  }
+  wipe.enabled = wipeAmount < 1 && !ptOn;
+  wipe.uniforms.amount.value = wipeAmount;
+  if (ptOn) {
+    pt.renderSample();
+    ptStatus(`경로 추적 렌더링 중 · ${Math.floor(pt.samples)} 샘플${pt.samples < 2 ? ' (카메라를 멈추면 선명해집니다)' : ''}`);
+  } else {
+    if (wipe.enabled) renderClay();
+    composer.render();
+  }
   if (first) { first = false; $('loading').classList.add('done'); }
   requestAnimationFrame(tick);
 }
