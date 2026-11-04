@@ -517,6 +517,72 @@ scene.add(key, key.target);
 // =====================================================================
 let F, car, wheels, drsPivot;
 const cockpit = {};
+// ---- wheels: separate the rotating assembly from the parts fixed to the upright (brake duct, caliper, winglet)
+function rigWheels() {
+  car.updateMatrixWorld(true);
+  for (const w of wheels) {
+    const g = w.g, spinner = new THREE.Group();
+    const fixed = [];
+    g.traverse((o) => {
+      if (!o.isMesh) return;
+      const m = o.material;
+      if (m === F.caliperMat) fixed.push(o);                                                     // caliper
+      else if (m === F.carbonUV && o.geometry.type === 'CylinderGeometry') fixed.push(o);       // brake-duct drum
+      else if (m === F.carbon && o.geometry.type === 'TorusGeometry') fixed.push(o);            // over-wheel winglet
+    });
+    for (const o of fixed) g.attach(o);           // keep world transform, re-parent to the steering knuckle
+    for (const o of [...g.children]) if (!fixed.includes(o)) spinner.add(o);
+    g.add(spinner);
+    w.spinner = spinner;
+    w.covers = []; spinner.traverse((o) => { if (o.isMesh && o.material === F.coverMat) w.covers.push(o); });
+  }
+  buildBlur();
+}
+// Rotational motion blur: above a few rad/frame the sidewall lettering and the cover weave strobe
+// (wagon-wheel effect), so swap to textures smeared around the circumference.
+const blur = { level: -1 };
+function smear(src, frac, passes = 24) {
+  const w = src.width, h = src.height, c = document.createElement('canvas'); c.width = w; c.height = h;
+  const ctx = c.getContext('2d');
+  if (frac >= 1) {                                   // full revolution: every row becomes its average colour
+    const s = document.createElement('canvas'); s.width = 1; s.height = h;
+    s.getContext('2d').drawImage(src, 0, 0, w, h, 0, 0, 1, h);
+    ctx.drawImage(s, 0, 0, 1, h, 0, 0, w, h);
+  } else {
+    for (let k = 0; k < passes; k++) {             // running average of shifted copies (wrapping)
+      const dx = (k / passes) * frac * w;
+      ctx.globalAlpha = 1 / (k + 1);
+      ctx.drawImage(src, dx, 0); ctx.drawImage(src, dx - w, 0);
+    }
+  }
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace; t.wrapS = THREE.RepeatWrapping; t.repeat.x = -1; t.anisotropy = 8;
+  return t;
+}
+function buildBlur() {
+  const tx = F.tyreTexture(F.TYRES[1]);
+  const flat = new THREE.DataTexture(new Uint8Array([128, 128, 255, 255]), 1, 1); flat.needsUpdate = true;
+  blur.sharp = { map: tx.map, normal: tx.normal };
+  blur.mid = { map: smear(tx.map.image, 0.18), normal: flat };
+  blur.full = { map: smear(tx.map.image, 1), normal: flat };
+  blur.coverSharp = F.coverMat;
+  blur.coverPlain = new THREE.MeshPhysicalMaterial({ color: '#17181c', roughness: 0.32, metalness: 0.05, clearcoat: 0.8, clearcoatRoughness: 0.1, envMapIntensity: 0.45 });
+  setWheelBlur(0, true);
+}
+function setWheelBlur(omega, force = false) {
+  // omega in rad/s; thresholds with a little hysteresis
+  const lv = blur.level;
+  let want = omega < 10 ? 0 : omega < 40 ? 1 : 2;
+  if (!force && lv >= 0 && Math.abs(want - lv) === 1) {
+    const edges = [10, 40], e = edges[Math.min(want, lv)];
+    if (Math.abs(omega - e) < 3) want = lv;
+  }
+  if (want === lv && !force) return;
+  blur.level = want;
+  const set = [blur.sharp, blur.mid, blur.full][want];
+  F.tyreMat.map = set.map; F.tyreMat.normalMap = set.normal;
+  for (const w of wheels) for (const c of w.covers) c.material = want ? blur.coverPlain : blur.coverSharp;
+}
 const shadowBlob = new THREE.Mesh(new THREE.PlaneGeometry(6.2, 2.6), new THREE.MeshBasicMaterial({
   map: canvasTex(128, 64, (ctx, w, h) => { const g = ctx.createRadialGradient(w / 2, h / 2, 2, w / 2, h / 2, w / 2); g.addColorStop(0, 'rgba(0,0,0,.75)'); g.addColorStop(1, 'rgba(0,0,0,0)'); ctx.fillStyle = g; ctx.fillRect(0, 0, w, h); }),
   transparent: true, depthWrite: false,
@@ -854,11 +920,14 @@ function poseCar(dt) {
   car.rotateX(THREE.MathUtils.clamp(-c.latG * 0.006, -0.02, 0.02));           // roll
   car.rotateZ(THREE.MathUtils.clamp(-acc * 0.0006, -0.012, 0.012));            // pitch (squat/dive)
   c.spin += (c.v / 0.36) * dt;
+  // three.js: +rotation.y turns +x toward -z (left), so a right turn (steer > 0) needs a negative angle
   for (const w of wheels) {
-    w.g.rotation.z = -w.side * c.spin;
-    w.g.rotation.y = (w.side < 0 ? Math.PI : 0) + (w.front ? c.steer * 1.6 : 0);
+    w.spinner.rotation.z = -w.side * c.spin;
+    w.g.rotation.y = (w.side < 0 ? Math.PI : 0) - (w.front ? c.steer * 1.6 : 0);
   }
-  if (cockpit.wheel) cockpit.wheel.quaternion.copy(cockpit.base).multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), -c.steerIn * 1.35));
+  setWheelBlur(c.v / 0.36);
+  // steering wheel turns clockwise (top toward the driver's right, +z) for a right turn
+  if (cockpit.wheel) cockpit.wheel.quaternion.copy(cockpit.base).multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), c.steerIn * 1.35));
   const fp = game.cam === 3;
   if (cockpit.helmet) { cockpit.helmet.visible = !fp; cockpit.suit.visible = !fp; }
   document.body.classList.toggle('fp', fp);
@@ -912,7 +981,8 @@ addEventListener('resize', () => {
   car = F.car; wheels = F.wheelGroups; drsPivot = F.drsPivot;
   cockpit.wheel = car.getObjectByName('steeringWheel'); cockpit.base = cockpit.wheel ? cockpit.wheel.quaternion.clone() : null;
   cockpit.helmet = car.getObjectByName('helmet'); cockpit.suit = car.getObjectByName('suit');
-  { const t = F.TYRES[1], tx = F.tyreTexture(t); F.tyreMat.map = tx.map; F.tyreMat.normalMap = tx.normal; F.tyreMat.roughnessMap = tx.rough; F.tyreMat.needsUpdate = true; }
+  rigWheels();
+  { const tx = F.tyreTexture(F.TYRES[1]); F.tyreMat.map = tx.map; F.tyreMat.normalMap = tx.normal; F.tyreMat.roughnessMap = tx.rough; F.tyreMat.needsUpdate = true; }
   F.paintMats.forEach((m) => { m.roughness = 0.42; m.clearcoat = 0.35; m.clearcoatRoughness = 0.3; });
   car.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
   placeOnGrid();
@@ -923,7 +993,7 @@ addEventListener('resize', () => {
   $('startTA').disabled = false; $('startFree').disabled = false;
   $('loadTxt').textContent = game.best ? `내 최고 랩: ${fmt(game.best)}` : '준비 완료 — 출발 신호가 꺼지면 출발하세요';
   window.__raceReady = true;
-  window.__race = { car$, game, T, input, physics, timing };   // test/debug handle
+  window.__race = { car$, game, T, input, physics, timing, car, wheels, cockpit };   // test/debug handle
   loop();
 })();
 </script>
