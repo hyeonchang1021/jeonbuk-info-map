@@ -117,19 +117,8 @@ h3{font-size:.95rem; margin:0 0 6px}
 </head>
 <body>
 
-<section id="loginView" class="login" hidden>
-  <div class="eyebrow">선생님 전용</div>
-  <h1>영단어 퀴즈 관리</h1>
-  <p>학생들이 푼 기초·중급·고급 퀴즈, 발음 연습, 상황 회화 미션 결과를 봅니다. 관리 비밀번호를 입력하세요.</p>
-  <form id="loginForm">
-    <label for="pw" class="eyebrow" style="display:block;margin-bottom:6px">비밀번호</label>
-    <input id="pw" type="password" autocomplete="current-password" required>
-  </form>
-  <p class="err" id="loginErr" role="alert" hidden></p>
-  <button class="btn primary" type="submit" form="loginForm" id="loginBtn">들어가기</button>
-</section>
 
-<div class="wrap" id="appView" hidden>
+<div class="wrap" id="appView">
   <header class="top">
     <div>
       <div class="eyebrow">선생님 전용</div>
@@ -139,7 +128,6 @@ h3{font-size:.95rem; margin:0 0 6px}
       <span id="updated" aria-live="polite"></span>
       <button class="btn" type="button" id="refreshBtn">새로고침</button>
       <button class="btn" type="button" id="csvBtn">CSV 내려받기</button>
-      <button class="btn" type="button" id="logoutBtn">나가기</button>
     </div>
   </header>
 
@@ -207,12 +195,12 @@ function kindText(a){ if(isTalk(a)) return '상황 회화 미션'; if(isSpeak(a)
 
 /* ---------- 서버 ---------- */
 function api(method,path){
-  return fetch(path,{method:method,headers:{'x-teacher-key':S.key},cache:'no-store'}).then(function(r){
+  return fetch(path,{method:method,cache:'no-store'}).then(function(r){
     return r.json().catch(function(){return {};}).then(function(j){ if(!r.ok){ var e=new Error(j.error||('요청 실패 ('+r.status+')')); e.status=r.status; throw e;} return j; });
   });
 }
 function apiPost(path,obj){
-  return fetch(path,{method:'POST',headers:{'x-teacher-key':S.key,'Content-Type':'application/json'},body:JSON.stringify(obj),cache:'no-store'}).then(function(r){
+  return fetch(path,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(obj),cache:'no-store'}).then(function(r){
     return r.json().catch(function(){return {};}).then(function(j){ if(!r.ok){ var e=new Error(j.error||('요청 실패 ('+r.status+')')); e.status=r.status; throw e;} return j; });
   });
 }
@@ -236,7 +224,6 @@ function load(full){
   return api('GET','/api/results'+(since?'?since='+encodeURIComponent(since):'')).then(function(j){
     merge(j); stamp(); render();
   }).catch(function(e){
-    if(e.status===401){ logout('비밀번호가 맞지 않습니다.'); return; }
     $('#updated').textContent='불러오지 못했습니다: '+e.message;
   }).then(function(){ S.loading=false; $('#refreshBtn').disabled=false; });
 }
@@ -556,35 +543,14 @@ $('#csvBtn').addEventListener('click',function(){
   document.body.appendChild(a); a.click(); a.remove(); setTimeout(function(){URL.revokeObjectURL(url);},2000);
 });
 
-/* ---------- 로그인 ---------- */
-function showApp(){ $('#loginView').hidden=true; $('#appView').hidden=false; load(true); }
-function logout(msg){
-  S.key=''; sset(KEY,''); S.attempts=[];
-  $('#appView').hidden=true; $('#loginView').hidden=false;
-  var e=$('#loginErr'); e.textContent=msg||''; e.hidden=!msg; $('#pw').value=''; $('#pw').focus();
-}
-$('#loginForm').addEventListener('submit',function(ev){
-  ev.preventDefault();
-  var v=$('#pw').value; if(!v) return;
-  var btn=$('#loginBtn'); btn.disabled=true; $('#loginErr').hidden=true;
-  S.key=v;
-  api('GET','/api/results').then(function(j){
-    sset(KEY,v); merge(j);
-    $('#loginView').hidden=true; $('#appView').hidden=false;
-    stamp(); render();
-  }).catch(function(e){ S.key=''; var m=$('#loginErr'); m.textContent=e.status===401?'비밀번호가 맞지 않습니다.':('서버에 연결하지 못했습니다: '+e.message); m.hidden=false; })
-  .then(function(){ btn.disabled=false; });
-});
-$('#logoutBtn').addEventListener('click',function(){ logout(''); });
 $('#refreshBtn').addEventListener('click',function(){ load(false); });
 ['#fName','#fLevel','#fPeriod','#fDone'].forEach(function(s){ $(s).addEventListener(s==='#fName'?'input':'change',render); });
 $('#fReset').addEventListener('click',function(){ $('#fName').value=''; $('#fLevel').value=''; $('#fPeriod').value='all'; $('#fDone').checked=false; render(); });
 ['attempts','students','words'].forEach(function(t){ $('#tab-'+t).addEventListener('click',function(){ S.tab=t; render(); }); });
 /* 5분마다 새 기록만 확인한다. 화면을 안 보고 있을 때는 쉰다. */
-setInterval(function(){ if(S.key && !document.hidden && !$('#detail').open) load(false); },300000);
+setInterval(function(){ if(!document.hidden && !$('#detail').open) load(false); },300000);
 
-S.key=sget(KEY);
-if(S.key) showApp(); else logout('');
+load(true);
 
 })();
 </script>

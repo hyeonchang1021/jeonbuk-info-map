@@ -1,6 +1,4 @@
 // 여러 API가 함께 쓰는 도구. 파일 이름이 _ 로 시작하면 Vercel이 주소로 노출하지 않는다.
-import { timingSafeEqual, scryptSync } from 'node:crypto';
-
 export const LEVELS = ['기초', '중급', '고급', '발음', '회화']; // 발음 = 현장 영어 발음 연습
 
 export function send(res, status, body, headers = {}) {
@@ -11,24 +9,6 @@ export function send(res, status, body, headers = {}) {
   res.end(JSON.stringify(body));
 }
 
-// 선생님 비밀번호 확인. 비밀번호 자체는 어디에도 저장하지 않고 scrypt 해시만 둔다.
-// 환경 변수 TEACHER_PASSWORD 가 있으면 그 값을 우선한다 (Vercel 설정에서 비밀번호를 바꾸고 싶을 때).
-const PW_SALT = '022e6c7f6317565dbe2836091e982c57';
-const PW_HASH = '6e8eaebccaadd7386d78a5d4b67942e362a2d6123233feddda07fdd6af39ec45';
-const okCache = new Map(); // 같은 비밀번호를 매번 다시 계산하지 않도록 (서버 인스턴스 안에서만)
-function sameBytes(a, b) { return a.length === b.length && timingSafeEqual(a, b); }
-export function isTeacher(req) {
-  const got = String(req.headers['x-teacher-key'] || '');
-  if (!got || got.length > 200) return false;
-  const env = process.env.TEACHER_PASSWORD || '';
-  if (env) return sameBytes(Buffer.from(env, 'utf8'), Buffer.from(got, 'utf8'));
-  if (okCache.has(got)) return okCache.get(got);
-  const h = scryptSync(got, PW_SALT, 32, { N: 32768, r: 8, p: 1, maxmem: 64 * 1024 * 1024 });
-  const ok = sameBytes(h, Buffer.from(PW_HASH, 'hex'));
-  if (okCache.size > 50) okCache.clear();
-  okCache.set(got, ok);
-  return ok;
-}
 
 // 퀴즈는 미리 확인 요청(preflight)이 없도록 text/plain 으로 JSON을 보낸다. 어떤 형태로 와도 읽는다.
 export async function readJson(req, limit = 400000) {

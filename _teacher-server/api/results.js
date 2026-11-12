@@ -1,6 +1,6 @@
-// 선생님 화면에서 쓰는 API. 비밀번호가 맞을 때만 응시 기록을 돌려주거나 지운다.
+// 선생님 화면에서 쓰는 API. 응시 기록을 돌려주고, 지우고, 메모를 붙인다. (비밀번호 없음: 주소를 아는 사람은 누구나 쓸 수 있다)
 import { list, get, del, put } from '@vercel/blob';
-import { send, isTeacher, ID_RE, readJson, str } from './_shared.js';
+import { send, ID_RE, readJson, str } from './_shared.js';
 
 // 선생님 메모를 기록에 붙이거나(내용 있음) 뗀다(빈 내용). 로컬 시험 서버도 같은 함수를 쓴다.
 export function applyNote(rec, body) {
@@ -25,7 +25,6 @@ async function readOne(pathname) {
 }
 
 export default async function handler(req, res) {
-  if (!isTeacher(req)) return send(res, 401, { error: '비밀번호가 맞지 않습니다.' });
 
   if (req.method === 'GET') {
     // since=<가장 최근에 받은 id> 를 주면 그보다 새로운 기록만 읽어 온다 (저장소 읽기 횟수를 아끼려고).
